@@ -1,0 +1,20 @@
+{
+  "name": "floras-magical-adventure",
+  "version": "1.0.0",
+  "description": "Flora's Magical Adventure - A cute 2D TypeScript HTML5 Canvas platformer",
+  "type": "module",
+  "scripts": {
+    "build": "node --disable-warning=ExperimentalWarning scripts/build.mjs",
+    "dev": "npm run build && node scripts/serve.mjs",
+    "typecheck": "tsc -p .",
+    "test": "npm run build && node --test --disable-warning=ExperimentalWarning tests/*.test.ts",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "5.9"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}
