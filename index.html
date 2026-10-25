@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flora's Magical Adventure</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            border: 4px solid #fff;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-card {
+            background: rgba(255, 255, 255, 0.9);
+            color: #2d3436;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(6px);
+            border: 2px solid #FFB6C1;
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.65);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #fff;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            letter-spacing: 0.5px;
+        }
+
+        .btn {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 #C74B4B;
+        }
+
+        .btn:hover {
+            background: #FF8E8E;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <div class="ui-panel">
+            <div class="hud-card" id="level-display">Level 1: Blooming Meadow</div>
+            <div class="hud-card" id="status-display">Flowers: 0/3 | Bone: ❌ | Key: ❌</div>
+            <button class="btn" id="music-btn" onclick="toggleAudio()">🎵 Music: OFF</button>
+        </div>
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div class="controls-hint">Arrow Keys / WASD: Move & Jump | W / E: Water 💦 | D / Space: Dig 🦴</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let audioEnabled = false;
+        let synth, polySynth, noiseSynth;
+
+        function initAudio() {
+            synth = new Tone.Synth({ oscillator: { type: 'sine' } }).toDestination();
+            polySynth = new Tone.PolySynth(Tone.Synth).toDestination();
+            polySynth.volume.value = -12;
+            noiseSynth = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination();
+        }
+
+        function toggleAudio() {
+            if (!audioEnabled) {
+                Tone.start();
+                if (!synth) initAudio();
+                audioEnabled = true;
+                document.getElementById('music-btn').innerText = '🎵 Music: ON';
+                startBgMusic();
+            } else {
+                audioEnabled = false;
+                document.getElementById('music-btn').innerText = '🎵 Music: OFF';
+                Tone.Transport.stop();
+            }
+        }
+
+        let bgLoop;
+        const levelMelodies = [
+            ["C4", "E4", "G4", "B4", "A4", "G4", "E4", "D4"],
+            ["D4", "F#4", "A4", "C5", "B4", "A4", "F#4", "E4"],
+            ["E4", "G#4", "B4", "D#5", "C#5", "B4", "G#4", "F#4"],
+            ["F4", "A4", "C5", "E5", "D5", "C5", "A4", "G4"],
+            ["G4", "B4", "D5", "F#5", "E5", "D5", "B4", "A4"]
+        ];
+
+        function startBgMusic() {
+            if (!audioEnabled) return;
+            Tone.Transport.stop();
+            Tone.Transport.cancel();
+
+            const notes = levelMelodies[currentLevel % levelMelodies.length];
+            let idx = 0;
+            bgLoop = new Tone.Loop(time => {
+                polySynth.triggerAttackRelease(notes[idx % notes.length], "8n", time);
+                idx++;
+            }, "4n");
+
+            bgLoop.start(0);
+            Tone.Transport.bpm.value = 115 + currentLevel * 5;
+            Tone.Transport.start();
+        }
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            if (type === 'jump') synth.triggerAttackRelease("G4", "8n");
+            if (type === 'water') noiseSynth.triggerAttackRelease("16n");
+            if (type === 'dig') synth.triggerAttackRelease("A2", "16n");
+            if (type === 'bloom') polySynth.triggerAttackRelease(["C5", "E5", "G5"], "8n");
+            if (type === 'bark') synth.triggerAttackRelease("E3", "16n");
+            if (type === 'key') polySynth.triggerAttackRelease(["G5", "C6", "E6"], "4n");
+        }
+
+        // Game Data & State
+        let currentLevel = 0;
+        const levels = [
+            { name: "Blooming Meadow", flowersNeeded: 3, pet: "Milo the Kitty", species: "kitty", bg: "#87CEEB", treeX: 400 },
+            { name: "Sunny Glade", flowersNeeded: 4, pet: "Pip the Puppy", species: "puppy", bg: "#70C8A0", treeX: 350 },
+            { name: "Rainbow Hills", flowersNeeded: 4, pet: "Peanut the Hamster", species: "hamster", bg: "#FDB9C8", treeX: 450 },
+            { name: "Enchanted Garden", flowersNeeded: 5, pet: "Shelly the Turtle", species: "turtle", bg: "#A29BFE", treeX: 300 },
+            { name: "Pet Paradise", flowersNeeded: 5, pet: "Barnaby the Bunny", species: "bunny", bg: "#FFEAA7", treeX: 500 }
+        ];
+
+        const keys = {};
+        window.addEventListener('keydown', e => { keys[e.code] = true; });
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        class Player {
+            constructor() {
+                this.x = 50; this.y = 350;
+                this.width = 32; this.height = 48;
+                this.vx = 0; this.vy = 0;
+                this.grounded = false;
+                this.facing = 'right';
+                this.isWatering = false;
+                this.waterTimer = 0;
+                this.isDigging = false;
+                this.digTimer = 0;
+            }
+
+            update() {
+                if (keys['ArrowRight'] || keys['KeyD']) { this.vx = 3.5; this.facing = 'right'; }
+                else if (keys['ArrowLeft'] || keys['KeyA']) { this.vx = -3.5; this.facing = 'left'; }
+                else { this.vx = 0; }
+
+                if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && this.grounded) {
+                    this.vy = -9.5;
+                    this.grounded = false;
+                    playSound('jump');
+                }
+
+                if (keys['KeyE'] && !this.isWatering) {
+                    this.isWatering = true;
+                    this.waterTimer = 18;
+                    playSound('water');
+                    checkWatering();
+                }
+
+                if (keys['KeyS'] || keys['KeyD'] || keys['Space']) {
+                    if (!this.isDigging && this.grounded) {
+                        this.isDigging = true;
+                        this.digTimer = 15;
+                        playSound('dig');
+                        checkDigging();
+                    }
+                }
+
+                if (this.waterTimer > 0) this.waterTimer--;
+                else this.isWatering = false;
+
+                if (this.digTimer > 0) this.digTimer--;
+                else this.isDigging = false;
+
+                this.vy += 0.45; // Gravity
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.y >= 380) {
+                    this.y = 380;
+                    this.vy = 0;
+                    this.grounded = true;
+                }
+
+                if (this.x < 0) this.x = 0;
+                if (this.x > canvas.width - this.width) this.x = canvas.width - this.width;
+            }
+
+            draw() {
+                // Body (Flora - Cute Pink Outfit)
+                ctx.fillStyle = "#FF6B8B";
+                ctx.fillRect(this.x, this.y + 12, this.width, this.height - 12);
+
+                // Head
+                ctx.fillStyle = "#FFD1DC";
+                ctx.beginPath();
+                ctx.arc(this.x + 16, this.y, 16, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Hair
+                ctx.fillStyle = "#6C5CE7";
+                ctx.beginPath();
+                ctx.arc(this.x + 16, this.y - 4, 17, Math.PI, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes & Rosy Cheeks
+                ctx.fillStyle = "#2D3436";
+                let eyeX = this.facing === 'right' ? this.x + 22 : this.x + 10;
+                ctx.fillRect(eyeX, this.y - 4, 3, 4);
+
+                ctx.fillStyle = "#FF7675";
+                ctx.beginPath();
+                ctx.arc(this.facing === 'right' ? this.x + 24 : this.x + 8, this.y + 2, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Watering Can
+                ctx.fillStyle = "#74B9FF";
+                let canX = this.facing === 'right' ? this.x + 24 : this.x - 12;
+                ctx.fillRect(canX, this.y + 20, 12, 10);
+                ctx.fillRect(canX + (this.facing === 'right' ? 12 : -4), this.y + 22, 4, 3);
+
+                if (this.isWatering) {
+                    ctx.fillStyle = "#0984E3";
+                    for (let i = 0; i < 6; i++) {
+                        let dropX = canX + (this.facing === 'right' ? 16 + i * 2 : -6 - i * 2);
+                        let dropY = this.y + 24 + i * 3 + Math.sin(Date.now() * 0.02 + i) * 2;
+                        ctx.fillRect(dropX, dropY, 3, 3);
+                    }
+                }
+
+                if (this.isDigging) {
+                    ctx.fillStyle = "#B2BEC3";
+                    ctx.fillRect(this.x + (this.facing === 'right' ? 28 : -8), this.y + 32, 8, 12);
+                }
+            }
+        }
+
+        class Noodle {
+            constructor() {
+                this.x = 20; this.y = 390;
+                this.barkTimer = 0;
+                this.speechBubble = "";
+            }
+
+            update(playerX) {
+                let targetX = playerX - 35;
+                this.x += (targetX - this.x) * 0.06;
+
+                if (Math.random() < 0.006 && this.barkTimer <= 0) {
+                    this.barkTimer = 70;
+                    const barks = ["Woof!", "Arf!", "Yip!", "Ruff!"];
+                    this.speechBubble = barks[Math.floor(Math.random() * barks.length)];
+                    playSound('bark');
+                }
+
+                if (this.barkTimer > 0) this.barkTimer--;
+            }
+
+            draw() {
+                // Golden Doodle body
+                ctx.fillStyle = "#E1B12C";
+                ctx.fillRect(this.x, this.y, 24, 18);
+                ctx.fillRect(this.x + 14, this.y - 10, 14, 14); // Fluffy Head
+
+                // Snout & Ears
+                ctx.fillStyle = "#C49102";
+                ctx.fillRect(this.x + 12, this.y - 6, 4, 8); // Ear
+
+                // Eyes
+                ctx.fillStyle = "#000";
+                ctx.fillRect(this.x + 22, this.y - 6, 2, 3);
+
+                // Fluffy Wagging tail
+                ctx.strokeStyle = "#E1B12C";
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + 6);
+                ctx.lineTo(this.x - 10, this.y + (Math.sin(Date.now() * 0.02) * 8));
+                ctx.stroke();
+
+                // Bark speech bubble
+                if (this.barkTimer > 0) {
+                    ctx.fillStyle = "#FFF";
+                    ctx.beginPath();
+                    ctx.roundRect(this.x - 12, this.y - 34, 44, 20, 8);
+                    ctx.fill();
+                    ctx.fillStyle = "#2D3436";
+                    ctx.font = "bold 11px sans-serif";
+                    ctx.fillText(this.speechBubble, this.x - 6, this.y - 20);
+                }
+            }
+        }
+
+        let flora = new Player();
+        let noodle = new Noodle();
+        let sprouts = [];
+        let boneFound = false;
+        let keyCollected = false;
+        let keyX = 700, keyY = 360;
+
+        const flowerColors = ["#FF7675", "#FD79A8", "#A29BFE", "#FFEAA7", "#55E6C1", "#74B9FF"];
+
+        function initLevel() {
+            sprouts = [];
+            boneFound = false;
+            keyCollected = false;
+            let count = levels[currentLevel].flowersNeeded;
+            for (let i = 0; i < count; i++) {
+                sprouts.push({
+                    x: 120 + i * (460 / count),
+                    y: 410,
+                    bloomed: false,
+                    color: flowerColors[i % flowerColors.length],
+                    danceOffset: Math.random() * Math.PI * 2
+                });
+            }
+            document.getElementById('level-display').innerText = `Level ${currentLevel + 1}: ${levels[currentLevel].name}`;
+            updateStatus();
+            if (audioEnabled) startBgMusic();
+        }
+
+        function updateStatus() {
+            let bloomedCount = sprouts.filter(s => s.bloomed).length;
+            document.getElementById('status-display').innerText = `Flowers: ${bloomedCount}/${levels[currentLevel].flowersNeeded} | Bone: ${boneFound ? '🦴' : '❌'} | Key: ${keyCollected ? '🔑' : '❌'}`;
+        }
+
+        function checkWatering() {
+            sprouts.forEach(s => {
+                if (!s.bloomed && Math.abs(flora.x - s.x) < 45) {
+                    s.bloomed = true;
+                    playSound('bloom');
+                }
+            });
+
+            updateStatus();
+        }
+
+        function checkDigging() {
+            let treeX = levels[currentLevel].treeX;
+            if (!boneFound && Math.abs(flora.x - treeX) < 55) {
+                boneFound = true;
+                playSound('key');
+                updateStatus();
+            }
+        }
+
+        function drawSun() {
+            let time = Date.now() * 0.002;
+            ctx.save();
+            ctx.translate(700, 75);
+            ctx.rotate(time * 0.15);
+            ctx.fillStyle = "#FDCB6E";
+            for (let i = 0; i < 8; i++) {
+                ctx.rotate(Math.PI / 4);
+                ctx.fillRect(-4, -48, 8, 14);
+            }
+            ctx.restore();
+
+            ctx.fillStyle = "#FFEAA7";
+            ctx.beginPath();
+            ctx.arc(700, 75, 34, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cute Sun Smiling Face
+            ctx.fillStyle = "#2D3436";
+            ctx.beginPath();
+            ctx.arc(690, 72, 3, 0, Math.PI * 2);
+            ctx.arc(710, 72, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = "#D63031";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(700, 78, 8, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+
+            // Rosy cheeks
+            ctx.fillStyle = "#FF7675";
+            ctx.beginPath();
+            ctx.arc(685, 78, 4, 0, Math.PI * 2);
+            ctx.arc(715, 78, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawRainbow() {
+            const rainbowColors = ["#FF7675", "#FAB1A0", "#FFEAA7", "#55E6C1", "#74B9FF", "#A29BFE"];
+            ctx.lineWidth = 6;
+            for (let i = 0; i < rainbowColors.length; i++) {
+                ctx.strokeStyle = rainbowColors[i];
+                ctx.beginPath();
+                ctx.arc(400, 430, 260 - (i * 6), Math.PI, 0, false);
+                ctx.stroke();
+            }
+        }
+
+        function drawRescuedPet(species, x, y) {
+            ctx.save();
+            ctx.translate(x, y + Math.sin(Date.now() * 0.005) * 4);
+
+            if (species === 'kitty') {
+                ctx.fillStyle = "#E67E22";
+                ctx.fillRect(-10, -10, 20, 20); // Body
+                ctx.fillStyle = "#FFF";
+                ctx.fillRect(-6, -4, 12, 10);
+            } else if (species === 'puppy') {
+                ctx.fillStyle = "#D35400";
+                ctx.fillRect(-10, -10, 20, 20);
+            } else if (species === 'hamster') {
+                ctx.fillStyle = "#F39C12";
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (species === 'turtle') {
+                ctx.fillStyle = "#27AE60";
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, Math.PI, 0);
+                ctx.fill();
+            } else if (species === 'bunny') {
+                ctx.fillStyle = "#ECF0F1";
+                ctx.fillRect(-8, -10, 16, 20);
+            }
+
+            // Sparkles & Heart
+            ctx.fillStyle = "#FF7675";
+            ctx.font = "12px sans-serif";
+            ctx.fillText("💖", -6, -16);
+
+            ctx.restore();
+        }
+
+        function loop() {
+            ctx.fillStyle = levels[currentLevel].bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawRainbow();
+            drawSun();
+
+            // Tree (Dig Spot)
+            let treeX = levels[currentLevel].treeX;
+            ctx.fillStyle = "#795548";
+            ctx.fillRect(treeX - 10, 330, 20, 100);
+            ctx.fillStyle = "#2E7D32";
+            ctx.beginPath();
+            ctx.arc(treeX, 310, 40, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (!boneFound) {
+                ctx.fillStyle = "#8D6E63";
+                ctx.fillRect(treeX - 15, 420, 30, 8);
+            } else {
+                // Draw Found Bone
+                ctx.fillStyle = "#FFF";
+                ctx.fillRect(treeX - 8, 415, 16, 6);
+            }
+
+            // Ground
+            ctx.fillStyle = "#00B894";
+            ctx.fillRect(0, 428, canvas.width, 72);
+
+            // Flowers / Sprouts
+            let allBloomed = sprouts.every(s => s.bloomed);
+            sprouts.forEach(s => {
+                if (s.bloomed) {
+                    let danceY = allBloomed ? Math.sin(Date.now() * 0.01 + s.danceOffset) * 8 : 0;
+                    ctx.fillStyle = s.color;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y - 14 + danceY, 14, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = "#FFF";
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y - 14 + danceY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = "#55EFC4";
+                    ctx.fillRect(s.x - 3, s.y - 10, 6, 10);
+                }
+            });
+
+            // Cute Doghouse
+            ctx.fillStyle = "#FF7675";
+            ctx.fillRect(670, 350, 75, 78);
+            ctx.fillStyle = "#D63031";
+            ctx.beginPath();
+            ctx.moveTo(660, 350);
+            ctx.lineTo(707, 310);
+            ctx.lineTo(755, 350);
+            ctx.fill();
+            ctx.fillStyle = "#2D3436";
+            ctx.fillRect(690, 385, 35, 43);
+
+            // Key Spawn & Doghouse Pet Display
+            if (keyCollected) {
+                drawRescuedPet(levels[currentLevel].species, 707, 375);
+            } else if (allBloomed && boneFound) {
+                // Spawn Key
+                ctx.fillStyle = "#F1C40F";
+                ctx.beginPath();
+                ctx.arc(keyX, keyY, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(keyX, keyY - 2, 18, 5);
+
+                if (Math.abs(flora.x - keyX) < 35) {
+                    keyCollected = true;
+                    playSound('key');
+                    updateStatus();
+                }
+            }
+
+            flora.update();
+            flora.draw();
+
+            noodle.update(flora.x);
+            noodle.draw();
+
+            // Level Transition
+            if (keyCollected && flora.x > 740) {
+                currentLevel = (currentLevel + 1) % levels.length;
+                initLevel();
+                flora.x = 50;
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        initLevel();
+        loop();
+    </script>
+
+</body>
+
+</html>
