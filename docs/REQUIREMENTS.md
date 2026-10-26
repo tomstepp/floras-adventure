@@ -213,6 +213,8 @@ These are checked automatically against `src/levels.ts` so new levels can't be u
 | LD-14 | Wind is never more than 60% of walking speed (so Flora can always walk into it), with at least 2 s of calm between gusts; rain clouds stay inside the level. |
 | LD-15 | Every hidden star can be reached with a plain jump (no powers): 20–160 px above a reachable surface, within its span, below the HUD, away from the key and the doghouse; its hint is at most 10 words. |
 | LD-16 | A level's challenge fits it: "no bee bumps" only where there are bees, "don't fall in" only where there's water. |
+| LD-17 | Dig mounds are at least 60 px from every tree, so a brown mound never sits against a brown trunk where it's hard to see. |
+| LD-18 | Trees stand in open sky: no ledge (including a moving cloud's whole path) crosses a tree's leaves (about ±50 px, y 245–345) or, lower down, its trunk. |
 
 ## 6. Out of scope (ideas for later)
 

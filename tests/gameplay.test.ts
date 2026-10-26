@@ -164,7 +164,8 @@ test('LV-2: digging an empty mound marks it dug and keeps the bone hidden', () =
 
 test('LV-2: digging picks the closest undug mound, even next to a dug one', () => {
     const game = loadGame();
-    game.run('state.currentLevel = 3; restartLevel();'); // Enchanted Garden: mounds at 210 and 300 are 90px apart
+    // Two mounds 90px apart
+    game.run('state.digMounds[0].x = 210; state.digMounds[1].x = 300;');
     game.run('state.digMounds.forEach(m => { m.hasBone = false; }); state.digMounds[1].hasBone = true;');
     game.run('state.digMounds[0].dug = true;');
     placeFlora(game, 255 - 16, 428); // centre at 255: within range of both 210 and 300

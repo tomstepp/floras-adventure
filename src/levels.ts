@@ -120,7 +120,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 270, y: 345 },
             { x: 530, y: 345 }
         ],
-        mounds: [190, 400, 580],
+        mounds: [190, 470, 580],
         keyPos: { x: 530, y: 315 },
         star: { x: 270, y: 230, hint: "Jump high from the left ledge" },
         challenge: "flowersFirst"
@@ -131,7 +131,7 @@ export const LEVELS: readonly LevelConfig[] = [
         pet: "Pip the Puppy",
         species: "puppy",
         bg: "#70C8A0",
-        treeX: 350,
+        treeX: 90,
         tip: "Boing! Jump on the mushroom 🍄",
         platforms: [
             { x: 160, y: 350, width: 110 },
@@ -146,7 +146,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 380, y: 275 },
             { x: 555, y: 345 }
         ],
-        mounds: [230, 350, 560],
+        mounds: [230, 410, 560],
         keyPos: { x: 610, y: 120 },
         star: { x: 380, y: 170, hint: "Jump up from the middle ledge" },
         challenge: "firstDig"
@@ -157,7 +157,7 @@ export const LEVELS: readonly LevelConfig[] = [
         pet: "Peanut the Hamster",
         species: "hamster",
         bg: "#FDB9C8",
-        treeX: 450,
+        treeX: 90,
         tip: "Ride the floating cloud ☁️",
         platforms: [
             { x: 160, y: 345, width: 110 },
@@ -170,7 +170,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 420, y: 428 },
             { x: 575, y: 215 }
         ],
-        mounds: [180, 470, 600],
+        mounds: [180, 510, 600],
         keyPos: { x: 590, y: 185 },
         star: { x: 215, y: 240, hint: "Look above the first ledge" },
         challenge: "flowersFirst"
@@ -181,7 +181,7 @@ export const LEVELS: readonly LevelConfig[] = [
         pet: "Shelly the Turtle",
         species: "turtle",
         bg: "#A29BFE",
-        treeX: 300,
+        treeX: 80,
         tip: "The big flower needs 3 splashes 🌻",
         platforms: [
             { x: 140, y: 350, width: 105 },
@@ -196,7 +196,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 485, y: 345 },
             { x: 612, y: 265 }
         ],
-        mounds: [210, 300, 540],
+        mounds: [210, 360, 540],
         keyPos: { x: 612, y: 235 },
         star: { x: 192, y: 250, hint: "Jump high from the first ledge" },
         challenge: "firstDig"
@@ -207,7 +207,7 @@ export const LEVELS: readonly LevelConfig[] = [
         pet: "Barnaby the Bunny",
         species: "bunny",
         bg: "#FFEAA7",
-        treeX: 500,
+        treeX: 100,
         tip: "Bounce, float and splash! 🌈",
         platforms: [
             { x: 150, y: 350, width: 110 },
@@ -223,7 +223,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 520, y: 205, waterNeeded: 2 },
             { x: 585, y: 345 }
         ],
-        mounds: [240, 390, 500],
+        mounds: [240, 390, 560],
         keyPos: { x: 520, y: 175 },
         star: { x: 60, y: 330, hint: "Jump right at the very start!" },
         challenge: "flowersFirst"
@@ -237,8 +237,8 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "duckling",
         bg: "#B8E994",
         width: 1600,
-        treeX: 850,
-        trees: [160, 1400],
+        treeX: 1120,
+        trees: [180],
         tip: "Watch out for bees! Jump over them 🐝",
         platforms: [
             { x: 250, y: 345, width: 110 },
@@ -258,7 +258,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1010, y: 265 },
             { x: 1310, y: 340 }
         ],
-        mounds: [620, 900, 1180],
+        mounds: [620, 910, 1180],
         keyPos: { x: 1010, y: 235 },
         star: { x: 480, y: 160, hint: "Jump up from the high ledge near the start" },
         challenge: "noBumps"
@@ -271,7 +271,7 @@ export const LEVELS: readonly LevelConfig[] = [
         bg: "#FFD3B6",
         width: 1800,
         treeX: 900,
-        trees: [520, 1300],
+        trees: [510, 1120],
         tip: "Hop over the bramble bushes 🌿",
         platforms: [
             { x: 230, y: 345, width: 110 },
@@ -295,7 +295,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1010, y: 340 },
             { x: 1460, y: 255 }
         ],
-        mounds: [320, 620, 1050, 1330],
+        mounds: [320, 620, 1050, 1360],
         keyPos: { x: 1460, y: 225 },
         star: { x: 755, y: 150, hint: "High above the ledge in the middle" },
         challenge: "noBumps"
@@ -307,8 +307,8 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "fox",
         bg: "#C7ECEE",
         width: 2000,
-        treeX: 1000,
-        trees: [560, 1700],
+        treeX: 1300,
+        trees: [370],
         tip: "Bounce and float across the sky ☁️",
         platforms: [
             { x: 240, y: 180, width: 110 },
@@ -332,7 +332,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1600, y: 330 },
             { x: 1735, y: 250 }
         ],
-        mounds: [500, 1000, 1450],
+        mounds: [500, 1060, 1450],
         keyPos: { x: 1155, y: 160 },
         star: { x: 295, y: 100, hint: "Bounce on the first mushroom, then jump!" },
         challenge: "noBumps"
@@ -344,8 +344,8 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "panda",
         bg: "#A8D8B9",
         width: 2200,
-        treeX: 1000,
-        trees: [180, 1350, 1850],
+        treeX: 1260,
+        trees: [180, 1850],
         tip: "Busy bees everywhere! Time your jumps 🐝",
         platforms: [
             { x: 250, y: 345, width: 110 },
@@ -376,7 +376,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1155, y: 340 },
             { x: 1660, y: 265, waterNeeded: 3 }
         ],
-        mounds: [620, 1000, 1400, 1650],
+        mounds: [620, 1060, 1410, 1650],
         keyPos: { x: 1660, y: 235 },
         star: { x: 935, y: 150, hint: "Jump up from the ledge above the bees" },
         challenge: "noBumps"
@@ -388,8 +388,8 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "unicorn",
         bg: "#E0C3FC",
         width: 2400,
-        treeX: 1100,
-        trees: [520, 1600, 2150],
+        treeX: 950,
+        trees: [520, 1760, 2000],
         tip: "Everything at once! You can do it 🦄",
         platforms: [
             { x: 220, y: 345, width: 110 },
@@ -420,7 +420,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1805, y: 180, waterNeeded: 3 },
             { x: 2105, y: 340 }
         ],
-        mounds: [560, 1050, 1600, 1840],
+        mounds: [580, 1040, 1660, 1840],
         keyPos: { x: 1805, y: 150 },
         star: { x: 835, y: 100, hint: "Bounce on the mushroom to the high ledge" },
         challenge: "noBumps"
@@ -434,8 +434,8 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "frog",
         bg: "#9FD8E8",
         width: 2000,
-        treeX: 1050,
-        trees: [300, 1700],
+        treeX: 810,
+        trees: [200],
         tip: "Hop across the lily pads! 🪷",
         water: [
             { x: 500, width: 260 },
@@ -476,7 +476,7 @@ export const LEVELS: readonly LevelConfig[] = [
         weather: "wind",
         wind: { strength: -1.6, calm: 200, gust: 150 },
         treeX: 1250,
-        trees: [350, 1900],
+        trees: [200, 1900],
         tip: "Whoosh! Lean into the wind 🍃",
         platforms: [
             { x: 250, y: 345, width: 110 },
@@ -501,7 +501,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1605, y: 340 },
             { x: 1780, y: 265, waterNeeded: 2 }
         ],
-        mounds: [700, 1050, 1500, 1900],
+        mounds: [700, 1050, 1500, 1960],
         keyPos: { x: 1165, y: 160 },
         star: { x: 475, y: 170, hint: "Above the ledge near the start (mind the wind!)" },
         challenge: "firstDig"
@@ -518,8 +518,8 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 280, range: 450, period: 900 },
             { x: 1180, range: 600, period: 1000 }
         ],
-        treeX: 1100,
-        trees: [520, 1850],
+        treeX: 1360,
+        trees: [610, 1970],
         tip: "Rain clouds help your flowers grow! 🌧️",
         platforms: [
             { x: 230, y: 345, width: 110 },
@@ -544,7 +544,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1205, y: 265 },
             { x: 1760, y: 270, waterNeeded: 3 }
         ],
-        mounds: [380, 1300, 1650, 1900],
+        mounds: [380, 1300, 1650, 1910],
         keyPos: { x: 1760, y: 240 },
         star: { x: 1205, y: 160, hint: "High above the middle ledge" },
         challenge: "noBumps"
@@ -562,7 +562,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1100, width: 300 },
             { x: 1700, width: 200 }
         ],
-        treeX: 1250,
+        treeX: 1100,
         trees: [600, 1820],
         tip: "Brrr! Ice is slippery ⛸️",
         platforms: [
@@ -596,8 +596,8 @@ export const LEVELS: readonly LevelConfig[] = [
         bg: "#1B2A4A",
         width: 2400,
         weather: "night",
-        treeX: 1100,
-        trees: [450, 1700],
+        treeX: 950,
+        trees: [680, 1860],
         tip: "It's dark! Fireflies light the way ✨",
         platforms: [
             { x: 230, y: 345, width: 110 },
@@ -625,7 +625,7 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1805, y: 180, waterNeeded: 3 },
             { x: 2105, y: 340 }
         ],
-        mounds: [520, 1050, 1350, 1800],
+        mounds: [520, 1040, 1350, 1800],
         keyPos: { x: 1805, y: 150 },
         star: { x: 475, y: 170, hint: "Up high near the start (fireflies help!)" },
         challenge: "noSplash"

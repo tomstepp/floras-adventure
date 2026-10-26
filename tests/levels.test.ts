@@ -210,6 +210,27 @@ for (const [i, level] of LEVELS.entries()) {
         assert.ok(sorted[sorted.length - 1] < doghouseLeft(level) - 30, 'mound too close to the doghouse');
     });
 
+    test(`LD-17: ${name} dig mounds stay clear of tree trunks, so they're easy to see`, () => {
+        for (const tree of [level.treeX, ...(level.trees ?? [])]) {
+            for (const m of level.mounds) assert.ok(Math.abs(m - tree) >= 60, `mound ${m} is in front of the tree at x=${tree}`);
+        }
+    });
+
+    test(`LD-18: ${name} trees stand in open sky, with no ledge through their leaves or trunk`, () => {
+        // The canopy is about 46px either side of the trunk from y 245 to 345; below that only the trunk (±15).
+        const ledges = [
+            ...level.platforms,
+            ...(level.movingPlatforms ?? []).filter(p => p.style !== 'lily').map(p => ({ ...p, width: p.width + p.range }))
+        ];
+        for (const tree of [level.treeX, ...(level.trees ?? [])]) {
+            for (const p of ledges) {
+                const half = p.y >= 245 && p.y <= 345 ? 50 : p.y > 345 ? 19 : 0;
+                const clear = half === 0 || p.x + p.width <= tree - half || p.x >= tree + half;
+                assert.ok(clear, `ledge ${p.x}-${p.x + p.width} at y=${p.y} cuts through the tree at x=${tree}`);
+            }
+        }
+    });
+
     test(`LD-6: ${name} platforms fit in the level and avoid the doghouse`, () => {
         const lily = (level.movingPlatforms ?? []).filter(p => p.style === 'lily').map(p => p.x);
         for (const p of [...level.platforms, ...movingSpans(level)]) {
