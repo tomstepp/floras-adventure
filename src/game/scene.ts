@@ -5,10 +5,10 @@ import { butterflies, flora, hasPower, noodle, particleSystem, skyVisitors, stat
 import { overWater } from './world.ts';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '../layout.ts';
 import { LEVEL_CLEAR_FRAMES, LEVELS, doghouseX, levelWidth } from '../levels.ts';
-import { POWER_TUNING, STAR_CHALLENGE, STAR_HIDDEN } from '../powers.ts';
+import { CHALLENGE_LABEL, CHALLENGE_TEXT, POWER_TUNING, STAR_CHALLENGE, STAR_HIDDEN, STAR_RESCUE } from '../powers.ts';
 import { drawBee, drawRescuedPet } from '../render/creatures.ts';
-import { drawCelebrationBanner, drawOffscreenArrow, drawStarRow } from '../render/hud.ts';
-import type { StarState } from '../render/hud.ts';
+import { drawCelebrationBanner, drawOffscreenArrow, drawStarGoals, drawStarRow } from '../render/hud.ts';
+import type { StarGoal, StarState } from '../render/hud.ts';
 import { drawHiddenStar, drawKey, drawSprouts } from '../render/items.ts';
 import { drawTwinkle } from '../render/shapes.ts';
 import { drawBushes, drawCloudPlatforms, drawDoghouse, drawIce, drawLilyPads, drawMushrooms, drawPlatforms, drawRainClouds, drawTreeAndGround, drawWater } from '../render/scenery.ts';
@@ -102,9 +102,37 @@ export function render(): void {
 
     const stars = starStates();
     drawStarRow(ctx, stars);
+    drawStarGoals(ctx, starGoals(), starGoalsAlpha());
     if (state.levelClearTimer > 0) {
-        drawCelebrationBanner(ctx, level.pet, stars, LEVEL_CLEAR_FRAMES - state.levelClearTimer);
+        drawCelebrationBanner(ctx, level.pet, stars, starLabels(), LEVEL_CLEAR_FRAMES - state.levelClearTimer);
     }
+}
+
+/** How long the star-goals card stays up when a level starts, and how long it takes to fade. */
+export const STAR_GOALS_TICKS = 300;
+const STAR_GOALS_FADE_TICKS = 40;
+
+/** The star-goals card's opacity: fully shown as a level starts, fading out after a few seconds. */
+export function starGoalsAlpha(): number {
+    if (state.levelClearTimer > 0) return 0;
+    return Math.max(0, Math.min(1, (STAR_GOALS_TICKS - state.levelTicks) / STAR_GOALS_FADE_TICKS));
+}
+
+/** The star-goals card's lines; stars already earned here before show gold. */
+export function starGoals(): StarGoal[] {
+    const level = LEVELS[state.currentLevel];
+    const best = state.progress.stars[state.currentLevel] ?? 0;
+    const got = (bit: number): StarState => (best & bit ? 'earned' : 'open');
+    return [
+        { state: got(STAR_RESCUE), text: `Rescue ${level.pet}` },
+        { state: got(STAR_HIDDEN), text: `Find the hidden star: ${level.star.hint}` },
+        { state: got(STAR_CHALLENGE), text: `Challenge: ${CHALLENGE_TEXT[level.challenge]}` }
+    ];
+}
+
+/** What each of the banner's stars was for. */
+export function starLabels(): string[] {
+    return ['Rescued!', 'Hidden star', CHALLENGE_LABEL[LEVELS[state.currentLevel].challenge]];
 }
 
 /** This run's three stars, live: rescue, hidden star, challenge. */

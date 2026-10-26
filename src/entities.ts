@@ -150,7 +150,8 @@ export class Player {
             onWater();
         }
 
-        if (keys[CONTROLS.dig]) {
+        // One dig per press: holding the key down doesn't keep digging.
+        if (pressed[CONTROLS.dig]) {
             if (!this.isDigging && this.grounded) {
                 this.isDigging = true;
                 this.digTimer = 15;

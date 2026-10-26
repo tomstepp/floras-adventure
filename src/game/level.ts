@@ -5,7 +5,7 @@ import { audio, flora, freshLevelStars, hasPower, noodle, particleSystem, persis
 import { PARADE_GAP, beesAt, cameraTarget, movingPlatformsAt, petName, rainCloudsAt, syncParade } from './world.ts';
 import { CANVAS_WIDTH } from '../layout.ts';
 import { BIG_FLOWER_COLOR, DIG_RANGE, FLOWER_COLORS, GROUND_Y, LEVELS, LEVEL_CLEAR_FRAMES, RAINBOW_SWEEP_FRAMES, doghouseEntryX, doghouseX } from '../levels.ts';
-import { CHALLENGE_TEXT, PET_POWERS, POWER_TUNING, STAR_CHALLENGE, STAR_HIDDEN, STAR_RESCUE } from '../powers.ts';
+import { CHALLENGE_MISSED, CHALLENGE_TEXT, PET_POWERS, POWER_TUNING, STAR_CHALLENGE, STAR_HIDDEN, STAR_RESCUE } from '../powers.ts';
 import { addRescue, recordStars } from '../save.ts';
 import type { DigMound, SproutConfig, Sprout } from '../types.ts';
 
@@ -183,6 +183,8 @@ export function checkDigging(): void {
         updateStatus();
     } else {
         if (!state.boneFound) state.levelStars.wrongDigs++;
+        // A missed first-dig challenge gets its own message (updateChallenge), which says this too.
+        if (!state.levelStars.missedTold && !challengeMet()) return;
         noodle.barkTimer = 60;
         noodle.speechBubble = "Keep sniffing! 🐾";
     }
@@ -213,6 +215,14 @@ export function challengeMet(): boolean {
         case 'noBumps': return s.bumps === 0;
         case 'noSplash': return s.splashes === 0;
     }
+}
+
+/** The moment a challenge is missed, Noodle says so once, so the third star is never a mystery. */
+export function updateChallenge(): void {
+    if (state.levelStars.missedTold || state.levelClearTimer > 0 || challengeMet()) return;
+    state.levelStars.missedTold = true;
+    noodle.forget('⭐ Star challenge: ');
+    noodle.sayFirst(CHALLENGE_MISSED[LEVELS[state.currentLevel].challenge], 200);
 }
 
 /** Stars for finishing now: the rescue, the hidden star if found, the challenge if met. */
@@ -278,6 +288,8 @@ export function updateLevelClear(): void {
         state.progress = { ...state.progress, level: null, unlocked: LEVELS.length - 1 };
         persist();
         updateStatus();
+        // Cleared so closing with Esc isn't mistaken for a past Play Again.
+        dom.victoryDialog.returnValue = '';
         dom.victoryDialog.showModal();
     } else {
         state.currentLevel++;

@@ -18,6 +18,7 @@ export const dom = {
     startScreen: byId('start-screen'),
     playBtn: byId<HTMLButtonElement>('play-btn'),
     continueBtn: byId<HTMLButtonElement>('continue-btn'),
+    startConfirm: byId('start-confirm'),
     levelsBtn: byId<HTMLButtonElement>('levels-btn'),
     starTotal: byId('star-total'),
     petsBtn: byId<HTMLButtonElement>('pets-btn'),

@@ -105,7 +105,8 @@ const doghouseEntryX = (level             )         => levelWidth(level) - 115;
 /** Simulation rate: every physics/timer value below is tuned per 1/60 s tick. */
 const TICK_MS         = 1000 / 60;
 const GROUND_Y         = 428;
-const LEVEL_CLEAR_FRAMES         = 75;
+/** Ticks the level-clear celebration lasts: long enough to read what each star was for. */
+const LEVEL_CLEAR_FRAMES         = 150;
 /** Ticks the victory rainbow takes to sweep across the sky. */
 const RAINBOW_SWEEP_FRAMES         = 40;
 const DIG_RANGE         = 48;
@@ -145,8 +146,8 @@ const BEE_RADIUS         = 10;
 const BUMP_STUN_TICKS         = 24;
 const BUMP_SAFE_TICKS         = 90;
 
-/** Holding water keeps splashing for this long, then Flora has to let go and press again. */
-const WATER_HOLD_TICKS         = 120;
+/** Holding water keeps splashing for this long (2 splashes), then Flora has to let go and press again. */
+const WATER_HOLD_TICKS         = 36;
 
 /** KeyboardEvent.code for each action. Touch buttons press these same codes. */
 const CONTROLS = {
@@ -2173,6 +2174,22 @@ const CHALLENGE_TEXT                                      = {
     noSplash: "Don't fall in the water"
 };
 
+/** A two- or three-word name for each challenge, shown under its star. */
+const CHALLENGE_LABEL                                      = {
+    flowersFirst: "Flowers first",
+    firstDig: "First dig",
+    noBumps: "No bee bumps",
+    noSplash: "Stay dry"
+};
+
+/** What Noodle says the moment a challenge is missed: kind, and clear that the level goes on. */
+const CHALLENGE_MISSED                                      = {
+    flowersFirst: "Oops, the bone came up before the flowers! No challenge star this time, but keep going! 💛",
+    firstDig: "Not that one! No challenge star this time, but keep sniffing! 💛",
+    noBumps: "Ouch! Jump over the bees 🐝 No challenge star this time, but keep going! 💛",
+    noSplash: "Splash! You fell in. No challenge star this time, but keep going! 💛"
+};
+
 /** Stars a level can give, as bits: rescue the pet, find the hidden star, do the challenge. */
 const STAR_RESCUE = 1;
 const STAR_HIDDEN = 2;
@@ -2320,15 +2337,8 @@ function drawTreeAndGround(
 
     // Dirt Mounds & Hidden Bone
     for (const m of digMounds) {
-        if (!m.dug) {
-            ctx.fillStyle = "#8D6E63";
-            ctx.beginPath();
-            ctx.arc(m.x, 428, 14, Math.PI, 0);
-            ctx.fill();
-        } else if (!m.hasBone) {
-            ctx.fillStyle = "#6D4C41";
-            ctx.fillRect(m.x - 12, 425, 24, 4);
-        }
+        if (!m.dug) drawMound(ctx, m.x);
+        else if (!m.hasBone) drawDugHole(ctx, m.x);
     }
 
     if (boneFound) {
@@ -2746,6 +2756,62 @@ function drawDoghouse(ctx                          , centerX         = 707)     
     ctx.quadraticCurveTo(748, 430, 747, 423);
     ctx.fill();
 
+    ctx.restore();
+}
+
+/** A soft, rounded dirt mound with a lighter top, a few pebbles and a tiny sprig. */
+function drawMound(ctx                          , x        )       {
+    ctx.save();
+    // Darker base, then the lighter rounded top, so it looks plump
+    ctx.fillStyle = "#7B5E52";
+    ctx.beginPath();
+    ctx.ellipse(x, 429, 17, 13, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#A1887F";
+    ctx.beginPath();
+    ctx.ellipse(x - 1, 427, 14, 10.5, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(x - 5, 420, 5, 2.5, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Pebbles
+    ctx.fillStyle = "#6D4C41";
+    for (const [px, py, r] of [[-7, 425, 1.6], [4, 422, 1.3], [8, 426, 1.8]]         ) {
+        ctx.beginPath();
+        ctx.arc(x + px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // A tiny sprig on top
+    ctx.strokeStyle = "#3FA866";
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + 2, 417.5);
+    ctx.lineTo(x + 3, 413);
+    ctx.stroke();
+    ctx.fillStyle = "#55C57A";
+    ctx.beginPath();
+    ctx.ellipse(x + 5, 413, 2.4, 1.3, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+/** An empty dug hole: a dark oval with a little pile of loose dirt beside it. */
+function drawDugHole(ctx                          , x        )       {
+    ctx.save();
+    ctx.fillStyle = "#5D4037";
+    ctx.beginPath();
+    ctx.ellipse(x, 429, 11, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#A1887F";
+    ctx.beginPath();
+    ctx.ellipse(x + 13, 427, 6, 3.5, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#6D4C41";
+    ctx.beginPath();
+    ctx.arc(x + 12, 425.5, 1.2, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
 }
 
@@ -3187,7 +3253,7 @@ function drawBee(ctx                          , x        , y        , facingLeft
 }
 
 // --- src/render/hud.ts ---
-/** Overlays drawn on top of the scene: edge arrows, the star tracker and the celebration banner. */
+/** Overlays drawn on top of the scene: edge arrows, the star tracker, the star-goals card and the celebration banner. */
 
 /**
  * When a goal is off-screen, a small pill at the screen edge shows its emoji and which
@@ -3221,12 +3287,17 @@ function drawOffscreenArrow(ctx                          , screenX        , scre
     ctx.restore();
 }
 
-/** The celebration banner, with the level's stars popping in underneath one by one. */
-function drawCelebrationBanner(ctx                          , petName        , stars             , age        )       {
+/**
+ * The celebration banner, with the level's stars popping in underneath one by one.
+ * Each star has a short label, so it's clear what it was for (and what a missed one needed).
+ */
+function drawCelebrationBanner(
+    ctx                          , petName        , stars             , labels                   , age        
+)       {
     ctx.save();
     ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
     ctx.beginPath();
-    ctx.roundRect(220, 112, 360, 92, 20);
+    ctx.roundRect(200, 112, 400, 118, 20);
     ctx.fill();
     ctx.strokeStyle = "#FFB6C1";
     ctx.lineWidth = 3;
@@ -3241,7 +3312,51 @@ function drawCelebrationBanner(ctx                          , petName        , s
         const t = Math.max(0, Math.min(1, (age - 8 - i * 10) / 12));
         if (t <= 0) return;
         const pop = t < 1 ? 1 + Math.sin(t * Math.PI) * 0.3 : 1;
-        drawStarIcon(ctx, 370 + i * 30, 176, 11 * pop * t, st);
+        const x = 400 + (i - 1) * 120;
+        drawStarIcon(ctx, x, 178, 13 * pop * t, st);
+        ctx.globalAlpha = t;
+        ctx.fillStyle = st === 'earned' ? "#2D3436" : "#95A5A6";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText(labels[i] ?? '', x, 212);
+        ctx.globalAlpha = 1;
+    });
+    ctx.restore();
+}
+
+/** One line of the star-goals card: how that star stands, and what it asks. */
+                           
+                     
+                 
+ 
+
+/**
+ * The star-goals card shown as a level starts: what each of the three stars asks for.
+ * `alpha` fades it out. Stars already earned on an earlier visit show gold.
+ */
+function drawStarGoals(ctx                          , goals                     , alpha        )       {
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+    ctx.beginPath();
+    ctx.roundRect(140, 92, 520, 128, 18);
+    ctx.fill();
+    ctx.strokeStyle = "#FDCB6E";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = "#E17055";
+    ctx.font = "bold 17px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Get all 3 stars!", 400, 114);
+    ctx.textAlign = "left";
+    ctx.font = "14px sans-serif";
+    goals.forEach((goal, i) => {
+        const y = 144 + i * 26;
+        drawStarIcon(ctx, 166, y, 9, goal.state);
+        ctx.fillStyle = "#2D3436";
+        ctx.fillText(goal.text, 184, y + 1);
     });
     ctx.restore();
 }
@@ -3416,7 +3531,8 @@ class Player {
             onWater();
         }
 
-        if (keys[CONTROLS.dig]) {
+        // One dig per press: holding the key down doesn't keep digging.
+        if (pressed[CONTROLS.dig]) {
             if (!this.isDigging && this.grounded) {
                 this.isDigging = true;
                 this.digTimer = 15;
@@ -4018,6 +4134,7 @@ const dom = {
     startScreen: byId('start-screen'),
     playBtn: byId                   ('play-btn'),
     continueBtn: byId                   ('continue-btn'),
+    startConfirm: byId('start-confirm'),
     levelsBtn: byId                   ('levels-btn'),
     starTotal: byId('star-total'),
     petsBtn: byId                   ('pets-btn'),
@@ -4082,12 +4199,14 @@ const ctx = dom.canvas.getContext('2d')                            ;
                       
                                                                                     
                          
+                                                                                     
+                        
                                                                                
                    
  
 
 const freshLevelStars = ()             => ({
-    found: false, bumps: 0, splashes: 0, wrongDigs: 0, dugTooEarly: false, earned: 0
+    found: false, bumps: 0, splashes: 0, wrongDigs: 0, dugTooEarly: false, missedTold: false, earned: 0
 });
 
                             
@@ -4343,6 +4462,8 @@ function updateBees()       {
             state.levelStars.bumps++;
             audio.playSound('bump');
             particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
+            // The first bump on a no-bumps level gets the missed-challenge message, which says this too.
+            if (currentLevelConfig().challenge === 'noBumps' && !state.levelStars.missedTold) continue;
             noodle.barkTimer = 70;
             noodle.speechBubble = "Ouch! Jump over the bees 🐝";
         }
@@ -4606,6 +4727,8 @@ function checkDigging()       {
         updateStatus();
     } else {
         if (!state.boneFound) state.levelStars.wrongDigs++;
+        // A missed first-dig challenge gets its own message (updateChallenge), which says this too.
+        if (!state.levelStars.missedTold && !challengeMet()) return;
         noodle.barkTimer = 60;
         noodle.speechBubble = "Keep sniffing! 🐾";
     }
@@ -4636,6 +4759,14 @@ function challengeMet()          {
         case 'noBumps': return s.bumps === 0;
         case 'noSplash': return s.splashes === 0;
     }
+}
+
+/** The moment a challenge is missed, Noodle says so once, so the third star is never a mystery. */
+function updateChallenge()       {
+    if (state.levelStars.missedTold || state.levelClearTimer > 0 || challengeMet()) return;
+    state.levelStars.missedTold = true;
+    noodle.forget('⭐ Star challenge: ');
+    noodle.sayFirst(CHALLENGE_MISSED[LEVELS[state.currentLevel].challenge], 200);
 }
 
 /** Stars for finishing now: the rescue, the hidden star if found, the challenge if met. */
@@ -4701,6 +4832,8 @@ function updateLevelClear()       {
         state.progress = { ...state.progress, level: null, unlocked: LEVELS.length - 1 };
         persist();
         updateStatus();
+        // Cleared so closing with Esc isn't mistaken for a past Play Again.
+        dom.victoryDialog.returnValue = '';
         dom.victoryDialog.showModal();
     } else {
         state.currentLevel++;
@@ -4750,6 +4883,20 @@ function showOverlay(overlay                    )       {
     else document.body.classList.remove('menu-open');
 }
 
+/**
+ * New game: back to level 1, and every rescued pet goes home so it can be rescued again.
+ * Unlocked levels and best stars are kept.
+ */
+function startNewGame()       {
+    // Dev mode keeps every pet available.
+    state.progress = state.dev
+        ? { ...state.progress, level: null }
+        : { ...state.progress, level: null, roster: [], followers: [] };
+    state.rescuedFriends = [];
+    persist();
+    startGame(0);
+}
+
 /** Starts play at `level`, with the chosen followers in the parade. */
 function startGame(level        )       {
     state.currentLevel = level;
@@ -4763,12 +4910,19 @@ function startGame(level        )       {
     showOverlay(null);
 }
 
+/** True after the first tap on New game, while it waits for "tap again to start over". */
+let newGameArmed = false;
+
 function showStartScreen()       {
     state.screen = 'start';
     const canContinue = state.progress.level !== null;
     dom.continueBtn.hidden = !canContinue;
     if (state.progress.level !== null) dom.continueBtn.innerText = `▶ Continue — Level ${state.progress.level + 1}`;
-    dom.playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
+    // With progress or rescued pets, Play is a fresh start ("New game"); otherwise it's just Play.
+    const hasProgress = canContinue || state.progress.roster.length > 0;
+    dom.playBtn.innerText = hasProgress ? '🌱 New game' : '▶ Play';
+    newGameArmed = false;
+    dom.startConfirm.hidden = true;
     dom.petsBtn.hidden = state.progress.roster.length === 0;
     const total = state.progress.stars.reduce((sum, bits) => sum + starCount(bits), 0);
     dom.starTotal.innerText = `⭐ ${total} / ${LEVELS.length * STARS_PER_LEVEL} stars`;
@@ -4802,17 +4956,19 @@ function openLevelSelect(from                    )       {
             btn.type = 'button';
             btn.className = 'level-card';
             const locked = i > state.progress.unlocked && !state.dev;
-            const beaten = i < state.progress.unlocked;
+            // A level's pet stays a surprise until it's rescued (again, after a New game).
+            const rescued = state.progress.roster.includes(level.species);
             btn.disabled = locked;
             if (locked) btn.classList.add('locked');
-            if (beaten) btn.classList.add('beaten');
+            if (rescued) btn.classList.add('beaten');
             if (i === state.currentLevel && from === 'paused') btn.classList.add('current');
-            // First line (the pet, or a lock) is drawn big by CSS; then "number. name", then stars.
+            // First line (the pet, a ❓ until it's rescued, or a lock) is drawn big by CSS;
+            // then "number. name", then the best stars earned.
             const stars = state.progress.stars[i] ?? 0;
             btn.innerText = locked
                 ? `🔒\n${i + 1}. ${level.name}`
-                : `${PET_EMOJI[level.species]}\n${i + 1}. ${level.name}\n${starString(stars)}`;
-            btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
+                : `${rescued ? PET_EMOJI[level.species] : '❓'}\n${i + 1}. ${level.name}\n${starString(stars)}`;
+            btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : rescued ? ' (rescued)' : ''}`);
             btn.addEventListener('click', () => {
                 if (locked) return;
                 // Picking a level is a tap, so it can switch music on like Play does.
@@ -4881,19 +5037,21 @@ function renderRoster()       {
             btn.className = `roster-card ${cardState}`;
             btn.dataset.state = cardState;
             btn.dataset.species = species;
-            btn.disabled = !rescued;
+            // Not `disabled`: browsers send no clicks to disabled buttons, and tapping a pet
+            // not rescued yet should still say where to find it.
+            btn.setAttribute('aria-disabled', String(!rescued));
             const pic = document.createElement('canvas');
             drawRosterPet(pic, species, rescued);
             const power = PET_POWERS[species];
             const label = document.createElement('span');
             label.innerText = rescued
-                ? `${level.pet}\n⚡ ${power.name}\n${following ? '🐾 Following' : '💤 Resting'}`
-                : `???\n⚡ ${power.name}\nRescue in level ${i + 1}`;
+                ? `${level.pet}\n\n⚡ ${power.name}`
+                : `???\n\nRescue in level ${i + 1}`;
             // Tapping or pointing at a card says what its power does, in plain words.
             const describe = ()       => {
                 dom.rosterHint.innerText = rescued
                     ? `${PET_EMOJI[species]} ${power.name}: ${power.description}`
-                    : `Rescue this pet in level ${i + 1} to get ${power.name}: ${power.description}`;
+                    : `Rescue this pet in level ${i + 1} to find out its power!`;
             };
             btn.addEventListener('mouseenter', describe);
             btn.addEventListener('focus', describe);
@@ -4932,7 +5090,9 @@ function closeRoster()       {
 
 /** The victory dialog lists every pet, so it grows with the level list. */
 function fillVictoryDialog()       {
-    dom.victoryText.innerText = `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets!`;
+    dom.victoryText.innerText =
+        `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets! ` +
+        'Play again to send them home and rescue them all over again.';
     dom.rescuedList.replaceChildren(
         ...LEVELS.map(l => {
             const li = document.createElement('li');
@@ -4955,8 +5115,19 @@ function setupMenus()       {
 
     // The Play tap is the user gesture browsers require before audio can start, so music comes on here.
     dom.playBtn.addEventListener('click', () => {
+        // Starting over sends every rescued pet home, so a first tap asks to be sure.
+        // (Dev mode saves nothing and keeps every pet, so there's nothing to lose there.)
+        if (state.progress.roster.length > 0 && !newGameArmed && !state.dev) {
+            newGameArmed = true;
+            dom.playBtn.innerText = '🌱 Yes, start over';
+            dom.startConfirm.innerText =
+                'Starting over sends all your rescued pets home, so you can rescue them again. ' +
+                'Your stars and levels stay. Tap again to start over!';
+            dom.startConfirm.hidden = false;
+            return;
+        }
         audio.setEnabled(true, 0, dom.musicBtn);
-        startGame(0);
+        startNewGame();
     });
     dom.continueBtn.addEventListener('click', () => {
         const level = state.progress.level ?? 0;
@@ -4982,7 +5153,10 @@ function setupMenus()       {
     dom.rosterBackBtn.addEventListener('click', closeRoster);
 
     dom.victoryDialog.addEventListener('close', () => {
-        startGame(0);
+        // Only the Play Again button starts over (sending the pets home, like New game).
+        // Closing any other way (Esc, a click outside) goes to the start screen, pets and all.
+        if (dom.victoryDialog.returnValue === 'play-again') startNewGame();
+        else showStartScreen();
     });
 }
 
@@ -5144,9 +5318,37 @@ function render()       {
 
     const stars = starStates();
     drawStarRow(ctx, stars);
+    drawStarGoals(ctx, starGoals(), starGoalsAlpha());
     if (state.levelClearTimer > 0) {
-        drawCelebrationBanner(ctx, level.pet, stars, LEVEL_CLEAR_FRAMES - state.levelClearTimer);
+        drawCelebrationBanner(ctx, level.pet, stars, starLabels(), LEVEL_CLEAR_FRAMES - state.levelClearTimer);
     }
+}
+
+/** How long the star-goals card stays up when a level starts, and how long it takes to fade. */
+const STAR_GOALS_TICKS = 300;
+const STAR_GOALS_FADE_TICKS = 40;
+
+/** The star-goals card's opacity: fully shown as a level starts, fading out after a few seconds. */
+function starGoalsAlpha()         {
+    if (state.levelClearTimer > 0) return 0;
+    return Math.max(0, Math.min(1, (STAR_GOALS_TICKS - state.levelTicks) / STAR_GOALS_FADE_TICKS));
+}
+
+/** The star-goals card's lines; stars already earned here before show gold. */
+function starGoals()             {
+    const level = LEVELS[state.currentLevel];
+    const best = state.progress.stars[state.currentLevel] ?? 0;
+    const got = (bit        )            => (best & bit ? 'earned' : 'open');
+    return [
+        { state: got(STAR_RESCUE), text: `Rescue ${level.pet}` },
+        { state: got(STAR_HIDDEN), text: `Find the hidden star: ${level.star.hint}` },
+        { state: got(STAR_CHALLENGE), text: `Challenge: ${CHALLENGE_TEXT[level.challenge]}` }
+    ];
+}
+
+/** What each of the banner's stars was for. */
+function starLabels()           {
+    return ['Rescued!', 'Hidden star', CHALLENGE_LABEL[LEVELS[state.currentLevel].challenge]];
 }
 
 /** This run's three stars, live: rescue, hidden star, challenge. */
@@ -5222,6 +5424,7 @@ function tick()       {
     particleSystem.update();
     updateCamera();
 
+    updateChallenge();
     updateDoghouse();
     updateLevelClear();
 }

@@ -1,7 +1,7 @@
 /** The fixed 60-ticks-per-second game loop, and fitting the game box to the window. */
 import { dom } from './dom.ts';
 import { keys, pressed } from './input.ts';
-import { checkDigging, checkWatering, updateDoghouse, updateHiddenStar, updateKey, updateLevelClear } from './level.ts';
+import { checkDigging, checkWatering, updateChallenge, updateDoghouse, updateHiddenStar, updateKey, updateLevelClear } from './level.ts';
 import { render } from './scene.ts';
 import { audio, butterflies, flora, hasPower, noodle, particleSystem, skyVisitors, state, weather } from './state.ts';
 import { currentWind, updateBees, updateCamera, updateMovingPlatforms, updateParade, updatePond, updateRain } from './world.ts';
@@ -61,6 +61,7 @@ export function tick(): void {
     particleSystem.update();
     updateCamera();
 
+    updateChallenge();
     updateDoghouse();
     updateLevelClear();
 }

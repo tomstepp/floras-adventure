@@ -24,6 +24,20 @@ export function showOverlay(overlay: HTMLElement | null): void {
     else document.body.classList.remove('menu-open');
 }
 
+/**
+ * New game: back to level 1, and every rescued pet goes home so it can be rescued again.
+ * Unlocked levels and best stars are kept.
+ */
+export function startNewGame(): void {
+    // Dev mode keeps every pet available.
+    state.progress = state.dev
+        ? { ...state.progress, level: null }
+        : { ...state.progress, level: null, roster: [], followers: [] };
+    state.rescuedFriends = [];
+    persist();
+    startGame(0);
+}
+
 /** Starts play at `level`, with the chosen followers in the parade. */
 export function startGame(level: number): void {
     state.currentLevel = level;
@@ -37,12 +51,19 @@ export function startGame(level: number): void {
     showOverlay(null);
 }
 
+/** True after the first tap on New game, while it waits for "tap again to start over". */
+let newGameArmed = false;
+
 export function showStartScreen(): void {
     state.screen = 'start';
     const canContinue = state.progress.level !== null;
     dom.continueBtn.hidden = !canContinue;
     if (state.progress.level !== null) dom.continueBtn.innerText = `▶ Continue — Level ${state.progress.level + 1}`;
-    dom.playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
+    // With progress or rescued pets, Play is a fresh start ("New game"); otherwise it's just Play.
+    const hasProgress = canContinue || state.progress.roster.length > 0;
+    dom.playBtn.innerText = hasProgress ? '🌱 New game' : '▶ Play';
+    newGameArmed = false;
+    dom.startConfirm.hidden = true;
     dom.petsBtn.hidden = state.progress.roster.length === 0;
     const total = state.progress.stars.reduce((sum, bits) => sum + starCount(bits), 0);
     dom.starTotal.innerText = `⭐ ${total} / ${LEVELS.length * STARS_PER_LEVEL} stars`;
@@ -76,17 +97,19 @@ export function openLevelSelect(from: 'start' | 'paused'): void {
             btn.type = 'button';
             btn.className = 'level-card';
             const locked = i > state.progress.unlocked && !state.dev;
-            const beaten = i < state.progress.unlocked;
+            // A level's pet stays a surprise until it's rescued (again, after a New game).
+            const rescued = state.progress.roster.includes(level.species);
             btn.disabled = locked;
             if (locked) btn.classList.add('locked');
-            if (beaten) btn.classList.add('beaten');
+            if (rescued) btn.classList.add('beaten');
             if (i === state.currentLevel && from === 'paused') btn.classList.add('current');
-            // First line (the pet, or a lock) is drawn big by CSS; then "number. name", then stars.
+            // First line (the pet, a ❓ until it's rescued, or a lock) is drawn big by CSS;
+            // then "number. name", then the best stars earned.
             const stars = state.progress.stars[i] ?? 0;
             btn.innerText = locked
                 ? `🔒\n${i + 1}. ${level.name}`
-                : `${PET_EMOJI[level.species]}\n${i + 1}. ${level.name}\n${starString(stars)}`;
-            btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
+                : `${rescued ? PET_EMOJI[level.species] : '❓'}\n${i + 1}. ${level.name}\n${starString(stars)}`;
+            btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : rescued ? ' (rescued)' : ''}`);
             btn.addEventListener('click', () => {
                 if (locked) return;
                 // Picking a level is a tap, so it can switch music on like Play does.
@@ -155,19 +178,21 @@ export function renderRoster(): void {
             btn.className = `roster-card ${cardState}`;
             btn.dataset.state = cardState;
             btn.dataset.species = species;
-            btn.disabled = !rescued;
+            // Not `disabled`: browsers send no clicks to disabled buttons, and tapping a pet
+            // not rescued yet should still say where to find it.
+            btn.setAttribute('aria-disabled', String(!rescued));
             const pic = document.createElement('canvas');
             drawRosterPet(pic, species, rescued);
             const power = PET_POWERS[species];
             const label = document.createElement('span');
             label.innerText = rescued
-                ? `${level.pet}\n⚡ ${power.name}\n${following ? '🐾 Following' : '💤 Resting'}`
-                : `???\n⚡ ${power.name}\nRescue in level ${i + 1}`;
+                ? `${level.pet}\n\n⚡ ${power.name}`
+                : `???\n\nRescue in level ${i + 1}`;
             // Tapping or pointing at a card says what its power does, in plain words.
             const describe = (): void => {
                 dom.rosterHint.innerText = rescued
                     ? `${PET_EMOJI[species]} ${power.name}: ${power.description}`
-                    : `Rescue this pet in level ${i + 1} to get ${power.name}: ${power.description}`;
+                    : `Rescue this pet in level ${i + 1} to find out its power!`;
             };
             btn.addEventListener('mouseenter', describe);
             btn.addEventListener('focus', describe);
@@ -206,7 +231,9 @@ export function closeRoster(): void {
 
 /** The victory dialog lists every pet, so it grows with the level list. */
 export function fillVictoryDialog(): void {
-    dom.victoryText.innerText = `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets!`;
+    dom.victoryText.innerText =
+        `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets! ` +
+        'Play again to send them home and rescue them all over again.';
     dom.rescuedList.replaceChildren(
         ...LEVELS.map(l => {
             const li = document.createElement('li');
@@ -229,8 +256,19 @@ export function setupMenus(): void {
 
     // The Play tap is the user gesture browsers require before audio can start, so music comes on here.
     dom.playBtn.addEventListener('click', () => {
+        // Starting over sends every rescued pet home, so a first tap asks to be sure.
+        // (Dev mode saves nothing and keeps every pet, so there's nothing to lose there.)
+        if (state.progress.roster.length > 0 && !newGameArmed && !state.dev) {
+            newGameArmed = true;
+            dom.playBtn.innerText = '🌱 Yes, start over';
+            dom.startConfirm.innerText =
+                'Starting over sends all your rescued pets home, so you can rescue them again. ' +
+                'Your stars and levels stay. Tap again to start over!';
+            dom.startConfirm.hidden = false;
+            return;
+        }
         audio.setEnabled(true, 0, dom.musicBtn);
-        startGame(0);
+        startNewGame();
     });
     dom.continueBtn.addEventListener('click', () => {
         const level = state.progress.level ?? 0;
@@ -256,7 +294,10 @@ export function setupMenus(): void {
     dom.rosterBackBtn.addEventListener('click', closeRoster);
 
     dom.victoryDialog.addEventListener('close', () => {
-        startGame(0);
+        // Only the Play Again button starts over (sending the pets home, like New game).
+        // Closing any other way (Esc, a click outside) goes to the start screen, pets and all.
+        if (dom.victoryDialog.returnValue === 'play-again') startNewGame();
+        else showStartScreen();
     });
 }
 

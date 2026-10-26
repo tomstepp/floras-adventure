@@ -1,7 +1,7 @@
 /** Things that move around the level each tick: moving platforms, bees, wind, rain clouds, ponds, the camera and the pet parade. */
 import { POWER_TUNING } from '../powers.ts';
 import { splashSprout, updateStatus } from './level.ts';
-import { audio, flora, hasPower, noodle, particleSystem, state } from './state.ts';
+import { audio, currentLevelConfig, flora, hasPower, noodle, particleSystem, state } from './state.ts';
 import { CANVAS_WIDTH } from '../layout.ts';
 import { BEE_RADIUS, GROUND_Y, LEVELS, RAIN_SPLASH_TICKS, RAIN_WIDTH, levelWidth } from '../levels.ts';
 import type { Platform, Point, Species } from '../types.ts';
@@ -90,6 +90,8 @@ export function updateBees(): void {
             state.levelStars.bumps++;
             audio.playSound('bump');
             particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
+            // The first bump on a no-bumps level gets the missed-challenge message, which says this too.
+            if (currentLevelConfig().challenge === 'noBumps' && !state.levelStars.missedTold) continue;
             noodle.barkTimer = 70;
             noodle.speechBubble = "Ouch! Jump over the bees 🐝";
         }

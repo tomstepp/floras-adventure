@@ -11,7 +11,8 @@ export const doghouseEntryX = (level: LevelConfig): number => levelWidth(level) 
 /** Simulation rate: every physics/timer value below is tuned per 1/60 s tick. */
 export const TICK_MS: number = 1000 / 60;
 export const GROUND_Y: number = 428;
-export const LEVEL_CLEAR_FRAMES: number = 75;
+/** Ticks the level-clear celebration lasts: long enough to read what each star was for. */
+export const LEVEL_CLEAR_FRAMES: number = 150;
 /** Ticks the victory rainbow takes to sweep across the sky. */
 export const RAINBOW_SWEEP_FRAMES: number = 40;
 export const DIG_RANGE: number = 48;
@@ -51,8 +52,8 @@ export const BEE_RADIUS: number = 10;
 export const BUMP_STUN_TICKS: number = 24;
 export const BUMP_SAFE_TICKS: number = 90;
 
-/** Holding water keeps splashing for this long, then Flora has to let go and press again. */
-export const WATER_HOLD_TICKS: number = 120;
+/** Holding water keeps splashing for this long (2 splashes), then Flora has to let go and press again. */
+export const WATER_HOLD_TICKS: number = 36;
 
 /** KeyboardEvent.code for each action. Touch buttons press these same codes. */
 export const CONTROLS = {

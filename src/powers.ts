@@ -69,6 +69,22 @@ export const CHALLENGE_TEXT: Readonly<Record<Challenge, string>> = {
     noSplash: "Don't fall in the water"
 };
 
+/** A two- or three-word name for each challenge, shown under its star. */
+export const CHALLENGE_LABEL: Readonly<Record<Challenge, string>> = {
+    flowersFirst: "Flowers first",
+    firstDig: "First dig",
+    noBumps: "No bee bumps",
+    noSplash: "Stay dry"
+};
+
+/** What Noodle says the moment a challenge is missed: kind, and clear that the level goes on. */
+export const CHALLENGE_MISSED: Readonly<Record<Challenge, string>> = {
+    flowersFirst: "Oops, the bone came up before the flowers! No challenge star this time, but keep going! 💛",
+    firstDig: "Not that one! No challenge star this time, but keep sniffing! 💛",
+    noBumps: "Ouch! Jump over the bees 🐝 No challenge star this time, but keep going! 💛",
+    noSplash: "Splash! You fell in. No challenge star this time, but keep going! 💛"
+};
+
 /** Stars a level can give, as bits: rescue the pet, find the hidden star, do the challenge. */
 export const STAR_RESCUE = 1;
 export const STAR_HIDDEN = 2;

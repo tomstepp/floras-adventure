@@ -27,15 +27,8 @@ export function drawTreeAndGround(
 
     // Dirt Mounds & Hidden Bone
     for (const m of digMounds) {
-        if (!m.dug) {
-            ctx.fillStyle = "#8D6E63";
-            ctx.beginPath();
-            ctx.arc(m.x, 428, 14, Math.PI, 0);
-            ctx.fill();
-        } else if (!m.hasBone) {
-            ctx.fillStyle = "#6D4C41";
-            ctx.fillRect(m.x - 12, 425, 24, 4);
-        }
+        if (!m.dug) drawMound(ctx, m.x);
+        else if (!m.hasBone) drawDugHole(ctx, m.x);
     }
 
     if (boneFound) {
@@ -453,5 +446,61 @@ export function drawDoghouse(ctx: CanvasRenderingContext2D, centerX: number = 70
     ctx.quadraticCurveTo(748, 430, 747, 423);
     ctx.fill();
 
+    ctx.restore();
+}
+
+/** A soft, rounded dirt mound with a lighter top, a few pebbles and a tiny sprig. */
+function drawMound(ctx: CanvasRenderingContext2D, x: number): void {
+    ctx.save();
+    // Darker base, then the lighter rounded top, so it looks plump
+    ctx.fillStyle = "#7B5E52";
+    ctx.beginPath();
+    ctx.ellipse(x, 429, 17, 13, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#A1887F";
+    ctx.beginPath();
+    ctx.ellipse(x - 1, 427, 14, 10.5, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.beginPath();
+    ctx.ellipse(x - 5, 420, 5, 2.5, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Pebbles
+    ctx.fillStyle = "#6D4C41";
+    for (const [px, py, r] of [[-7, 425, 1.6], [4, 422, 1.3], [8, 426, 1.8]] as const) {
+        ctx.beginPath();
+        ctx.arc(x + px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // A tiny sprig on top
+    ctx.strokeStyle = "#3FA866";
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + 2, 417.5);
+    ctx.lineTo(x + 3, 413);
+    ctx.stroke();
+    ctx.fillStyle = "#55C57A";
+    ctx.beginPath();
+    ctx.ellipse(x + 5, 413, 2.4, 1.3, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+/** An empty dug hole: a dark oval with a little pile of loose dirt beside it. */
+function drawDugHole(ctx: CanvasRenderingContext2D, x: number): void {
+    ctx.save();
+    ctx.fillStyle = "#5D4037";
+    ctx.beginPath();
+    ctx.ellipse(x, 429, 11, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#A1887F";
+    ctx.beginPath();
+    ctx.ellipse(x + 13, 427, 6, 3.5, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#6D4C41";
+    ctx.beginPath();
+    ctx.arc(x + 12, 425.5, 1.2, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
 }

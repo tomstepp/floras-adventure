@@ -9,8 +9,10 @@ type KeyHandler = (event: { code: string; repeat?: boolean; preventDefault(): vo
 
 export interface DialogMock {
     open: boolean;
+    returnValue: string;
     showModal(): void;
-    close(): void;
+    /** Closes like the browser does: Play Again passes 'play-again'; Esc passes nothing. */
+    close(returnValue?: string): void;
 }
 
 export interface Game {
@@ -137,8 +139,10 @@ export function loadGame(options: LoadOptions = {}): Game {
         showModal() {
             this.open = true;
         },
-        close() {
+        returnValue: '',
+        close(returnValue?: string) {
             this.open = false;
+            if (returnValue !== undefined) this.returnValue = returnValue;
             this.onClose?.();
         },
         addEventListener(evt: string, fn: () => void) {
@@ -226,6 +230,7 @@ export function loadGame(options: LoadOptions = {}): Game {
         'roster-back-btn': makeElement(),
         'dev-badge': makeElement({ hidden: true }),
         'star-total': makeElement(),
+        'start-confirm': makeElement({ hidden: true }),
         'pause-best': makeElement(),
         'pause-stars': makeElement({
             items: [] as string[],

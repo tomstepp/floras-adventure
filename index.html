@@ -391,6 +391,19 @@
             min-height: 0;
         }
 
+        .start-confirm {
+            max-width: 520px;
+            margin-top: -8px;
+            color: #E17055;
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .start-confirm[hidden] {
+            display: none;
+        }
+
         .star-total {
             font-weight: bold;
             font-size: 16px;
@@ -559,10 +572,10 @@
             background: #f1f2f6;
             color: #b2bec3;
             box-shadow: none;
-            cursor: not-allowed;
+            cursor: help;
         }
 
-        .roster-card:hover:not(:disabled),
+        .roster-card:hover:not(.locked),
         .roster-card:focus-visible {
             transform: translateY(-3px);
             outline: 3px solid #74B9FF;
@@ -671,6 +684,7 @@
                     <button type="button" class="btn secondary" id="continue-btn" hidden>▶ Continue</button>
                     <button type="button" class="btn" id="play-btn">▶ Play</button>
                 </div>
+                <p id="start-confirm" class="start-confirm" role="status" hidden></p>
                 <div class="start-extras">
                     <button type="button" class="btn quiet" id="levels-btn">🗺 Levels</button>
                     <button type="button" class="btn quiet" id="pets-btn" hidden>🐾 My pets</button>

@@ -1,4 +1,4 @@
-/** Overlays drawn on top of the scene: edge arrows, the star tracker and the celebration banner. */
+/** Overlays drawn on top of the scene: edge arrows, the star tracker, the star-goals card and the celebration banner. */
 import { starPath } from './items.ts';
 
 /**
@@ -33,12 +33,17 @@ export function drawOffscreenArrow(ctx: CanvasRenderingContext2D, screenX: numbe
     ctx.restore();
 }
 
-/** The celebration banner, with the level's stars popping in underneath one by one. */
-export function drawCelebrationBanner(ctx: CanvasRenderingContext2D, petName: string, stars: StarState[], age: number): void {
+/**
+ * The celebration banner, with the level's stars popping in underneath one by one.
+ * Each star has a short label, so it's clear what it was for (and what a missed one needed).
+ */
+export function drawCelebrationBanner(
+    ctx: CanvasRenderingContext2D, petName: string, stars: StarState[], labels: readonly string[], age: number
+): void {
     ctx.save();
     ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
     ctx.beginPath();
-    ctx.roundRect(220, 112, 360, 92, 20);
+    ctx.roundRect(200, 112, 400, 118, 20);
     ctx.fill();
     ctx.strokeStyle = "#FFB6C1";
     ctx.lineWidth = 3;
@@ -53,7 +58,51 @@ export function drawCelebrationBanner(ctx: CanvasRenderingContext2D, petName: st
         const t = Math.max(0, Math.min(1, (age - 8 - i * 10) / 12));
         if (t <= 0) return;
         const pop = t < 1 ? 1 + Math.sin(t * Math.PI) * 0.3 : 1;
-        drawStarIcon(ctx, 370 + i * 30, 176, 11 * pop * t, st);
+        const x = 400 + (i - 1) * 120;
+        drawStarIcon(ctx, x, 178, 13 * pop * t, st);
+        ctx.globalAlpha = t;
+        ctx.fillStyle = st === 'earned' ? "#2D3436" : "#95A5A6";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText(labels[i] ?? '', x, 212);
+        ctx.globalAlpha = 1;
+    });
+    ctx.restore();
+}
+
+/** One line of the star-goals card: how that star stands, and what it asks. */
+export interface StarGoal {
+    state: StarState;
+    text: string;
+}
+
+/**
+ * The star-goals card shown as a level starts: what each of the three stars asks for.
+ * `alpha` fades it out. Stars already earned on an earlier visit show gold.
+ */
+export function drawStarGoals(ctx: CanvasRenderingContext2D, goals: readonly StarGoal[], alpha: number): void {
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+    ctx.beginPath();
+    ctx.roundRect(140, 92, 520, 128, 18);
+    ctx.fill();
+    ctx.strokeStyle = "#FDCB6E";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = "#E17055";
+    ctx.font = "bold 17px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Get all 3 stars!", 400, 114);
+    ctx.textAlign = "left";
+    ctx.font = "14px sans-serif";
+    goals.forEach((goal, i) => {
+        const y = 144 + i * 26;
+        drawStarIcon(ctx, 166, y, 9, goal.state);
+        ctx.fillStyle = "#2D3436";
+        ctx.fillText(goal.text, 184, y + 1);
     });
     ctx.restore();
 }

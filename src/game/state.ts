@@ -32,12 +32,14 @@ export interface LevelStars {
     wrongDigs: number;
     /** The bone was dug up before every flower bloomed (flowersFirst challenge). */
     dugTooEarly: boolean;
+    /** Noodle has already said the challenge was missed, so he says it only once. */
+    missedTold: boolean;
     /** Stars earned, as bits, once Flora reaches the doghouse with the key. */
     earned: number;
 }
 
 export const freshLevelStars = (): LevelStars => ({
-    found: false, bumps: 0, splashes: 0, wrongDigs: 0, dugTooEarly: false, earned: 0
+    found: false, bumps: 0, splashes: 0, wrongDigs: 0, dugTooEarly: false, missedTold: false, earned: 0
 });
 
 export interface GameState {

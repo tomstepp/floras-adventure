@@ -28,7 +28,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | CT-1 | Move: ← / →. |
 | CT-2 | Jump: ↑. Space does **not** jump. |
 | CT-3 | Water: Space. Blooms any unbloomed sprout within 48 px of the watering can, at roughly Flora's foot height. |
-| CT-4 | Dig: ↓, only while standing on the ground (not a platform). |
+| CT-4 | Dig: ↓, only while standing on the ground (not a platform). One dig per press: holding the key down doesn't keep digging. |
 | CT-5 | Restart level: the ↺ Restart button in the HUD. Resets the current level's sprouts, bone, key and Flora's position. Ignored during the level-clear celebration and the victory dialog. |
 | CT-6 | Arrow keys and Space don't scroll the page during play. Letter keys do nothing. |
 | CT-7 | If the window loses focus, all held keys are released and the game pauses (see PS-2). |
@@ -36,7 +36,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | CT-9 | Releasing ↑ early cuts the jump short (a small hop); holding it gives the full jump height. |
 | CT-10 | Coyote time: a jump still works for 6 ticks (~0.1 s) after walking off a ledge. |
 | CT-11 | Jump buffer: a jump pressed up to 6 ticks before landing fires on landing. |
-| CT-12 | Holding the water key keeps splashing for at most 2 s (120 ticks); then the can stops until the key is released and pressed again. A tap shorter than one tick still waters. |
+| CT-12 | Holding the water key gives at most 2 splashes (36 ticks); then the can stops until the key is released and pressed again. A tap shorter than one tick still waters. |
 
 ## 2a. Start screen
 
@@ -44,7 +44,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 |----|-------------|
 | ST-1 | The game opens on a start screen over the first level. Nothing moves until the player picks a button; keys held on the start screen don't carry into play. |
 | ST-2 | It shows how to play as four pictures in order — water flowers → dig for the bone → grab the key → rescue a pet — each with its key (desktop) or button icon (touch), so non-readers can follow it. |
-| ST-3 | With nothing to continue it offers **▶ Play**. With a save it offers **▶ Continue — Level N** (focused) and **🌱 New game**. Below them, **🗺 Levels** is always there, and **🐾 My pets** once at least one pet has been rescued. |
+| ST-3 | With no progress and no rescued pets it offers **▶ Play**; otherwise **🌱 New game** (and **▶ Continue — Level N**, focused, when there's somewhere to continue). Below them, **🗺 Levels** is always there, and **🐾 My pets** once at least one pet has been rescued. |
 | ST-4 | On-screen touch buttons are hidden while the start screen is up. |
 
 ## 2b. Saving
@@ -52,7 +52,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | ID | Requirement |
 |----|-------------|
 | SV-1 | Progress is saved in the browser (localStorage): the level to Continue from, the furthest level reached, the roster of rescued pets and which of them follow. Starting or picking a level, beating one, or changing followers updates it. |
-| SV-2 | New game starts at level 1 and removes Continue, but unlocked levels, the roster and the chosen followers are kept. |
+| SV-2 | New game starts at level 1, removes Continue and sends every rescued pet home (roster and followers cleared), so they can all be rescued, and welcomed, again. Unlocked levels and best stars are kept. If any pets have been rescued, the first tap only asks: the button becomes **🌱 Yes, start over** with a note explaining the pets go home; a second tap starts over. Leaving the start screen cancels the question. In dev mode there's no question and every pet stays available. |
 | SV-3 | Winning the whole game removes Continue and unlocks every level. |
 | SV-4 | A missing, broken or out-of-range save is ignored, and blocked storage (e.g. private mode) never breaks the game — progress just isn't kept. |
 | SV-5 | Older saves that only stored a level still work: Continue goes there and levels up to it are unlocked. |
@@ -65,7 +65,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | PS-2 | Switching away from the window or tab (blur, or the page being hidden) pauses the game automatically. |
 | PS-3 | The pause menu offers Resume, **↺ Restart level**, **🗺 Choose a level**, **🐾 My pets** and **🏠 Main menu**. Keys pressed while a menu is open never carry into play, and touch buttons are hidden while any menu is up. |
 | PS-4 | Main menu goes to the start screen, where Continue returns to the level that was left. |
-| LS-1 | The level list shows all levels as cards: number, pet emoji and name. Levels up to the furthest one reached can be picked; later ones show 🔒 and can't be started. Beaten levels are ticked ✔, and when opened from the pause menu the current level is highlighted and focused. |
+| LS-1 | The level list shows all levels as cards: icon, number and name, and the best stars earned. Levels up to the furthest one reached can be picked; later ones show 🔒 and can't be started. A level's pet is only shown (on a green card) once it has been rescued in the current game; until then the card shows ❓, so pets stay a surprise, including after New game sends them home. When opened from the pause menu the current level is highlighted and focused. |
 | LS-2 | Picking a level starts it with your chosen followers in the parade, and makes it the Continue point. Picking a level counts as a tap, so it can switch music on like Play. |
 | LS-3 | ← Back (or Esc) returns to wherever the list was opened from: the start screen or the pause menu. The same goes for My pets. |
 
@@ -97,7 +97,7 @@ Powers only ever help, and every level can be beaten with no pets following.
 | PW-2 | Movement powers: 🐱 **Quick paws** walk faster · 🐰 **Bunny hop** jump higher · 🐥 **Feather float** fall slowly · 🐼 **Mushroom fan** bounce higher · 🐷 **Bush buddy** walk through bushes · 🐢 **Steady feet** no slipping on ice · 🐸 **Pond paddler** swim across ponds · 🐦 **Wind rider** the wind hardly pushes. |
 | PW-3 | Level powers: 🐹 **Big splash** water from farther · 🐶 **Super sniffer** Noodle smells the bone from farther · 🦊 **Clever eyes** a sparkle over the bone's mound · 🦄 **Rainbow magic** big flowers need one less splash (they still look like sunflowers) · 🐌 **Rain friend** rain waters twice as fast · 🐻 **Honey friend** bees won't bump you · 🦉 **Night eyes** a much bigger light at night. |
 | PW-4 | Powers turn on and off with the followers, straight away, including when the team is changed mid-level from the pause menu (a big flower with enough water blooms at once). |
-| PW-5 | Kids never have to guess: each My pets card shows its power's name (even for pets not rescued yet, with the level that rescues them); pointing at or tapping a card shows the description; the pause menu lists the team's powers; a newly rescued pet is announced with its power ("Milo the Kitty joins you: Quick paws! Walk a little faster."). |
+| PW-5 | Kids never have to guess: each rescued pet's My pets card shows its name, a blank line, then its power's name (followers are the pink cards); pointing at or tapping a card shows the description. Pets not rescued yet keep their power a surprise: the card shows ???, a blank line and "Rescue in level N", and tapping it says "Rescue this pet in level N to find out its power!". The pause menu lists the team's powers, and a newly rescued pet is announced with its power ("Milo the Kitty joins you: Quick paws! Walk a little faster."). |
 
 ## 2g. Stars
 
@@ -109,6 +109,9 @@ Powers only ever help, and every level can be beaten with no pets following.
 | SR-4 | Hints are given without asking: when a level starts, Noodle says the level's tip, then the hidden-star hint, then the challenge. Once the star is found its hint isn't repeated. The pause menu lists all three goals with ✅ done / ⬜ still to do / ❌ missed ("try again next time!"), and the level's best. |
 | SR-5 | A tracker under the level name shows this run's stars: gold when earned, outlined while still possible, pale and dashed when missed. When Flora reaches the doghouse the celebration banner shows the stars popping in one by one. |
 | SR-6 | The best stars ever earned on each level are saved (a worse replay never lowers them). The level list shows each unlocked level's stars (★★☆) and the start screen shows the total (⭐ n / 45 stars). Older saves get the rescue star for every level already beaten. |
+| SR-7 | The celebration banner labels each star under it: "Rescued!", "Hidden star", and the challenge's short name (Flowers first · First dig · No bee bumps · Stay dry). Missed ones are grey, so it's clear what they needed. |
+| SR-8 | The moment a challenge is missed, Noodle says so once, kindly, and that the level goes on ("No challenge star this time, but keep going!"). It replaces his usual line for that moment (a wrong dig, a bee bump), so nothing is said twice. |
+| SR-9 | When a level starts, a "Get all 3 stars!" card lists the three goals (rescue the pet, the hidden-star hint, the challenge) for about 5 seconds, then fades. Stars already earned there before show gold. |
 
 ## 3. Level flow
 
@@ -120,9 +123,9 @@ Each level is completed in this order:
 | LV-2 | **Find the bone**: one of the level's dirt mounds, chosen at random each time the level starts, hides Noodle's bone. Digging an empty mound shows "Keep sniffing!". Digging targets the *closest undug* mound within 48 px. The bone may be dug before all flowers bloom. |
 | LV-3 | When Flora is within 95 px of the bone mound, Noodle runs to it and barks "🦴 Dig here!". |
 | LV-4 | **Collect the key**: the key appears only once all sprouts are bloomed **and** the bone is found. Touching it collects it. |
-| LV-5 | **Enter the doghouse**: the doghouse always stands at the far right of the level. Walking right past it (level width − 115) **on the ground** while holding the key starts a 75-tick celebration that names the rescued pet. Falling past the door from above doesn't count until Flora lands. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
+| LV-5 | **Enter the doghouse**: the doghouse always stands at the far right of the level. Walking right past it (level width − 115) **on the ground** while holding the key starts a 150-tick (2.5 s) celebration that names the rescued pet and labels its stars. Falling past the door from above doesn't count until Flora lands. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
 | LV-6 | After the celebration the pet joins the roster and the parade (see RS-1), and the next level starts with Flora back at the left side. |
-| LV-7 | After the last level the victory dialog opens and the game pauses. It lists every rescued pet with its emoji, generated from the level list. Closing it (button, Esc, or clicking outside) starts a new game at level 1 with an empty parade. |
+| LV-7 | After the last level the victory dialog opens and the game pauses. It lists every rescued pet with its emoji, generated from the level list, and says Play Again will send them home to be rescued again. **Play Again** starts a new game exactly like New game (pets go home, levels and stars stay, see SV-2). Closing the dialog any other way (Esc, clicking outside) goes to the start screen and keeps the pets. |
 | LV-8 | The rainbow is hidden during play. When the level is beaten it sweeps across the sky from left to right (~2/3 s) during the celebration, disappears when the next level starts, and stays fully drawn behind the final victory dialog. |
 
 ## 3a. Level twists
