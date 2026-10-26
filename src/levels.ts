@@ -1,11 +1,16 @@
 import type { LevelConfig } from './types.ts';
 
+/** A level is at least one screen wide. */
+export const DEFAULT_LEVEL_WIDTH: number = 800;
+export const levelWidth = (level: LevelConfig): number => level.width ?? DEFAULT_LEVEL_WIDTH;
+/** The doghouse always stands at the far right of the level. */
+export const doghouseX = (level: LevelConfig): number => levelWidth(level) - 93;
+/** Flora's left edge must pass this x (on the ground, with the key) to enter the doghouse. */
+export const doghouseEntryX = (level: LevelConfig): number => levelWidth(level) - 115;
+
 /** Simulation rate: every physics/timer value below is tuned per 1/60 s tick. */
 export const TICK_MS: number = 1000 / 60;
 export const GROUND_Y: number = 428;
-export const DOGHOUSE_X: number = 707;
-/** Flora's left edge must pass this x (with the key) to enter the doghouse. */
-export const DOGHOUSE_ENTRY_X: number = 685;
 export const LEVEL_CLEAR_FRAMES: number = 75;
 /** Ticks the victory rainbow takes to sweep across the sky. */
 export const RAINBOW_SWEEP_FRAMES: number = 40;
@@ -29,6 +34,11 @@ export const MUSHROOM_HEIGHT: number = 18;
 export const MAX_BOUNCE_HEIGHT: number = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY) + MUSHROOM_HEIGHT;
 /** Highest jump in px (jump held): v^2 / 2g. */
 export const MAX_JUMP_HEIGHT: number = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
+
+/** Bee hitbox radius. Touching a bee bumps Flora back; she can't be bumped again for a moment. */
+export const BEE_RADIUS: number = 10;
+export const BUMP_STUN_TICKS: number = 24;
+export const BUMP_SAFE_TICKS: number = 90;
 
 /** Holding water keeps splashing for this long, then Flora has to let go and press again. */
 export const WATER_HOLD_TICKS: number = 120;
@@ -68,7 +78,12 @@ export const LEVEL_MELODIES: readonly (readonly string[])[] = [
     ["D4", "F#4", "A4", "C5", "B4", "A4", "F#4", "E4"],
     ["E4", "G#4", "B4", "D#5", "C#5", "B4", "G#4", "F#4"],
     ["F4", "A4", "C5", "E5", "D5", "C5", "A4", "G4"],
-    ["G4", "B4", "D5", "F#5", "E5", "D5", "B4", "A4"]
+    ["G4", "B4", "D5", "F#5", "E5", "D5", "B4", "A4"],
+    ["A4", "C5", "E5", "G5", "F5", "E5", "C5", "B4"],
+    ["C4", "G4", "E4", "A4", "G4", "E4", "D4", "G4"],
+    ["D4", "A4", "F#4", "B4", "A4", "F#4", "E4", "A4"],
+    ["E4", "B4", "G4", "C5", "B4", "G4", "F#4", "B4"],
+    ["C5", "E5", "G5", "C6", "B5", "G5", "E5", "D5"]
 ];
 
 export const LEVELS: readonly LevelConfig[] = [
@@ -185,5 +200,192 @@ export const LEVELS: readonly LevelConfig[] = [
         ],
         mounds: [240, 390, 500],
         keyPos: { x: 520, y: 175 }
+    },
+
+    // ---- Big scrolling levels: wider than the screen, with bees and bramble bushes ----
+    {
+        name: "Buzzing Meadow",
+        flowersNeeded: 5,
+        pet: "Daisy the Duckling",
+        species: "duckling",
+        bg: "#B8E994",
+        width: 1600,
+        treeX: 850,
+        trees: [160, 1400],
+        tip: "Watch out for bees! Jump over them 🐝",
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 420, y: 270, width: 120 },
+            { x: 700, y: 340, width: 110 },
+            { x: 950, y: 265, width: 120 },
+            { x: 1250, y: 340, width: 120 }
+        ],
+        bees: [
+            { x: 560, y: 400, range: 160, period: 300 },
+            { x: 1080, y: 400, range: 180, period: 260 }
+        ],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 305, y: 345 },
+            { x: 480, y: 270 },
+            { x: 1010, y: 265 },
+            { x: 1310, y: 340 }
+        ],
+        mounds: [620, 900, 1180],
+        keyPos: { x: 1010, y: 235 }
+    },
+    {
+        name: "Bramble Path",
+        flowersNeeded: 5,
+        pet: "Penny the Piglet",
+        species: "piglet",
+        bg: "#FFD3B6",
+        width: 1800,
+        treeX: 900,
+        trees: [520, 1300],
+        tip: "Hop over the bramble bushes 🌿",
+        platforms: [
+            { x: 230, y: 345, width: 110 },
+            { x: 560, y: 340, width: 110 },
+            { x: 700, y: 265, width: 110 },
+            { x: 950, y: 340, width: 120 },
+            { x: 1250, y: 330, width: 110 },
+            { x: 1400, y: 255, width: 120 }
+        ],
+        bushes: [
+            { x: 400, width: 44, height: 30 },
+            { x: 760, width: 60, height: 34 },
+            { x: 1150, width: 44, height: 30 },
+            { x: 1450, width: 70, height: 36 }
+        ],
+        bees: [{ x: 940, y: 300, range: 160, period: 280 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 615, y: 340 },
+            { x: 755, y: 265 },
+            { x: 1010, y: 340 },
+            { x: 1460, y: 255 }
+        ],
+        mounds: [320, 620, 1050, 1330],
+        keyPos: { x: 1460, y: 225 }
+    },
+    {
+        name: "Cloud Canyon",
+        flowersNeeded: 6,
+        pet: "Felix the Fox",
+        species: "fox",
+        bg: "#C7ECEE",
+        width: 2000,
+        treeX: 1000,
+        trees: [560, 1700],
+        tip: "Bounce and float across the sky ☁️",
+        platforms: [
+            { x: 240, y: 180, width: 110 },
+            { x: 760, y: 330, width: 100 },
+            { x: 1100, y: 190, width: 110 },
+            { x: 1550, y: 330, width: 110 },
+            { x: 1680, y: 250, width: 110 }
+        ],
+        movingPlatforms: [
+            { x: 420, y: 250, width: 90, range: 200, period: 300 },
+            { x: 900, y: 280, width: 90, range: 180, period: 260 },
+            { x: 1350, y: 230, width: 90, range: 200, period: 280 }
+        ],
+        mushrooms: [{ x: 300, y: 428 }, { x: 1250, y: 428 }],
+        bees: [{ x: 560, y: 400, range: 150, period: 240 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 295, y: 180 },
+            { x: 810, y: 330 },
+            { x: 1150, y: 190 },
+            { x: 1600, y: 330 },
+            { x: 1735, y: 250 }
+        ],
+        mounds: [500, 1000, 1450],
+        keyPos: { x: 1155, y: 160 }
+    },
+    {
+        name: "Bumblebee Woods",
+        flowersNeeded: 6,
+        pet: "Poppy the Panda",
+        species: "panda",
+        bg: "#A8D8B9",
+        width: 2200,
+        treeX: 1000,
+        trees: [180, 1350, 1850],
+        tip: "Busy bees everywhere! Time your jumps 🐝",
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 420, y: 270, width: 110 },
+            { x: 700, y: 340, width: 120 },
+            { x: 880, y: 260, width: 110 },
+            { x: 1100, y: 340, width: 110 },
+            { x: 1450, y: 340, width: 110 },
+            { x: 1600, y: 265, width: 120 },
+            { x: 1900, y: 340, width: 110 }
+        ],
+        bushes: [
+            { x: 500, width: 50, height: 32 },
+            { x: 1290, width: 60, height: 34 },
+            { x: 1750, width: 50, height: 32 }
+        ],
+        bees: [
+            { x: 330, y: 400, range: 140, period: 260 },
+            { x: 900, y: 320, range: 200, period: 300 },
+            { x: 1480, y: 400, range: 200, period: 220 },
+            { x: 1860, y: 300, range: 150, period: 240 }
+        ],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 475, y: 270, waterNeeded: 2 },
+            { x: 760, y: 340 },
+            { x: 935, y: 260 },
+            { x: 1155, y: 340 },
+            { x: 1660, y: 265, waterNeeded: 3 }
+        ],
+        mounds: [620, 1000, 1400, 1650],
+        keyPos: { x: 1660, y: 235 }
+    },
+    {
+        name: "Grand Garden",
+        flowersNeeded: 7,
+        pet: "Luna the Unicorn",
+        species: "unicorn",
+        bg: "#E0C3FC",
+        width: 2400,
+        treeX: 1100,
+        trees: [520, 1600, 2150],
+        tip: "The grand finale! You can do it 🦄",
+        platforms: [
+            { x: 220, y: 345, width: 110 },
+            { x: 780, y: 170, width: 110 },
+            { x: 1000, y: 340, width: 110 },
+            { x: 1250, y: 345, width: 110 },
+            { x: 1750, y: 180, width: 110 },
+            { x: 2050, y: 340, width: 110 }
+        ],
+        movingPlatforms: [{ x: 1400, y: 260, width: 90, range: 220, period: 300 }],
+        mushrooms: [{ x: 820, y: 428 }],
+        bushes: [
+            { x: 420, width: 50, height: 32 },
+            { x: 1150, width: 60, height: 34 },
+            { x: 1900, width: 50, height: 32 }
+        ],
+        bees: [
+            { x: 580, y: 400, range: 180, period: 260 },
+            { x: 1300, y: 310, range: 200, period: 280 },
+            { x: 2000, y: 400, range: 140, period: 220 }
+        ],
+        sprouts: [
+            { x: 140, y: 428 },
+            { x: 275, y: 345 },
+            { x: 835, y: 170, waterNeeded: 2 },
+            { x: 1055, y: 340 },
+            { x: 1305, y: 345 },
+            { x: 1805, y: 180, waterNeeded: 3 },
+            { x: 2105, y: 340 }
+        ],
+        mounds: [560, 1050, 1600, 1840],
+        keyPos: { x: 1805, y: 150 }
     }
 ];

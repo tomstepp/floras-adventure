@@ -289,7 +289,7 @@ test('LV-6: a cleared level resets state and adds the pet to the parade', () => 
     assert.equal(game.text('status-display'), 'Flowers: 0/4 | Bone: ❌ | Key: ❌');
 });
 
-test('LV-7: clearing all five levels opens the victory dialog, closing it restarts', () => {
+test('LV-7: clearing every level opens the victory dialog, closing it restarts', () => {
     const game = loadGame();
     for (let lvl = 0; lvl < LEVELS.length; lvl++) {
         assert.equal(game.run('currentLevel'), lvl);
@@ -631,4 +631,118 @@ test('ND-1: Noodle turns to face the way he trots, without flipping on tiny drif
     game.step(300);
     assert.ok(Math.abs(game.run<number>('noodle.vx')) < 0.3);
     assert.equal(game.run('noodle.facing'), 'left');
+});
+
+test('BG-3: the camera follows Flora across wide levels and stops at both ends', () => {
+    const game = loadGame();
+    game.step(30);
+    assert.equal(game.run('cameraX'), 0, 'one-screen levels never scroll');
+
+    goToLevel(game, 5); // Buzzing Meadow, 1600 wide
+    assert.equal(game.run('cameraX'), 0, 'starts at the left end');
+    game.run('flora.x = 900; flora.y = 380;');
+    game.step(120);
+    const mid = game.run<number>('cameraX');
+    assert.ok(mid > 300 && mid < 800, `camera follows to ${mid}`);
+    const floraOnScreen = game.run<number>('flora.x - cameraX');
+    assert.ok(floraOnScreen > 200 && floraOnScreen < 600, 'Flora stays near the middle');
+
+    game.run('flora.x = 1560; flora.y = 380;');
+    game.step(200);
+    assert.ok(Math.abs(game.run<number>('cameraX') - 800) < 0.5, 'stops at the right end (1600 - 800)');
+});
+
+test('BG-4: a bramble bush blocks walking, but Flora can jump onto it and over it', () => {
+    const game = loadGame();
+    goToLevel(game, 6); // Bramble Path: first bush at x 400–444, 30 tall
+    placeFlora(game, 330, 428);
+    game.press('ArrowRight');
+    game.step(40);
+    assert.equal(game.run('flora.x + flora.width'), 400, 'stopped at the bush');
+
+    game.tap('ArrowUp'); // short hop is enough to land on top
+    game.press('ArrowUp');
+    let stoodOnTop = false;
+    for (let i = 0; i < 80; i++) {
+        game.step();
+        if (game.run('flora.grounded') && game.run('flora.y + flora.height') === 398) stoodOnTop = true;
+    }
+    game.release('ArrowUp');
+    game.step(40);
+    game.release('ArrowRight');
+    assert.ok(stoodOnTop || game.run<number>('flora.x') > 444, 'got onto or over the bush');
+    assert.ok(game.run<number>('flora.x') > 444, 'and kept going past it');
+});
+
+test('BG-5: touching a bee bumps Flora back for a moment, and nothing is lost', () => {
+    const game = loadGame();
+    goToLevel(game, 5);
+    bloomAll(game);
+    digBone(game);
+    const bee = game.run<{ x: number; y: number }>('({ x: bees[0].x, y: bees[0].y })');
+    // Stand right in the first bee's path, facing it, with no bump-proofing.
+    placeFlora(game, bee.x - 50, 428);
+    game.run('flora.safeTimer = 0;');
+    game.press('ArrowRight');
+    let bumped = false;
+    for (let i = 0; i < 120 && !bumped; i++) {
+        game.step();
+        bumped = game.run<number>('flora.stunTimer') > 0;
+    }
+    assert.ok(bumped, 'the bee bumps her');
+    game.step(); // the knock-back takes over on her next update
+    assert.ok(game.run<number>('flora.vx') < 0, 'knocked back away from the bee');
+    const x = game.run<number>('flora.x');
+    game.step(10);
+    assert.ok(game.run<number>('flora.x') < x, 'still sliding back, ignoring → while stunned');
+    assert.match(game.run<string>('noodle.speechBubble'), /bees/);
+
+    game.step(30);
+    assert.equal(game.run('flora.stunTimer'), 0, 'control returns');
+    assert.ok(game.run<number>('flora.safeTimer') > 0, 'and she blinks, safe from another bump');
+    game.release('ArrowRight');
+    assert.equal(game.run('sprouts.every(s => s.bloomed) && boneFound'), true, 'flowers and bone are kept');
+});
+
+test('BG-6: arrows at the screen edge point to an off-screen key, then the doghouse', () => {
+    const game = loadGame();
+    goToLevel(game, 5);
+    bloomAll(game);
+    digBone(game);
+    placeFlora(game, 60, 428);
+    game.step(200); // camera settles at the left end; key is at x 1010
+    assert.equal(game.run('nextGoal().emoji'), '🔑');
+    assert.ok(game.drawnText().includes('🔑'), 'key arrow drawn');
+
+    collectKey(game);
+    placeFlora(game, 60, 428);
+    game.step(200);
+    assert.equal(game.run('nextGoal().emoji'), '🏠');
+    assert.ok(game.drawnText().includes('🏠'), 'doghouse arrow drawn');
+
+    game.run('flora.x = 1450;');
+    game.step(200);
+    assert.ok(!game.drawnText().includes('🏠'), 'no arrow once the doghouse is on screen');
+});
+
+test('BG-7: in a wide level the doghouse is at the far right end', () => {
+    const game = loadGame();
+    goToLevel(game, 9); // Grand Garden, 2400 wide
+    bloomAll(game);
+    digBone(game);
+    collectKey(game);
+    placeFlora(game, 700, 428);
+    game.step();
+    assert.equal(game.run('levelClearTimer'), 0, "the old doghouse spot doesn't count");
+    placeFlora(game, 2290, 428);
+    game.step();
+    assert.ok(game.run<number>('levelClearTimer') > 0);
+});
+
+test('LV-7: the victory dialog lists every rescued pet', () => {
+    const game = loadGame();
+    const items = game.elements['rescued-list'].items as string[];
+    assert.equal(items.length, LEVELS.length);
+    assert.ok(items[0].includes('🐱') && items[9].includes('🦄'));
+    assert.match(game.text('victory-text'), /all 10 magical pets/);
 });

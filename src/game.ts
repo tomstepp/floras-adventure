@@ -3,14 +3,16 @@ import { ButterflySwarm } from './butterflies.ts';
 import { Noodle, Player } from './entities.ts';
 import {
     CONTROLS,
-    DIG_RANGE,
-    DOGHOUSE_ENTRY_X,
-    DOGHOUSE_X,
+    BEE_RADIUS,
     BIG_FLOWER_COLOR,
+    DIG_RANGE,
+    doghouseEntryX,
+    doghouseX,
     FLOWER_COLORS,
     GROUND_Y,
     LEVEL_CLEAR_FRAMES,
     LEVELS,
+    levelWidth,
     RAINBOW_SWEEP_FRAMES,
     TICK_MS
 } from './levels.ts';
@@ -18,19 +20,23 @@ import { CANVAS_HEIGHT, CANVAS_WIDTH, fitScale, STAGE_HEIGHT, STAGE_WIDTH } from
 import { ParticleSystem } from './particles.ts';
 import { clearSave, getStorage, loadSave, writeSave } from './save.ts';
 import {
+    drawBee,
+    drawBushes,
     drawCelebrationBanner,
     drawCloudPlatforms,
     drawDoghouse,
     drawKey,
     drawMushrooms,
+    drawOffscreenArrow,
     drawPlatforms,
     drawRainbow,
     drawRescuedPet,
     drawSprouts,
     drawSun,
-    drawTreeAndGround
+    drawTreeAndGround,
+    PET_EMOJI
 } from './renderer.ts';
-import type { DigMound, Platform, RescuedFriend, Sprout } from './types.ts';
+import type { DigMound, Platform, Point, RescuedFriend, Sprout } from './types.ts';
 
 const stage = document.getElementById('game-stage') as HTMLElement;
 const container = document.getElementById('game-container') as HTMLElement;
@@ -45,6 +51,8 @@ const objectiveDisplay = document.getElementById('objective-display') as HTMLEle
 const startScreen = document.getElementById('start-screen') as HTMLElement;
 const playBtn = document.getElementById('play-btn') as HTMLButtonElement;
 const continueBtn = document.getElementById('continue-btn') as HTMLButtonElement;
+const rescuedList = document.getElementById('rescued-list') as HTMLElement;
+const victoryText = document.getElementById('victory-text') as HTMLElement;
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
@@ -55,8 +63,12 @@ type Screen = 'start' | 'playing' | 'victory';
 let screen: Screen = 'start';
 let currentLevel: number = 0;
 let levelClearTimer: number = 0;
-/** Ticks since the level started; drives moving platforms. */
+/** Ticks since the level started; drives moving platforms and bees. */
 let levelTicks: number = 0;
+/** Left edge of the visible part of the level; levels wider than the screen scroll. */
+let cameraX: number = 0;
+/** Where each bee is this tick, and which way it's flying. */
+let bees: (Point & { facingLeft: boolean })[] = [];
 
 let flora: Player = new Player();
 let noodle: Noodle = new Noodle();
@@ -212,6 +224,7 @@ export function initLevel(): void {
     levelClearTimer = 0;
     levelTicks = 0;
     movingPlatforms = movingPlatformsAt(0);
+    bees = beesAt(0);
     keyX = level.keyPos.x;
     keyY = level.keyPos.y;
 
@@ -251,6 +264,48 @@ export function initLevel(): void {
 export function restartLevel(): void {
     initLevel();
     flora.reset();
+    cameraX = cameraTarget();
+}
+
+/** The camera keeps Flora a little behind centre, looking ahead the way she faces. */
+function cameraTarget(): number {
+    const maxX = levelWidth(LEVELS[currentLevel]) - CANVAS_WIDTH;
+    const lookAhead = flora.facing === 'right' ? 60 : -60;
+    const target = flora.x + flora.width / 2 - CANVAS_WIDTH / 2 + lookAhead;
+    return Math.min(Math.max(0, target), maxX);
+}
+
+function updateCamera(): void {
+    cameraX += (cameraTarget() - cameraX) * 0.1;
+}
+
+/** Bees glide out and back like clouds, bobbing up and down as they buzz. */
+function beesAt(t: number): (Point & { facingLeft: boolean })[] {
+    return (LEVELS[currentLevel].bees ?? []).map((b, i) => {
+        const phase = (2 * Math.PI * t) / b.period;
+        return {
+            x: b.x + (b.range * (1 - Math.cos(phase))) / 2,
+            y: b.y + Math.sin(t * 0.09 + i) * 6,
+            // Moving right during the first half of each trip
+            facingLeft: Math.sin(phase) < 0
+        };
+    });
+}
+
+function updateBees(): void {
+    bees = beesAt(levelTicks);
+    for (const bee of bees) {
+        // Circle-vs-box: nearest point on Flora's box to the bee
+        const nx = Math.min(Math.max(bee.x, flora.x), flora.x + flora.width);
+        const ny = Math.min(Math.max(bee.y, flora.y), flora.y + flora.height);
+        if ((bee.x - nx) ** 2 + (bee.y - ny) ** 2 > BEE_RADIUS ** 2) continue;
+        if (flora.bump(bee.x)) {
+            audio.playSound('bump');
+            particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
+            noodle.barkTimer = 70;
+            noodle.speechBubble = "Ouch! Jump over the bees 🐝";
+        }
+    }
 }
 
 export function checkWatering(): void {
@@ -315,12 +370,13 @@ function updateKey(): void {
 function updateDoghouse(): void {
     // Flora has to walk in at the door, not fall past it from above.
     const atDoor = flora.grounded && flora.y + flora.height >= GROUND_Y - 1;
-    if (flora.x <= DOGHOUSE_ENTRY_X || !atDoor || levelClearTimer > 0) return;
+    if (flora.x <= doghouseEntryX(LEVELS[currentLevel]) || !atDoor || levelClearTimer > 0) return;
+    const houseX = doghouseX(LEVELS[currentLevel]);
     if (keyCollected) {
         levelClearTimer = LEVEL_CLEAR_FRAMES;
         audio.playSound('victory');
-        particleSystem.spawn(DOGHOUSE_X, 395, '#FF7675', 14, 'heart');
-        particleSystem.spawn(DOGHOUSE_X, 385, '#F1C40F', 20, 'star');
+        particleSystem.spawn(houseX, 395, '#FF7675', 14, 'heart');
+        particleSystem.spawn(houseX, 385, '#F1C40F', 20, 'star');
         updateStatus();
     } else if (noodle.barkTimer <= 0) {
         noodle.barkTimer = 70;
@@ -331,7 +387,7 @@ function updateDoghouse(): void {
 function updateLevelClear(): void {
     if (levelClearTimer <= 0) return;
     if (levelClearTimer % 15 === 0) {
-        particleSystem.spawn(DOGHOUSE_X + (Math.random() - 0.5) * 40, 390, '#FFEAA7', 8, 'star');
+        particleSystem.spawn(doghouseX(LEVELS[currentLevel]) + (Math.random() - 0.5) * 40, 390, '#FFEAA7', 8, 'star');
     }
 
     levelClearTimer--;
@@ -407,14 +463,17 @@ function tick(): void {
         pressed,
         [...level.platforms, ...movingPlatforms],
         level.mushrooms ?? [],
-        CANVAS_WIDTH,
+        level.bushes ?? [],
+        levelWidth(level),
         levelClearTimer > 0,
         type => audio.playSound(type),
         checkWatering,
         checkDigging
     );
     noodle.update(flora.x, digMounds, boneFound, false, type => audio.playSound(type));
+    if (levelClearTimer === 0) updateBees();
     particleSystem.update();
+    updateCamera();
 
     updateDoghouse();
     updateLevelClear();
@@ -426,19 +485,25 @@ export function render(): void {
     ctx.fillStyle = level.bg;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Sky things stay put on screen; everything else is drawn in level space and scrolls.
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
     butterflies.draw(ctx);
-    drawTreeAndGround(ctx, CANVAS_WIDTH, level.treeX, digMounds, boneFound, boneX);
+
+    const houseX = doghouseX(level);
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+    drawTreeAndGround(ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], digMounds, boneFound, boneX);
     drawPlatforms(ctx, level.platforms);
     drawCloudPlatforms(ctx, movingPlatforms);
     drawMushrooms(ctx, level.mushrooms ?? []);
+    drawBushes(ctx, level.bushes ?? []);
     drawSprouts(ctx, sprouts, allBloomed());
-    drawDoghouse(ctx);
+    drawDoghouse(ctx, houseX);
 
     if (keyCollected) {
-        drawRescuedPet(ctx, level.species, DOGHOUSE_X, 416);
+        drawRescuedPet(ctx, level.species, houseX, 416);
     } else if (allBloomed() && boneFound) {
         drawKey(ctx, keyX, keyY);
     }
@@ -446,10 +511,29 @@ export function render(): void {
     for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416);
     flora.draw(ctx);
     noodle.draw(ctx);
+    for (const bee of bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
     particleSystem.draw(ctx);
-    noodle.drawSpeech(ctx, CANVAS_WIDTH);
+    noodle.drawSpeech(ctx, cameraX, cameraX + CANVAS_WIDTH);
+    ctx.restore();
+
+    // Point the way to the next goal when it's off-screen.
+    const goal = nextGoal();
+    if (goal) drawOffscreenArrow(ctx, goal.x - cameraX, CANVAS_WIDTH, goal.emoji);
 
     if (levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
+}
+
+/** What Flora should head for next, for the off-screen arrow: key, then doghouse, then any sprout left. */
+export function nextGoal(): { x: number; emoji: string } | null {
+    if (levelClearTimer > 0) return null;
+    if (keyCollected) return { x: doghouseX(LEVELS[currentLevel]), emoji: '🏠' };
+    if (allBloomed() && boneFound) return { x: keyX, emoji: '🔑' };
+    const onScreen = (x: number): boolean => x >= cameraX && x <= cameraX + CANVAS_WIDTH;
+    const left = sprouts.filter(s => !s.bloomed);
+    if (left.length === 0 || left.some(s => onScreen(s.x))) return null;
+    const floraX = flora.x + flora.width / 2;
+    const nearest = left.reduce((a, b) => (Math.abs(a.x - floraX) <= Math.abs(b.x - floraX) ? a : b));
+    return { x: nearest.x, emoji: '🌱' };
 }
 
 // Scale the whole game box to fit the window, and size the canvas backing store to match
@@ -493,7 +577,20 @@ function frame(now: number): void {
     requestAnimationFrame(frame);
 }
 
+/** The victory dialog lists every pet, so it grows with the level list. */
+function fillVictoryDialog(): void {
+    victoryText.innerText = `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets!`;
+    rescuedList.replaceChildren(
+        ...LEVELS.map(l => {
+            const li = document.createElement('li');
+            li.innerText = `${PET_EMOJI[l.species]} ${l.pet}`;
+            return li;
+        })
+    );
+}
+
 fitToScreen();
+fillVictoryDialog();
 initLevel();
 showStartScreen();
 requestAnimationFrame(frame);

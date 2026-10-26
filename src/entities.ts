@@ -1,8 +1,11 @@
 import {
     BOUNCE_VY,
+    BUMP_SAFE_TICKS,
+    BUMP_STUN_TICKS,
     COYOTE_TICKS,
     CONTROLS,
     GRAVITY,
+    GROUND_Y,
     JUMP_BUFFER_TICKS,
     JUMP_CUT_VY,
     JUMP_VY,
@@ -11,7 +14,7 @@ import {
     SPEECH_TOP_Y,
     WATER_HOLD_TICKS
 } from './levels.ts';
-import type { DigMound, Direction, Platform, Point, SoundType } from './types.ts';
+import type { Bush, DigMound, Direction, Platform, Point, SoundType } from './types.ts';
 
 export class Player {
     public x: number = 50;
@@ -34,6 +37,10 @@ export class Player {
     public jumpRising: boolean = false;
     /** Ticks the water key has been held without letting go. */
     public waterHeldTicks: number = 0;
+    /** After a bee bump: ticks of being knocked back (no control), then of blinking safety. */
+    public stunTimer: number = 0;
+    public safeTimer: number = 0;
+    private knockVx: number = 0;
 
     public reset(): void {
         this.x = 50;
@@ -45,6 +52,26 @@ export class Player {
         this.jumpBufferTimer = 0;
         this.jumpRising = false;
         this.waterHeldTicks = 0;
+        this.stunTimer = 0;
+        this.safeTimer = 0;
+        this.knockVx = 0;
+    }
+
+    /**
+     * Bumped by something at `fromX`: hop back away from it and lose control briefly.
+     * Nothing is lost; returns false if she's still in her safe blink from the last bump.
+     */
+    public bump(fromX: number): boolean {
+        if (this.safeTimer > 0) return false;
+        this.knockVx = this.x + this.width / 2 < fromX ? -4 : 4;
+        this.vy = -5;
+        this.grounded = false;
+        this.jumpRising = false;
+        this.coyoteTimer = 0;
+        this.stunTimer = BUMP_STUN_TICKS;
+        this.safeTimer = BUMP_SAFE_TICKS;
+        this.isWatering = false;
+        return true;
     }
 
     public update(
@@ -52,13 +79,24 @@ export class Player {
         pressed: Readonly<Record<string, boolean>>,
         platforms: readonly Platform[],
         mushrooms: readonly Point[],
-        canvasWidth: number,
+        bushes: readonly Bush[],
+        worldWidth: number,
         disabled: boolean,
         playSound: (type: SoundType) => void,
         onWater: () => void,
         onDig: () => void
     ): void {
         if (disabled) return;
+        if (this.safeTimer > 0) this.safeTimer--;
+
+        if (this.stunTimer > 0) {
+            // Knocked back: physics only, no walking, jumping, watering or digging.
+            this.stunTimer--;
+            this.vx = this.knockVx;
+            this.knockVx *= 0.9;
+            this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+            return;
+        }
 
         if (keys[CONTROLS.right]) {
             this.vx = 3.5;
@@ -116,9 +154,32 @@ export class Player {
         if (this.digTimer > 0) this.digTimer--;
         else this.isDigging = false;
 
+        this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+    }
+
+    private applyPhysics(
+        platforms: readonly Platform[],
+        mushrooms: readonly Point[],
+        bushes: readonly Bush[],
+        worldWidth: number,
+        playSound: (type: SoundType) => void
+    ): void {
+        const prevX = this.x;
         const prevBottom = this.y + this.height;
         this.vy += GRAVITY;
         this.x += this.vx;
+
+        // Bushes are solid from the side: walk into one and you stop at its edge.
+        for (const b of bushes) {
+            const top = GROUND_Y - b.height;
+            const overlapsX = this.x + this.width > b.x && this.x < b.x + b.width;
+            if (!overlapsX || this.y + this.height <= top + 2) continue;
+            if (prevX + this.width <= b.x + 0.01) this.x = b.x - this.width;
+            else if (prevX >= b.x + b.width - 0.01) this.x = b.x + b.width;
+            else if (this.x + this.width / 2 < b.x + b.width / 2) this.x = b.x - this.width;
+            else this.x = b.x + b.width;
+        }
+
         this.y += this.vy;
         this.grounded = false;
 
@@ -141,9 +202,10 @@ export class Player {
             }
         }
 
-        // One-way platform collisions
+        // One-way platform collisions; bush tops can be stood on too
         if (this.vy >= 0) {
-            for (const p of platforms) {
+            const bushTops = bushes.map(b => ({ x: b.x, y: GROUND_Y - b.height, width: b.width }));
+            for (const p of [...platforms, ...bushTops]) {
                 if (
                     this.x + this.width > p.x + 6 &&
                     this.x < p.x + p.width - 6 &&
@@ -166,7 +228,7 @@ export class Player {
         }
 
         if (this.x < 0) this.x = 0;
-        if (this.x > canvasWidth - this.width) this.x = canvasWidth - this.width;
+        if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
 
         this.coyoteTimer = this.grounded ? COYOTE_TICKS : Math.max(0, this.coyoteTimer - 1);
         if (this.jumpBufferTimer > 0) this.jumpBufferTimer--;
@@ -181,6 +243,8 @@ export class Player {
         const bob = walking ? Math.abs(stride) * -1.5 : Math.sin(now * 0.004) * 0.6;
 
         ctx.save();
+        // Blink while she's safe after a bee bump.
+        if (this.safeTimer > 0 && Math.floor(now / 90) % 2 === 0) ctx.globalAlpha = 0.45;
         // Draw facing right around her centre line; mirror for facing left.
         ctx.translate(this.x + this.width / 2, this.y + bob);
         if (this.facing === 'left') ctx.scale(-1, 1);
@@ -568,13 +632,14 @@ export class Noodle {
      * Noodle's speech bubble sits on the grass *below* him, pointing up, so it never
      * covers Flora or the pets. Drawn after every character.
      */
-    public drawSpeech(ctx: CanvasRenderingContext2D, canvasWidth: number): void {
+    public drawSpeech(ctx: CanvasRenderingContext2D, viewLeft: number, viewRight: number): void {
         if (this.barkTimer <= 0) return;
         ctx.save();
         ctx.font = "bold 12px sans-serif";
         const width = Math.max(44, ctx.measureText(this.speechBubble).width + 16);
         const noseX = this.x + 14;
-        const left = Math.min(Math.max(4, noseX - width / 2), canvasWidth - width - 4);
+        // Stay inside the visible part of the level.
+        const left = Math.min(Math.max(viewLeft + 4, noseX - width / 2), viewRight - width - 4);
         const top = SPEECH_TOP_Y;
 
         ctx.fillStyle = this.sniffing ? "#FFF9DB" : "#FFFFFF";

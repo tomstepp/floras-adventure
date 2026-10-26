@@ -68,6 +68,7 @@ export class AudioController {
         if (type === 'bloom') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5"], "8n");
         if (type === 'bark') this.synth?.triggerAttackRelease("E3", "16n");
         if (type === 'key') this.polySynth?.triggerAttackRelease(["G5", "C6", "E6"], "4n");
+        if (type === 'bump') this.synth?.triggerAttackRelease("D3", "16n");
         if (type === 'bounce') this.synth?.triggerAttackRelease("C5", "16n");
         if (type === 'victory') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n");
     }

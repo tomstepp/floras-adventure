@@ -3,14 +3,31 @@
 
 // --- src/types.ts ---
 /** A platform that glides from `x` to `x + range` and back, once every `period` ticks. */
+                                                  
+                  
+                   
+ 
+
+/** A bumblebee that flies from `x` to `x + range` and back around height `y`, once every `period` ticks. */
+                                          
+                  
+                   
+ 
+
+/** A bramble bush on the ground: solid from the side, standable on top. `x` is its left edge. */
 
 // --- src/levels.ts ---
+/** A level is at least one screen wide. */
+const DEFAULT_LEVEL_WIDTH         = 800;
+const levelWidth = (level             )         => level.width ?? DEFAULT_LEVEL_WIDTH;
+/** The doghouse always stands at the far right of the level. */
+const doghouseX = (level             )         => levelWidth(level) - 93;
+/** Flora's left edge must pass this x (on the ground, with the key) to enter the doghouse. */
+const doghouseEntryX = (level             )         => levelWidth(level) - 115;
+
 /** Simulation rate: every physics/timer value below is tuned per 1/60 s tick. */
 const TICK_MS         = 1000 / 60;
 const GROUND_Y         = 428;
-const DOGHOUSE_X         = 707;
-/** Flora's left edge must pass this x (with the key) to enter the doghouse. */
-const DOGHOUSE_ENTRY_X         = 685;
 const LEVEL_CLEAR_FRAMES         = 75;
 /** Ticks the victory rainbow takes to sweep across the sky. */
 const RAINBOW_SWEEP_FRAMES         = 40;
@@ -34,6 +51,11 @@ const MUSHROOM_HEIGHT         = 18;
 const MAX_BOUNCE_HEIGHT         = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY) + MUSHROOM_HEIGHT;
 /** Highest jump in px (jump held): v^2 / 2g. */
 const MAX_JUMP_HEIGHT         = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
+
+/** Bee hitbox radius. Touching a bee bumps Flora back; she can't be bumped again for a moment. */
+const BEE_RADIUS         = 10;
+const BUMP_STUN_TICKS         = 24;
+const BUMP_SAFE_TICKS         = 90;
 
 /** Holding water keeps splashing for this long, then Flora has to let go and press again. */
 const WATER_HOLD_TICKS         = 120;
@@ -73,7 +95,12 @@ const LEVEL_MELODIES                                 = [
     ["D4", "F#4", "A4", "C5", "B4", "A4", "F#4", "E4"],
     ["E4", "G#4", "B4", "D#5", "C#5", "B4", "G#4", "F#4"],
     ["F4", "A4", "C5", "E5", "D5", "C5", "A4", "G4"],
-    ["G4", "B4", "D5", "F#5", "E5", "D5", "B4", "A4"]
+    ["G4", "B4", "D5", "F#5", "E5", "D5", "B4", "A4"],
+    ["A4", "C5", "E5", "G5", "F5", "E5", "C5", "B4"],
+    ["C4", "G4", "E4", "A4", "G4", "E4", "D4", "G4"],
+    ["D4", "A4", "F#4", "B4", "A4", "F#4", "E4", "A4"],
+    ["E4", "B4", "G4", "C5", "B4", "G4", "F#4", "B4"],
+    ["C5", "E5", "G5", "C6", "B5", "G5", "E5", "D5"]
 ];
 
 const LEVELS                         = [
@@ -190,6 +217,193 @@ const LEVELS                         = [
         ],
         mounds: [240, 390, 500],
         keyPos: { x: 520, y: 175 }
+    },
+
+    // ---- Big scrolling levels: wider than the screen, with bees and bramble bushes ----
+    {
+        name: "Buzzing Meadow",
+        flowersNeeded: 5,
+        pet: "Daisy the Duckling",
+        species: "duckling",
+        bg: "#B8E994",
+        width: 1600,
+        treeX: 850,
+        trees: [160, 1400],
+        tip: "Watch out for bees! Jump over them 🐝",
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 420, y: 270, width: 120 },
+            { x: 700, y: 340, width: 110 },
+            { x: 950, y: 265, width: 120 },
+            { x: 1250, y: 340, width: 120 }
+        ],
+        bees: [
+            { x: 560, y: 400, range: 160, period: 300 },
+            { x: 1080, y: 400, range: 180, period: 260 }
+        ],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 305, y: 345 },
+            { x: 480, y: 270 },
+            { x: 1010, y: 265 },
+            { x: 1310, y: 340 }
+        ],
+        mounds: [620, 900, 1180],
+        keyPos: { x: 1010, y: 235 }
+    },
+    {
+        name: "Bramble Path",
+        flowersNeeded: 5,
+        pet: "Penny the Piglet",
+        species: "piglet",
+        bg: "#FFD3B6",
+        width: 1800,
+        treeX: 900,
+        trees: [520, 1300],
+        tip: "Hop over the bramble bushes 🌿",
+        platforms: [
+            { x: 230, y: 345, width: 110 },
+            { x: 560, y: 340, width: 110 },
+            { x: 700, y: 265, width: 110 },
+            { x: 950, y: 340, width: 120 },
+            { x: 1250, y: 330, width: 110 },
+            { x: 1400, y: 255, width: 120 }
+        ],
+        bushes: [
+            { x: 400, width: 44, height: 30 },
+            { x: 760, width: 60, height: 34 },
+            { x: 1150, width: 44, height: 30 },
+            { x: 1450, width: 70, height: 36 }
+        ],
+        bees: [{ x: 940, y: 300, range: 160, period: 280 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 615, y: 340 },
+            { x: 755, y: 265 },
+            { x: 1010, y: 340 },
+            { x: 1460, y: 255 }
+        ],
+        mounds: [320, 620, 1050, 1330],
+        keyPos: { x: 1460, y: 225 }
+    },
+    {
+        name: "Cloud Canyon",
+        flowersNeeded: 6,
+        pet: "Felix the Fox",
+        species: "fox",
+        bg: "#C7ECEE",
+        width: 2000,
+        treeX: 1000,
+        trees: [560, 1700],
+        tip: "Bounce and float across the sky ☁️",
+        platforms: [
+            { x: 240, y: 180, width: 110 },
+            { x: 760, y: 330, width: 100 },
+            { x: 1100, y: 190, width: 110 },
+            { x: 1550, y: 330, width: 110 },
+            { x: 1680, y: 250, width: 110 }
+        ],
+        movingPlatforms: [
+            { x: 420, y: 250, width: 90, range: 200, period: 300 },
+            { x: 900, y: 280, width: 90, range: 180, period: 260 },
+            { x: 1350, y: 230, width: 90, range: 200, period: 280 }
+        ],
+        mushrooms: [{ x: 300, y: 428 }, { x: 1250, y: 428 }],
+        bees: [{ x: 560, y: 400, range: 150, period: 240 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 295, y: 180 },
+            { x: 810, y: 330 },
+            { x: 1150, y: 190 },
+            { x: 1600, y: 330 },
+            { x: 1735, y: 250 }
+        ],
+        mounds: [500, 1000, 1450],
+        keyPos: { x: 1155, y: 160 }
+    },
+    {
+        name: "Bumblebee Woods",
+        flowersNeeded: 6,
+        pet: "Poppy the Panda",
+        species: "panda",
+        bg: "#A8D8B9",
+        width: 2200,
+        treeX: 1000,
+        trees: [180, 1350, 1850],
+        tip: "Busy bees everywhere! Time your jumps 🐝",
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 420, y: 270, width: 110 },
+            { x: 700, y: 340, width: 120 },
+            { x: 880, y: 260, width: 110 },
+            { x: 1100, y: 340, width: 110 },
+            { x: 1450, y: 340, width: 110 },
+            { x: 1600, y: 265, width: 120 },
+            { x: 1900, y: 340, width: 110 }
+        ],
+        bushes: [
+            { x: 500, width: 50, height: 32 },
+            { x: 1290, width: 60, height: 34 },
+            { x: 1750, width: 50, height: 32 }
+        ],
+        bees: [
+            { x: 330, y: 400, range: 140, period: 260 },
+            { x: 900, y: 320, range: 200, period: 300 },
+            { x: 1480, y: 400, range: 200, period: 220 },
+            { x: 1860, y: 300, range: 150, period: 240 }
+        ],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 475, y: 270, waterNeeded: 2 },
+            { x: 760, y: 340 },
+            { x: 935, y: 260 },
+            { x: 1155, y: 340 },
+            { x: 1660, y: 265, waterNeeded: 3 }
+        ],
+        mounds: [620, 1000, 1400, 1650],
+        keyPos: { x: 1660, y: 235 }
+    },
+    {
+        name: "Grand Garden",
+        flowersNeeded: 7,
+        pet: "Luna the Unicorn",
+        species: "unicorn",
+        bg: "#E0C3FC",
+        width: 2400,
+        treeX: 1100,
+        trees: [520, 1600, 2150],
+        tip: "The grand finale! You can do it 🦄",
+        platforms: [
+            { x: 220, y: 345, width: 110 },
+            { x: 780, y: 170, width: 110 },
+            { x: 1000, y: 340, width: 110 },
+            { x: 1250, y: 345, width: 110 },
+            { x: 1750, y: 180, width: 110 },
+            { x: 2050, y: 340, width: 110 }
+        ],
+        movingPlatforms: [{ x: 1400, y: 260, width: 90, range: 220, period: 300 }],
+        mushrooms: [{ x: 820, y: 428 }],
+        bushes: [
+            { x: 420, width: 50, height: 32 },
+            { x: 1150, width: 60, height: 34 },
+            { x: 1900, width: 50, height: 32 }
+        ],
+        bees: [
+            { x: 580, y: 400, range: 180, period: 260 },
+            { x: 1300, y: 310, range: 200, period: 280 },
+            { x: 2000, y: 400, range: 140, period: 220 }
+        ],
+        sprouts: [
+            { x: 140, y: 428 },
+            { x: 275, y: 345 },
+            { x: 835, y: 170, waterNeeded: 2 },
+            { x: 1055, y: 340 },
+            { x: 1305, y: 345 },
+            { x: 1805, y: 180, waterNeeded: 3 },
+            { x: 2105, y: 340 }
+        ],
+        mounds: [560, 1050, 1600, 1840],
+        keyPos: { x: 1805, y: 150 }
     }
 ];
 
@@ -327,6 +541,7 @@ class AudioController {
         if (type === 'bloom') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5"], "8n");
         if (type === 'bark') this.synth?.triggerAttackRelease("E3", "16n");
         if (type === 'key') this.polySynth?.triggerAttackRelease(["G5", "C6", "E6"], "4n");
+        if (type === 'bump') this.synth?.triggerAttackRelease("D3", "16n");
         if (type === 'bounce') this.synth?.triggerAttackRelease("C5", "16n");
         if (type === 'victory') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n");
     }
@@ -589,6 +804,127 @@ function drawPlatforms(ctx                          , platforms                 
     }
 }
 
+/** Bramble bushes: round leafy clumps with little thorns and berries. */
+function drawBushes(ctx                          , bushes                 )       {
+    for (const b of bushes) {
+        const top = GROUND_Y - b.height;
+        const lumps = Math.max(2, Math.round(b.width / 18));
+        const r = b.width / lumps / 2 + 4;
+        ctx.fillStyle = "#2E8B57";
+        for (let i = 0; i < lumps; i++) {
+            const cx = b.x + (i + 0.5) * (b.width / lumps);
+            ctx.beginPath();
+            ctx.arc(cx, top + r, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.roundRect(b.x, top + r * 0.8, b.width, b.height - r * 0.8 + 2, 6);
+        ctx.fill();
+        // Lighter leaves on top
+        ctx.fillStyle = "#3CB371";
+        for (let i = 0; i < lumps; i++) {
+            const cx = b.x + (i + 0.5) * (b.width / lumps);
+            ctx.beginPath();
+            ctx.arc(cx - 2, top + r - 3, r * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Tiny thorns along the edge, and a couple of berries
+        ctx.fillStyle = "#1E6B43";
+        for (let tx = b.x + 4; tx < b.x + b.width - 2; tx += 8) {
+            ctx.beginPath();
+            ctx.moveTo(tx - 2, top + 3);
+            ctx.lineTo(tx, top - 2);
+            ctx.lineTo(tx + 2, top + 3);
+            ctx.fill();
+        }
+        ctx.fillStyle = "#E84393";
+        ctx.beginPath();
+        ctx.arc(b.x + b.width * 0.3, top + b.height * 0.55, 2.5, 0, Math.PI * 2);
+        ctx.arc(b.x + b.width * 0.7, top + b.height * 0.45, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+/** A chubby striped bumblebee with buzzing wings, facing the way it flies. */
+function drawBee(ctx                          , x        , y        , facingLeft         )       {
+    const now = Date.now();
+    ctx.save();
+    ctx.translate(x, y);
+    if (facingLeft) ctx.scale(-1, 1);
+
+    // Wings flutter fast
+    const flap = Math.abs(Math.sin(now * 0.06));
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.beginPath();
+    ctx.ellipse(-3, -BEE_RADIUS + 1, 4, 6 * (0.5 + flap * 0.5), -0.4, 0, Math.PI * 2);
+    ctx.ellipse(3, -BEE_RADIUS + 2, 3.5, 5 * (0.5 + flap * 0.5), 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body with stripes, clipped to the body shape
+    ctx.beginPath();
+    ctx.ellipse(0, 0, BEE_RADIUS, BEE_RADIUS * 0.75, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#FDCB6E";
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = "#2D3436";
+    ctx.fillRect(-4, -10, 3, 20);
+    ctx.fillRect(2, -10, 3, 20);
+    ctx.restore();
+    // Stinger
+    ctx.fillStyle = "#2D3436";
+    ctx.beginPath();
+    ctx.moveTo(-BEE_RADIUS + 1, -1.5);
+    ctx.lineTo(-BEE_RADIUS - 3, 0);
+    ctx.lineTo(-BEE_RADIUS + 1, 1.5);
+    ctx.fill();
+    // Face: sparkly eye and blush, same as everyone else
+    ctx.beginPath();
+    ctx.arc(6, -1.5, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(6.5, -2.2, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.6)";
+    ctx.beginPath();
+    ctx.arc(7, 2.5, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+/**
+ * When a goal is off-screen, a small pill at the screen edge shows its emoji and which
+ * way to go. `screenX` is the goal's position relative to the visible screen.
+ */
+function drawOffscreenArrow(ctx                          , screenX        , screenWidth        , emoji        )       {
+    if (screenX >= 0 && screenX <= screenWidth) return;
+    const right = screenX > screenWidth;
+    const pulse = Math.sin(Date.now() * 0.008) * 3;
+    const cx = right ? screenWidth - 34 - pulse : 34 + pulse;
+    const cy = 215;
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.beginPath();
+    ctx.roundRect(cx - 26, cy - 15, 52, 30, 15);
+    ctx.fill();
+    ctx.fillStyle = "#FF6B8B";
+    ctx.beginPath();
+    const tip = right ? cx + 22 : cx - 22;
+    const back = right ? cx + 10 : cx - 10;
+    ctx.moveTo(back, cy - 8);
+    ctx.lineTo(tip, cy);
+    ctx.lineTo(back, cy + 8);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.font = "18px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(emoji, right ? cx - 6 : cx + 6, cy + 1);
+    ctx.restore();
+}
+
 /** Moving platforms are fluffy clouds so they read as different from the earthy ledges. */
 function drawCloudPlatforms(ctx                          , platforms                     )       {
     for (const p of platforms) {
@@ -633,7 +969,12 @@ const PET_EMOJI                                    = {
     puppy: "🐶",
     hamster: "🐹",
     turtle: "🐢",
-    bunny: "🐰"
+    bunny: "🐰",
+    duckling: "🐥",
+    piglet: "🐷",
+    fox: "🦊",
+    panda: "🐼",
+    unicorn: "🦄"
 };
 
 /** A rescued pet: its emoji hopping gently, sitting on `y`, with a little heart above. */
@@ -671,17 +1012,17 @@ function drawRescuedPet(
 
 function drawTreeAndGround(
     ctx                          ,
-    canvasWidth        ,
-    treeX        ,
+    worldWidth        ,
+    trees                   ,
     digMounds                     ,
     boneFound         ,
     boneX        
 )       {
-    drawTree(ctx, treeX);
+    for (const treeX of trees) drawTree(ctx, treeX);
 
     // Ground
     ctx.fillStyle = "#00B894";
-    ctx.fillRect(0, 428, canvasWidth, 72);
+    ctx.fillRect(0, 428, worldWidth, 72);
 
     // Dirt Mounds & Hidden Bone
     for (const m of digMounds) {
@@ -854,8 +1195,10 @@ function drawTree(ctx                          , treeX        )       {
 }
 
 /** Noodle's house: soft pink walls, a scalloped rounded roof, an arched door and a bone sign. */
-function drawDoghouse(ctx                          )       {
+/** Draws the doghouse centred on `centerX` (the shapes below are laid out for 707). */
+function drawDoghouse(ctx                          , centerX         = 707)       {
     ctx.save();
+    ctx.translate(centerX - 707, 0);
 
     // Walls with faint planks
     ctx.fillStyle = "#FF9AA2";
@@ -988,6 +1331,10 @@ class Player {
            jumpRising          = false;
     /** Ticks the water key has been held without letting go. */
            waterHeldTicks         = 0;
+    /** After a bee bump: ticks of being knocked back (no control), then of blinking safety. */
+           stunTimer         = 0;
+           safeTimer         = 0;
+            knockVx         = 0;
 
            reset()       {
         this.x = 50;
@@ -999,6 +1346,26 @@ class Player {
         this.jumpBufferTimer = 0;
         this.jumpRising = false;
         this.waterHeldTicks = 0;
+        this.stunTimer = 0;
+        this.safeTimer = 0;
+        this.knockVx = 0;
+    }
+
+    /**
+     * Bumped by something at `fromX`: hop back away from it and lose control briefly.
+     * Nothing is lost; returns false if she's still in her safe blink from the last bump.
+     */
+           bump(fromX        )          {
+        if (this.safeTimer > 0) return false;
+        this.knockVx = this.x + this.width / 2 < fromX ? -4 : 4;
+        this.vy = -5;
+        this.grounded = false;
+        this.jumpRising = false;
+        this.coyoteTimer = 0;
+        this.stunTimer = BUMP_STUN_TICKS;
+        this.safeTimer = BUMP_SAFE_TICKS;
+        this.isWatering = false;
+        return true;
     }
 
            update(
@@ -1006,13 +1373,24 @@ class Player {
         pressed                                   ,
         platforms                     ,
         mushrooms                  ,
-        canvasWidth        ,
+        bushes                 ,
+        worldWidth        ,
         disabled         ,
         playSound                           ,
         onWater            ,
         onDig            
     )       {
         if (disabled) return;
+        if (this.safeTimer > 0) this.safeTimer--;
+
+        if (this.stunTimer > 0) {
+            // Knocked back: physics only, no walking, jumping, watering or digging.
+            this.stunTimer--;
+            this.vx = this.knockVx;
+            this.knockVx *= 0.9;
+            this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+            return;
+        }
 
         if (keys[CONTROLS.right]) {
             this.vx = 3.5;
@@ -1070,9 +1448,32 @@ class Player {
         if (this.digTimer > 0) this.digTimer--;
         else this.isDigging = false;
 
+        this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+    }
+
+            applyPhysics(
+        platforms                     ,
+        mushrooms                  ,
+        bushes                 ,
+        worldWidth        ,
+        playSound                           
+    )       {
+        const prevX = this.x;
         const prevBottom = this.y + this.height;
         this.vy += GRAVITY;
         this.x += this.vx;
+
+        // Bushes are solid from the side: walk into one and you stop at its edge.
+        for (const b of bushes) {
+            const top = GROUND_Y - b.height;
+            const overlapsX = this.x + this.width > b.x && this.x < b.x + b.width;
+            if (!overlapsX || this.y + this.height <= top + 2) continue;
+            if (prevX + this.width <= b.x + 0.01) this.x = b.x - this.width;
+            else if (prevX >= b.x + b.width - 0.01) this.x = b.x + b.width;
+            else if (this.x + this.width / 2 < b.x + b.width / 2) this.x = b.x - this.width;
+            else this.x = b.x + b.width;
+        }
+
         this.y += this.vy;
         this.grounded = false;
 
@@ -1095,9 +1496,10 @@ class Player {
             }
         }
 
-        // One-way platform collisions
+        // One-way platform collisions; bush tops can be stood on too
         if (this.vy >= 0) {
-            for (const p of platforms) {
+            const bushTops = bushes.map(b => ({ x: b.x, y: GROUND_Y - b.height, width: b.width }));
+            for (const p of [...platforms, ...bushTops]) {
                 if (
                     this.x + this.width > p.x + 6 &&
                     this.x < p.x + p.width - 6 &&
@@ -1120,7 +1522,7 @@ class Player {
         }
 
         if (this.x < 0) this.x = 0;
-        if (this.x > canvasWidth - this.width) this.x = canvasWidth - this.width;
+        if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
 
         this.coyoteTimer = this.grounded ? COYOTE_TICKS : Math.max(0, this.coyoteTimer - 1);
         if (this.jumpBufferTimer > 0) this.jumpBufferTimer--;
@@ -1135,6 +1537,8 @@ class Player {
         const bob = walking ? Math.abs(stride) * -1.5 : Math.sin(now * 0.004) * 0.6;
 
         ctx.save();
+        // Blink while she's safe after a bee bump.
+        if (this.safeTimer > 0 && Math.floor(now / 90) % 2 === 0) ctx.globalAlpha = 0.45;
         // Draw facing right around her centre line; mirror for facing left.
         ctx.translate(this.x + this.width / 2, this.y + bob);
         if (this.facing === 'left') ctx.scale(-1, 1);
@@ -1522,13 +1926,14 @@ class Noodle {
      * Noodle's speech bubble sits on the grass *below* him, pointing up, so it never
      * covers Flora or the pets. Drawn after every character.
      */
-           drawSpeech(ctx                          , canvasWidth        )       {
+           drawSpeech(ctx                          , viewLeft        , viewRight        )       {
         if (this.barkTimer <= 0) return;
         ctx.save();
         ctx.font = "bold 12px sans-serif";
         const width = Math.max(44, ctx.measureText(this.speechBubble).width + 16);
         const noseX = this.x + 14;
-        const left = Math.min(Math.max(4, noseX - width / 2), canvasWidth - width - 4);
+        // Stay inside the visible part of the level.
+        const left = Math.min(Math.max(viewLeft + 4, noseX - width / 2), viewRight - width - 4);
         const top = SPEECH_TOP_Y;
 
         ctx.fillStyle = this.sniffing ? "#FFF9DB" : "#FFFFFF";
@@ -1566,6 +1971,8 @@ const objectiveDisplay = document.getElementById('objective-display')           
 const startScreen = document.getElementById('start-screen')               ;
 const playBtn = document.getElementById('play-btn')                     ;
 const continueBtn = document.getElementById('continue-btn')                     ;
+const rescuedList = document.getElementById('rescued-list')               ;
+const victoryText = document.getElementById('victory-text')               ;
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
@@ -1576,8 +1983,12 @@ const storage = getStorage();
 let screen         = 'start';
 let currentLevel         = 0;
 let levelClearTimer         = 0;
-/** Ticks since the level started; drives moving platforms. */
+/** Ticks since the level started; drives moving platforms and bees. */
 let levelTicks         = 0;
+/** Left edge of the visible part of the level; levels wider than the screen scroll. */
+let cameraX         = 0;
+/** Where each bee is this tick, and which way it's flying. */
+let bees                                      = [];
 
 let flora         = new Player();
 let noodle         = new Noodle();
@@ -1733,6 +2144,7 @@ function initLevel()       {
     levelClearTimer = 0;
     levelTicks = 0;
     movingPlatforms = movingPlatformsAt(0);
+    bees = beesAt(0);
     keyX = level.keyPos.x;
     keyY = level.keyPos.y;
 
@@ -1772,6 +2184,48 @@ function initLevel()       {
 function restartLevel()       {
     initLevel();
     flora.reset();
+    cameraX = cameraTarget();
+}
+
+/** The camera keeps Flora a little behind centre, looking ahead the way she faces. */
+function cameraTarget()         {
+    const maxX = levelWidth(LEVELS[currentLevel]) - CANVAS_WIDTH;
+    const lookAhead = flora.facing === 'right' ? 60 : -60;
+    const target = flora.x + flora.width / 2 - CANVAS_WIDTH / 2 + lookAhead;
+    return Math.min(Math.max(0, target), maxX);
+}
+
+function updateCamera()       {
+    cameraX += (cameraTarget() - cameraX) * 0.1;
+}
+
+/** Bees glide out and back like clouds, bobbing up and down as they buzz. */
+function beesAt(t        )                                      {
+    return (LEVELS[currentLevel].bees ?? []).map((b, i) => {
+        const phase = (2 * Math.PI * t) / b.period;
+        return {
+            x: b.x + (b.range * (1 - Math.cos(phase))) / 2,
+            y: b.y + Math.sin(t * 0.09 + i) * 6,
+            // Moving right during the first half of each trip
+            facingLeft: Math.sin(phase) < 0
+        };
+    });
+}
+
+function updateBees()       {
+    bees = beesAt(levelTicks);
+    for (const bee of bees) {
+        // Circle-vs-box: nearest point on Flora's box to the bee
+        const nx = Math.min(Math.max(bee.x, flora.x), flora.x + flora.width);
+        const ny = Math.min(Math.max(bee.y, flora.y), flora.y + flora.height);
+        if ((bee.x - nx) ** 2 + (bee.y - ny) ** 2 > BEE_RADIUS ** 2) continue;
+        if (flora.bump(bee.x)) {
+            audio.playSound('bump');
+            particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
+            noodle.barkTimer = 70;
+            noodle.speechBubble = "Ouch! Jump over the bees 🐝";
+        }
+    }
 }
 
 function checkWatering()       {
@@ -1836,12 +2290,13 @@ function updateKey()       {
 function updateDoghouse()       {
     // Flora has to walk in at the door, not fall past it from above.
     const atDoor = flora.grounded && flora.y + flora.height >= GROUND_Y - 1;
-    if (flora.x <= DOGHOUSE_ENTRY_X || !atDoor || levelClearTimer > 0) return;
+    if (flora.x <= doghouseEntryX(LEVELS[currentLevel]) || !atDoor || levelClearTimer > 0) return;
+    const houseX = doghouseX(LEVELS[currentLevel]);
     if (keyCollected) {
         levelClearTimer = LEVEL_CLEAR_FRAMES;
         audio.playSound('victory');
-        particleSystem.spawn(DOGHOUSE_X, 395, '#FF7675', 14, 'heart');
-        particleSystem.spawn(DOGHOUSE_X, 385, '#F1C40F', 20, 'star');
+        particleSystem.spawn(houseX, 395, '#FF7675', 14, 'heart');
+        particleSystem.spawn(houseX, 385, '#F1C40F', 20, 'star');
         updateStatus();
     } else if (noodle.barkTimer <= 0) {
         noodle.barkTimer = 70;
@@ -1852,7 +2307,7 @@ function updateDoghouse()       {
 function updateLevelClear()       {
     if (levelClearTimer <= 0) return;
     if (levelClearTimer % 15 === 0) {
-        particleSystem.spawn(DOGHOUSE_X + (Math.random() - 0.5) * 40, 390, '#FFEAA7', 8, 'star');
+        particleSystem.spawn(doghouseX(LEVELS[currentLevel]) + (Math.random() - 0.5) * 40, 390, '#FFEAA7', 8, 'star');
     }
 
     levelClearTimer--;
@@ -1928,14 +2383,17 @@ function tick()       {
         pressed,
         [...level.platforms, ...movingPlatforms],
         level.mushrooms ?? [],
-        CANVAS_WIDTH,
+        level.bushes ?? [],
+        levelWidth(level),
         levelClearTimer > 0,
         type => audio.playSound(type),
         checkWatering,
         checkDigging
     );
     noodle.update(flora.x, digMounds, boneFound, false, type => audio.playSound(type));
+    if (levelClearTimer === 0) updateBees();
     particleSystem.update();
+    updateCamera();
 
     updateDoghouse();
     updateLevelClear();
@@ -1947,19 +2405,25 @@ function render()       {
     ctx.fillStyle = level.bg;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Sky things stay put on screen; everything else is drawn in level space and scrolls.
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
     butterflies.draw(ctx);
-    drawTreeAndGround(ctx, CANVAS_WIDTH, level.treeX, digMounds, boneFound, boneX);
+
+    const houseX = doghouseX(level);
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+    drawTreeAndGround(ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], digMounds, boneFound, boneX);
     drawPlatforms(ctx, level.platforms);
     drawCloudPlatforms(ctx, movingPlatforms);
     drawMushrooms(ctx, level.mushrooms ?? []);
+    drawBushes(ctx, level.bushes ?? []);
     drawSprouts(ctx, sprouts, allBloomed());
-    drawDoghouse(ctx);
+    drawDoghouse(ctx, houseX);
 
     if (keyCollected) {
-        drawRescuedPet(ctx, level.species, DOGHOUSE_X, 416);
+        drawRescuedPet(ctx, level.species, houseX, 416);
     } else if (allBloomed() && boneFound) {
         drawKey(ctx, keyX, keyY);
     }
@@ -1967,10 +2431,29 @@ function render()       {
     for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416);
     flora.draw(ctx);
     noodle.draw(ctx);
+    for (const bee of bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
     particleSystem.draw(ctx);
-    noodle.drawSpeech(ctx, CANVAS_WIDTH);
+    noodle.drawSpeech(ctx, cameraX, cameraX + CANVAS_WIDTH);
+    ctx.restore();
+
+    // Point the way to the next goal when it's off-screen.
+    const goal = nextGoal();
+    if (goal) drawOffscreenArrow(ctx, goal.x - cameraX, CANVAS_WIDTH, goal.emoji);
 
     if (levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
+}
+
+/** What Flora should head for next, for the off-screen arrow: key, then doghouse, then any sprout left. */
+function nextGoal()                                      {
+    if (levelClearTimer > 0) return null;
+    if (keyCollected) return { x: doghouseX(LEVELS[currentLevel]), emoji: '🏠' };
+    if (allBloomed() && boneFound) return { x: keyX, emoji: '🔑' };
+    const onScreen = (x        )          => x >= cameraX && x <= cameraX + CANVAS_WIDTH;
+    const left = sprouts.filter(s => !s.bloomed);
+    if (left.length === 0 || left.some(s => onScreen(s.x))) return null;
+    const floraX = flora.x + flora.width / 2;
+    const nearest = left.reduce((a, b) => (Math.abs(a.x - floraX) <= Math.abs(b.x - floraX) ? a : b));
+    return { x: nearest.x, emoji: '🌱' };
 }
 
 // Scale the whole game box to fit the window, and size the canvas backing store to match
@@ -2014,7 +2497,20 @@ function frame(now        )       {
     requestAnimationFrame(frame);
 }
 
+/** The victory dialog lists every pet, so it grows with the level list. */
+function fillVictoryDialog()       {
+    victoryText.innerText = `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets!`;
+    rescuedList.replaceChildren(
+        ...LEVELS.map(l => {
+            const li = document.createElement('li');
+            li.innerText = `${PET_EMOJI[l.species]} ${l.pet}`;
+            return li;
+        })
+    );
+}
+
 fitToScreen();
+fillVictoryDialog();
 initLevel();
 showStartScreen();
 requestAnimationFrame(frame);

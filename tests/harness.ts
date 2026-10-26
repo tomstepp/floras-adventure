@@ -128,7 +128,14 @@ export function loadGame(options: LoadOptions = {}): Game {
         'objective-display': makeElement(),
         'start-screen': makeElement({ hidden: true }),
         'play-btn': makeElement(),
-        'continue-btn': makeElement({ hidden: true })
+        'continue-btn': makeElement({ hidden: true }),
+        'victory-text': makeElement(),
+        'rescued-list': makeElement({
+            items: [] as string[],
+            replaceChildren(this: { items: string[] }, ...children: { innerText: string }[]) {
+                this.items = children.map(c => c.innerText);
+            }
+        })
     };
 
     const localStorage = {
@@ -151,6 +158,7 @@ export function loadGame(options: LoadOptions = {}): Game {
         document: {
             documentElement: { clientWidth: 0, clientHeight: 0 },
             body: makeElement(),
+            createElement: () => makeElement(),
             getElementById: (id: string) => elements[id],
             querySelectorAll: (selector: string) => (selector === '[data-key]' ? touchButtons : [])
         },
@@ -211,13 +219,17 @@ export function loadGame(options: LoadOptions = {}): Game {
     };
 }
 
-/** Puts Flora standing at (x, feetY), facing right, ready to act. */
+/**
+ * Puts Flora standing at (x, feetY), facing right, ready to act. Scripted helpers teleport
+ * her around, so she's made bump-proof; bee tests reset `flora.safeTimer = 0` themselves.
+ */
 export function placeFlora(game: Game, x: number, feetY: number): void {
     game.run(`
         flora.x = ${x}; flora.y = ${feetY} - flora.height; flora.vx = 0; flora.vy = 0;
         flora.grounded = true; flora.facing = 'right';
         flora.waterTimer = 0; flora.isWatering = false; flora.digTimer = 0; flora.isDigging = false;
         flora.coyoteTimer = 6; flora.jumpBufferTimer = 0; flora.jumpRising = false;
+        flora.stunTimer = 0; flora.safeTimer = 100000;
     `);
 }
 
@@ -249,7 +261,7 @@ export function clearLevel(game: Game): void {
     bloomAll(game);
     digBone(game);
     collectKey(game);
-    placeFlora(game, 690, 428);
+    placeFlora(game, game.run<number>('doghouseEntryX(LEVELS[currentLevel])') + 5, 428);
     game.step();
     while (game.run<number>('levelClearTimer') > 0) game.step();
 }

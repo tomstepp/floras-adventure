@@ -64,9 +64,9 @@ Each level is completed in this order:
 | LV-2 | **Find the bone**: one of the level's dirt mounds, chosen at random each time the level starts, hides Noodle's bone. Digging an empty mound shows "Keep sniffing!". Digging targets the *closest undug* mound within 48 px. The bone may be dug before all flowers bloom. |
 | LV-3 | When Flora is within 95 px of the bone mound, Noodle runs to it and barks "🦴 Dig here!". |
 | LV-4 | **Collect the key**: the key appears only once all sprouts are bloomed **and** the bone is found. Touching it collects it. |
-| LV-5 | **Enter the doghouse**: walking right past x = 685 **on the ground** while holding the key starts a 75-tick celebration that names the rescued pet. Falling past the door from above doesn't count until Flora lands. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
+| LV-5 | **Enter the doghouse**: the doghouse always stands at the far right of the level. Walking right past it (level width − 115) **on the ground** while holding the key starts a 75-tick celebration that names the rescued pet. Falling past the door from above doesn't count until Flora lands. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
 | LV-6 | After the celebration the pet joins the parade following Noodle, and the next level starts with Flora back at the left side. |
-| LV-7 | After level 5 the victory dialog opens and the game pauses. Closing it (button, Esc, or clicking outside) starts a new game at level 1 with an empty parade. |
+| LV-7 | After the last level the victory dialog opens and the game pauses. It lists every rescued pet with its emoji, generated from the level list. Closing it (button, Esc, or clicking outside) starts a new game at level 1 with an empty parade. |
 | LV-8 | The rainbow is hidden during play. When the level is beaten it sweeps across the sky from left to right (~2/3 s) during the celebration, disappears when the next level starts, and stays fully drawn behind the final victory dialog. |
 
 ## 3a. Level twists
@@ -75,7 +75,7 @@ Each level after the first adds one new idea; the last level mixes them all.
 
 | ID | Requirement |
 |----|-------------|
-| TW-1 | Level 1: no twist. Level 2: bouncy mushroom. Level 3: moving cloud. Level 4: big flower. Level 5: all three. |
+| TW-1 | Level 1: no twist. Level 2: bouncy mushroom. Level 3: moving cloud. Level 4: big flower. Level 5: all three. Levels 6–10: see 3b. |
 | TW-2 | Level 2's key sits on a ledge only the mushroom bounce can reach. |
 | TW-3 | Level 3's key sits on a ledge only reachable from the moving cloud. |
 | TW-4 | **Mushroom:** landing on its cap from above launches Flora much higher than a jump (≈ 320 px). Walking into it along the ground does nothing. |
@@ -83,7 +83,18 @@ Each level after the first adds one new idea; the last level mixes them all.
 | TW-6 | **Big flower:** needs several splashes. The bud grows with each splash and shows 💧 for each splash still needed; it blooms bigger than a normal flower. The objective line mentions that big ones need extra splashes. |
 | TW-7 | When a level with a twist starts, Noodle's speech bubble introduces it for ~4 s. |
 
-## 3b. Look & feel
+## 3b. Big scrolling levels (6–10)
+
+| ID | Requirement |
+|----|-------------|
+| BG-1 | Levels 1–5 fit one screen (800 px). Levels 6–10 are wider (1600 → 2400 px) and never shrink in that order: 6 Buzzing Meadow 🐥, 7 Bramble Path 🐷, 8 Cloud Canyon 🦊, 9 Bumblebee Woods 🐼, 10 Grand Garden 🦄. |
+| BG-2 | Bees first appear in level 6 and bushes in level 7; level 10 has every obstacle and twist (bees, bushes, mushroom, cloud, big flowers). Levels 1–5 have no bees or bushes. |
+| BG-3 | **Camera:** follows Flora smoothly, keeping her a little behind centre and looking ahead the way she faces, and stops at both ends of the level. The sky (sun, rainbow, butterflies), HUD and celebration banner stay fixed on screen; everything else scrolls. |
+| BG-4 | **Bramble bush:** a solid clump on the ground. Walking into one stops Flora at its edge; she can jump onto its top and over it. Bushes are always low enough to jump. |
+| BG-5 | **Bumblebee:** glides back and forth along a path, bobbing. Touching one bumps Flora back away from it with a little hop; for ~0.4 s she can't walk, jump, water or dig, then she blinks for ~1.5 s and can't be bumped again. Nothing is ever lost — flowers, bone and key stay — and Noodle says to jump over the bees. Bees freeze during the level-clear celebration. |
+| BG-6 | **Edge arrows:** when the next goal is off-screen, a pill at the screen edge shows its emoji and points the way: 🔑 once the key appears, 🏠 once it's collected, or 🌱 toward the nearest unbloomed sprout if none are on screen. |
+
+## 3c. Look & feel
 
 | ID | Requirement |
 |----|-------------|
@@ -110,16 +121,18 @@ These are checked automatically against `src/levels.ts` so new levels can't be u
 
 | ID | Requirement |
 |----|-------------|
-| LD-1 | There are exactly 5 levels, each with a unique pet and a background melody. |
+| LD-1 | There are exactly 10 levels, each with a unique pet and a background melody. |
 | LD-2 | Every sprout sits either on the ground or on top of a platform that holds still, within its horizontal span. |
-| LD-3 | Every platform (and each moving cloud's whole stretch) can be reached, with at least 10 px margin: by a jump (≈ 115 px up, ≤ 140 px sideways gap) from a reached surface, or by a mushroom bounce from almost directly below. |
+| LD-3 | Every platform (and each moving cloud's whole stretch) can be reached, with at least 10 px margin: by a jump (≈ 115 px up, ≤ 140 px sideways gap) from a reached surface, by dropping down from a higher one within that gap, or by a mushroom bounce from almost directly below. |
 | LD-4 | The key sits 30 px above a reachable platform that holds still (or the ground), inside that platform's span. |
-| LD-5 | Each level has at least 2 dirt mounds, at least 40 px apart, clear of the doghouse (x < 640) and of the starting area (x > 100). |
-| LD-6 | Platforms (including a cloud's whole stretch) stay inside the canvas and end before the doghouse body (right edge ≤ 670). |
+| LD-5 | Each level has at least 2 dirt mounds, at least 40 px apart, clear of the starting area (x > 100) and at least 30 px clear of the doghouse. |
+| LD-6 | Platforms (including a cloud's whole stretch) stay inside the level and end before the doghouse body (level width − 130). |
 | LD-7 | Mushrooms grow on the ground, at least 40 px from any dig mound, clear of the start area and the doghouse. |
 | LD-8 | Big flowers need 2 or 3 splashes. |
 | LD-9 | No flower is drawn in the same color as its level's sky. Big flowers are always orange sunflowers. |
+| LD-10 | Bushes are low enough to jump, at least 30 px clear of mounds, mushrooms and ground sprouts, and away from the start (x > 150) and the doghouse. |
+| LD-11 | Bees fly inside the playfield (between the HUD and the ground), start past x = 250, stay 40 px clear of the doghouse, and take at least 200 ticks per round trip. |
 
 ## 6. Out of scope (ideas for later)
 
-- Hazards, enemies or a timer — the game is intentionally stress-free.
+- Timers, lives or game over — obstacles only ever bump Flora back; the game stays stress-free.

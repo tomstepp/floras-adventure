@@ -1,5 +1,5 @@
-import { MUSHROOM_HEIGHT, MUSHROOM_WIDTH, RAINBOW_COLORS } from './levels.ts';
-import type { DigMound, Platform, Point, Species, Sprout } from './types.ts';
+import { BEE_RADIUS, GROUND_Y, MUSHROOM_HEIGHT, MUSHROOM_WIDTH, RAINBOW_COLORS } from './levels.ts';
+import type { Bush, DigMound, Platform, Point, Species, Sprout } from './types.ts';
 
 /** A smiling sun in the characters' style: soft rays that turn and breathe, and eyes that blink. */
 export function drawSun(ctx: CanvasRenderingContext2D): void {
@@ -98,6 +98,127 @@ export function drawPlatforms(ctx: CanvasRenderingContext2D, platforms: readonly
     }
 }
 
+/** Bramble bushes: round leafy clumps with little thorns and berries. */
+export function drawBushes(ctx: CanvasRenderingContext2D, bushes: readonly Bush[]): void {
+    for (const b of bushes) {
+        const top = GROUND_Y - b.height;
+        const lumps = Math.max(2, Math.round(b.width / 18));
+        const r = b.width / lumps / 2 + 4;
+        ctx.fillStyle = "#2E8B57";
+        for (let i = 0; i < lumps; i++) {
+            const cx = b.x + (i + 0.5) * (b.width / lumps);
+            ctx.beginPath();
+            ctx.arc(cx, top + r, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.roundRect(b.x, top + r * 0.8, b.width, b.height - r * 0.8 + 2, 6);
+        ctx.fill();
+        // Lighter leaves on top
+        ctx.fillStyle = "#3CB371";
+        for (let i = 0; i < lumps; i++) {
+            const cx = b.x + (i + 0.5) * (b.width / lumps);
+            ctx.beginPath();
+            ctx.arc(cx - 2, top + r - 3, r * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Tiny thorns along the edge, and a couple of berries
+        ctx.fillStyle = "#1E6B43";
+        for (let tx = b.x + 4; tx < b.x + b.width - 2; tx += 8) {
+            ctx.beginPath();
+            ctx.moveTo(tx - 2, top + 3);
+            ctx.lineTo(tx, top - 2);
+            ctx.lineTo(tx + 2, top + 3);
+            ctx.fill();
+        }
+        ctx.fillStyle = "#E84393";
+        ctx.beginPath();
+        ctx.arc(b.x + b.width * 0.3, top + b.height * 0.55, 2.5, 0, Math.PI * 2);
+        ctx.arc(b.x + b.width * 0.7, top + b.height * 0.45, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+/** A chubby striped bumblebee with buzzing wings, facing the way it flies. */
+export function drawBee(ctx: CanvasRenderingContext2D, x: number, y: number, facingLeft: boolean): void {
+    const now = Date.now();
+    ctx.save();
+    ctx.translate(x, y);
+    if (facingLeft) ctx.scale(-1, 1);
+
+    // Wings flutter fast
+    const flap = Math.abs(Math.sin(now * 0.06));
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.beginPath();
+    ctx.ellipse(-3, -BEE_RADIUS + 1, 4, 6 * (0.5 + flap * 0.5), -0.4, 0, Math.PI * 2);
+    ctx.ellipse(3, -BEE_RADIUS + 2, 3.5, 5 * (0.5 + flap * 0.5), 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body with stripes, clipped to the body shape
+    ctx.beginPath();
+    ctx.ellipse(0, 0, BEE_RADIUS, BEE_RADIUS * 0.75, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#FDCB6E";
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = "#2D3436";
+    ctx.fillRect(-4, -10, 3, 20);
+    ctx.fillRect(2, -10, 3, 20);
+    ctx.restore();
+    // Stinger
+    ctx.fillStyle = "#2D3436";
+    ctx.beginPath();
+    ctx.moveTo(-BEE_RADIUS + 1, -1.5);
+    ctx.lineTo(-BEE_RADIUS - 3, 0);
+    ctx.lineTo(-BEE_RADIUS + 1, 1.5);
+    ctx.fill();
+    // Face: sparkly eye and blush, same as everyone else
+    ctx.beginPath();
+    ctx.arc(6, -1.5, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(6.5, -2.2, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.6)";
+    ctx.beginPath();
+    ctx.arc(7, 2.5, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+/**
+ * When a goal is off-screen, a small pill at the screen edge shows its emoji and which
+ * way to go. `screenX` is the goal's position relative to the visible screen.
+ */
+export function drawOffscreenArrow(ctx: CanvasRenderingContext2D, screenX: number, screenWidth: number, emoji: string): void {
+    if (screenX >= 0 && screenX <= screenWidth) return;
+    const right = screenX > screenWidth;
+    const pulse = Math.sin(Date.now() * 0.008) * 3;
+    const cx = right ? screenWidth - 34 - pulse : 34 + pulse;
+    const cy = 215;
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.beginPath();
+    ctx.roundRect(cx - 26, cy - 15, 52, 30, 15);
+    ctx.fill();
+    ctx.fillStyle = "#FF6B8B";
+    ctx.beginPath();
+    const tip = right ? cx + 22 : cx - 22;
+    const back = right ? cx + 10 : cx - 10;
+    ctx.moveTo(back, cy - 8);
+    ctx.lineTo(tip, cy);
+    ctx.lineTo(back, cy + 8);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.font = "18px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(emoji, right ? cx - 6 : cx + 6, cy + 1);
+    ctx.restore();
+}
+
 /** Moving platforms are fluffy clouds so they read as different from the earthy ledges. */
 export function drawCloudPlatforms(ctx: CanvasRenderingContext2D, platforms: readonly Platform[]): void {
     for (const p of platforms) {
@@ -142,7 +263,12 @@ export const PET_EMOJI: Readonly<Record<Species, string>> = {
     puppy: "🐶",
     hamster: "🐹",
     turtle: "🐢",
-    bunny: "🐰"
+    bunny: "🐰",
+    duckling: "🐥",
+    piglet: "🐷",
+    fox: "🦊",
+    panda: "🐼",
+    unicorn: "🦄"
 };
 
 /** A rescued pet: its emoji hopping gently, sitting on `y`, with a little heart above. */
@@ -180,17 +306,17 @@ export function drawRescuedPet(
 
 export function drawTreeAndGround(
     ctx: CanvasRenderingContext2D,
-    canvasWidth: number,
-    treeX: number,
+    worldWidth: number,
+    trees: readonly number[],
     digMounds: readonly DigMound[],
     boneFound: boolean,
     boneX: number
 ): void {
-    drawTree(ctx, treeX);
+    for (const treeX of trees) drawTree(ctx, treeX);
 
     // Ground
     ctx.fillStyle = "#00B894";
-    ctx.fillRect(0, 428, canvasWidth, 72);
+    ctx.fillRect(0, 428, worldWidth, 72);
 
     // Dirt Mounds & Hidden Bone
     for (const m of digMounds) {
@@ -363,8 +489,10 @@ export function drawTree(ctx: CanvasRenderingContext2D, treeX: number): void {
 }
 
 /** Noodle's house: soft pink walls, a scalloped rounded roof, an arched door and a bone sign. */
-export function drawDoghouse(ctx: CanvasRenderingContext2D): void {
+/** Draws the doghouse centred on `centerX` (the shapes below are laid out for 707). */
+export function drawDoghouse(ctx: CanvasRenderingContext2D, centerX: number = 707): void {
     ctx.save();
+    ctx.translate(centerX - 707, 0);
 
     // Walls with faint planks
     ctx.fillStyle = "#FF9AA2";

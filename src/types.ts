@@ -1,6 +1,8 @@
-export type Species = 'kitty' | 'puppy' | 'hamster' | 'turtle' | 'bunny';
+export type Species =
+    | 'kitty' | 'puppy' | 'hamster' | 'turtle' | 'bunny'
+    | 'duckling' | 'piglet' | 'fox' | 'panda' | 'unicorn';
 export type Direction = 'left' | 'right';
-export type SoundType = 'jump' | 'water' | 'dig' | 'bloom' | 'bark' | 'key' | 'victory' | 'bounce';
+export type SoundType = 'jump' | 'water' | 'dig' | 'bloom' | 'bark' | 'key' | 'victory' | 'bounce' | 'bump';
 export type ParticleShape = 'circle' | 'star' | 'heart';
 
 export interface Point {
@@ -18,6 +20,19 @@ export interface Platform {
 export interface MovingPlatform extends Platform {
     range: number;
     period: number;
+}
+
+/** A bumblebee that flies from `x` to `x + range` and back around height `y`, once every `period` ticks. */
+export interface BeeConfig extends Point {
+    range: number;
+    period: number;
+}
+
+/** A bramble bush on the ground: solid from the side, standable on top. `x` is its left edge. */
+export interface Bush {
+    x: number;
+    width: number;
+    height: number;
 }
 
 export interface SproutConfig extends Point {
@@ -66,11 +81,17 @@ export interface LevelConfig {
     pet: string;
     species: Species;
     bg: string;
+    /** World width in px; levels wider than the screen scroll. Defaults to one screen (800). */
+    width?: number;
     treeX: number;
+    /** Extra background trees beyond the main one. */
+    trees?: readonly number[];
     platforms: readonly Platform[];
     movingPlatforms?: readonly MovingPlatform[];
     /** Bouncy mushrooms; `y` is the surface they grow on. */
     mushrooms?: readonly Point[];
+    bees?: readonly BeeConfig[];
+    bushes?: readonly Bush[];
     sprouts: readonly SproutConfig[];
     mounds: readonly number[];
     keyPos: Point;
