@@ -35,6 +35,17 @@ export const MAX_BOUNCE_HEIGHT: number = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY)
 /** Highest jump in px (jump held): v^2 / 2g. */
 export const MAX_JUMP_HEIGHT: number = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
 
+/** Pond water surface; lily pads float just above it. Falling below the surface is a splash. */
+export const WATER_SURFACE_Y: number = 436;
+export const LILY_Y: number = 430;
+/** Rain clouds float at this height and water a column this wide below them. */
+export const RAIN_CLOUD_Y: number = 150;
+export const RAIN_WIDTH: number = 70;
+/** A sprout under the rain gets one splash this often. */
+export const RAIN_SPLASH_TICKS: number = 90;
+/** On ice Flora speeds up and slows down gradually: this fraction of the change per tick. */
+export const ICE_GRIP: number = 0.05;
+
 /** Bee hitbox radius. Touching a bee bumps Flora back; she can't be bumped again for a moment. */
 export const BEE_RADIUS: number = 10;
 export const BUMP_STUN_TICKS: number = 24;
@@ -83,7 +94,12 @@ export const LEVEL_MELODIES: readonly (readonly string[])[] = [
     ["C4", "G4", "E4", "A4", "G4", "E4", "D4", "G4"],
     ["D4", "A4", "F#4", "B4", "A4", "F#4", "E4", "A4"],
     ["E4", "B4", "G4", "C5", "B4", "G4", "F#4", "B4"],
-    ["C5", "E5", "G5", "C6", "B5", "G5", "E5", "D5"]
+    ["C5", "E5", "G5", "C6", "B5", "G5", "E5", "D5"],
+    ["F4", "A4", "C5", "A4", "G4", "F4", "D4", "C4"],
+    ["G4", "D5", "B4", "G4", "A4", "E5", "C5", "A4"],
+    ["E4", "G4", "B4", "G4", "F#4", "A4", "C5", "B4"],
+    ["C5", "G4", "E4", "G4", "B4", "D5", "G5", "E5"],
+    ["A4", "E4", "C4", "E4", "G4", "B4", "E5", "C5"]
 ];
 
 export const LEVELS: readonly LevelConfig[] = [
@@ -355,7 +371,7 @@ export const LEVELS: readonly LevelConfig[] = [
         width: 2400,
         treeX: 1100,
         trees: [520, 1600, 2150],
-        tip: "The grand finale! You can do it 🦄",
+        tip: "Everything at once! You can do it 🦄",
         platforms: [
             { x: 220, y: 345, width: 110 },
             { x: 780, y: 170, width: 110 },
@@ -386,6 +402,201 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 2105, y: 340 }
         ],
         mounds: [560, 1050, 1600, 1840],
+        keyPos: { x: 1805, y: 150 }
+    },
+
+    // ---- Weather and water levels ----
+    {
+        name: "Lily Pond",
+        flowersNeeded: 6,
+        pet: "Lily the Frog",
+        species: "frog",
+        bg: "#9FD8E8",
+        width: 2000,
+        treeX: 1050,
+        trees: [300, 1700],
+        tip: "Hop across the lily pads! 🪷",
+        water: [
+            { x: 500, width: 260 },
+            { x: 1150, width: 320 }
+        ],
+        lilyPads: [
+            { x: 560, y: 430, width: 50 },
+            { x: 670, y: 430, width: 50 }
+        ],
+        movingPlatforms: [{ x: 1190, y: 430, width: 60, range: 150, period: 260, style: "lily" }],
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 860, y: 340, width: 110 },
+            { x: 1000, y: 265, width: 110 },
+            { x: 1600, y: 340, width: 110 },
+            { x: 1750, y: 265, width: 110 }
+        ],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 305, y: 345 },
+            { x: 585, y: 430 },
+            { x: 915, y: 340 },
+            { x: 1055, y: 265 },
+            { x: 1805, y: 265 }
+        ],
+        mounds: [400, 900, 1550],
+        keyPos: { x: 1805, y: 235 }
+    },
+    {
+        name: "Windy Hills",
+        flowersNeeded: 6,
+        pet: "Kiwi the Bluebird",
+        species: "bird",
+        bg: "#CFE8FF",
+        width: 2200,
+        weather: "wind",
+        wind: { strength: -1.6, calm: 200, gust: 150 },
+        treeX: 1250,
+        trees: [350, 1900],
+        tip: "Whoosh! Lean into the wind 🍃",
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 420, y: 270, width: 110 },
+            { x: 800, y: 340, width: 110 },
+            { x: 960, y: 265, width: 110 },
+            { x: 1110, y: 190, width: 110 },
+            { x: 1550, y: 340, width: 110 },
+            { x: 1720, y: 265, width: 120 }
+        ],
+        mushrooms: [{ x: 1300, y: 428 }],
+        bushes: [
+            { x: 600, width: 50, height: 32 },
+            { x: 1400, width: 60, height: 34 }
+        ],
+        bees: [{ x: 1000, y: 400, range: 180, period: 260 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 475, y: 270 },
+            { x: 855, y: 340 },
+            { x: 1165, y: 190 },
+            { x: 1605, y: 340 },
+            { x: 1780, y: 265, waterNeeded: 2 }
+        ],
+        mounds: [700, 1050, 1500, 1900],
+        keyPos: { x: 1165, y: 160 }
+    },
+    {
+        name: "Rainy Meadow",
+        flowersNeeded: 7,
+        pet: "Squiggle the Snail",
+        species: "snail",
+        bg: "#B8C6D1",
+        width: 2200,
+        weather: "rain",
+        rainClouds: [
+            { x: 280, range: 450, period: 900 },
+            { x: 1180, range: 600, period: 1000 }
+        ],
+        treeX: 1100,
+        trees: [520, 1850],
+        tip: "Rain clouds help your flowers grow! 🌧️",
+        platforms: [
+            { x: 230, y: 345, width: 110 },
+            { x: 450, y: 270, width: 110 },
+            { x: 760, y: 340, width: 110 },
+            { x: 1000, y: 340, width: 110 },
+            { x: 1150, y: 265, width: 110 },
+            { x: 1500, y: 345, width: 110 },
+            { x: 1700, y: 270, width: 120 }
+        ],
+        bushes: [{ x: 880, width: 50, height: 32 }],
+        bees: [
+            { x: 600, y: 400, range: 150, period: 240 },
+            { x: 1300, y: 330, range: 150, period: 260 }
+        ],
+        sprouts: [
+            { x: 140, y: 428 },
+            { x: 285, y: 345 },
+            { x: 505, y: 270, waterNeeded: 2 },
+            { x: 650, y: 428 },
+            { x: 1055, y: 340 },
+            { x: 1205, y: 265 },
+            { x: 1760, y: 270, waterNeeded: 3 }
+        ],
+        mounds: [380, 1300, 1650, 1900],
+        keyPos: { x: 1760, y: 240 }
+    },
+    {
+        name: "Snowy Peaks",
+        flowersNeeded: 6,
+        pet: "Bruno the Bear",
+        species: "bear",
+        bg: "#DCEBF5",
+        width: 2200,
+        weather: "snow",
+        ice: [
+            { x: 400, width: 250 },
+            { x: 1100, width: 300 },
+            { x: 1700, width: 200 }
+        ],
+        treeX: 1250,
+        trees: [600, 1820],
+        tip: "Brrr! Ice is slippery ⛸️",
+        platforms: [
+            { x: 220, y: 345, width: 110 },
+            { x: 700, y: 340, width: 110 },
+            { x: 860, y: 265, width: 110 },
+            { x: 1450, y: 345, width: 110 },
+            { x: 1600, y: 270, width: 110 },
+            { x: 1950, y: 340, width: 100 }
+        ],
+        movingPlatforms: [{ x: 1150, y: 280, width: 90, range: 180, period: 280 }],
+        bushes: [{ x: 1000, width: 50, height: 32 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 275, y: 345 },
+            { x: 520, y: 428 },
+            { x: 915, y: 265 },
+            { x: 1505, y: 345 },
+            { x: 1655, y: 270, waterNeeded: 2 }
+        ],
+        mounds: [330, 760, 1550, 1960],
+        keyPos: { x: 1655, y: 240 }
+    },
+    {
+        name: "Starry Night",
+        flowersNeeded: 7,
+        pet: "Olive the Owl",
+        species: "owl",
+        bg: "#1B2A4A",
+        width: 2400,
+        weather: "night",
+        treeX: 1100,
+        trees: [450, 1700],
+        tip: "It's dark! Fireflies light the way ✨",
+        platforms: [
+            { x: 230, y: 345, width: 110 },
+            { x: 420, y: 270, width: 110 },
+            { x: 780, y: 170, width: 110 },
+            { x: 1000, y: 340, width: 110 },
+            { x: 1250, y: 345, width: 110 },
+            { x: 1750, y: 180, width: 110 },
+            { x: 2050, y: 340, width: 110 }
+        ],
+        movingPlatforms: [{ x: 1400, y: 260, width: 90, range: 220, period: 300 }],
+        mushrooms: [{ x: 820, y: 428 }],
+        bushes: [
+            { x: 600, width: 50, height: 32 },
+            { x: 1150, width: 60, height: 34 },
+            { x: 1900, width: 50, height: 32 }
+        ],
+        water: [{ x: 1560, width: 110 }],
+        sprouts: [
+            { x: 140, y: 428 },
+            { x: 275, y: 345 },
+            { x: 475, y: 270 },
+            { x: 835, y: 170, waterNeeded: 2 },
+            { x: 1055, y: 340 },
+            { x: 1805, y: 180, waterNeeded: 3 },
+            { x: 2105, y: 340 }
+        ],
+        mounds: [520, 1050, 1350, 1800],
         keyPos: { x: 1805, y: 150 }
     }
 ];

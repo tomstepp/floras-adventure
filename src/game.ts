@@ -1,6 +1,8 @@
 import { AudioController } from './audio.ts';
 import { ButterflySwarm } from './butterflies.ts';
 import { SkyVisitors } from './skyfriends.ts';
+import { WeatherEffects } from './weather.ts';
+import type { Light } from './weather.ts';
 import { Noodle, Player } from './entities.ts';
 import {
     CONTROLS,
@@ -14,6 +16,8 @@ import {
     LEVEL_CLEAR_FRAMES,
     LEVELS,
     levelWidth,
+    RAIN_SPLASH_TICKS,
+    RAIN_WIDTH,
     RAINBOW_SWEEP_FRAMES,
     TICK_MS
 } from './levels.ts';
@@ -27,6 +31,10 @@ import {
     drawBushes,
     drawCelebrationBanner,
     drawCloudPlatforms,
+    drawIce,
+    drawLilyPads,
+    drawRainClouds,
+    drawWater,
     drawDoghouse,
     drawKey,
     drawMushrooms,
@@ -39,7 +47,7 @@ import {
     drawTreeAndGround,
     PET_EMOJI
 } from './renderer.ts';
-import type { DigMound, Platform, Point, RescuedFriend, Species, Sprout } from './types.ts';
+import type { DigMound, PhysicsWorld, Platform, Point, RescuedFriend, Species, Sprout } from './types.ts';
 
 const stage = document.getElementById('game-stage') as HTMLElement;
 const container = document.getElementById('game-container') as HTMLElement;
@@ -78,6 +86,7 @@ const audio = new AudioController();
 const particleSystem = new ParticleSystem();
 const butterflies = new ButterflySwarm();
 const skyVisitors = new SkyVisitors();
+const weather = new WeatherEffects();
 const storage = getStorage();
 /** Continue point, unlocked levels, roster and followers; kept in memory and mirrored to storage. */
 let progress: SaveData = loadSave(storage, LEVELS.map(l => l.species));
@@ -92,6 +101,10 @@ let levelClearTimer: number = 0;
 let levelTicks: number = 0;
 /** Left edge of the visible part of the level; levels wider than the screen scroll. */
 let cameraX: number = 0;
+/** Where each rain cloud's middle is this tick. */
+let rainCloudXs: number[] = [];
+/** The last spot Flora stood on solid ground, where a pond splash puts her back. */
+let lastSafeX: number = 50;
 /** Where each bee is this tick, and which way it's flying. */
 let bees: (Point & { facingLeft: boolean })[] = [];
 
@@ -106,7 +119,7 @@ let keyCollected: boolean = false;
 let keyX: number = 530;
 let keyY: number = 315;
 /** Where each of the level's moving platforms is this tick. */
-let movingPlatforms: Platform[] = [];
+let movingPlatforms: (Platform & { style?: 'cloud' | 'lily' })[] = [];
 
 const keys: Record<string, boolean> = {};
 /** Keys that went down since the last tick, so a tap shorter than one tick still counts. */
@@ -447,6 +460,9 @@ export function initLevel(): void {
     levelTicks = 0;
     movingPlatforms = movingPlatformsAt(0);
     bees = beesAt(0);
+    rainCloudXs = rainCloudsAt(0);
+    lastSafeX = 50;
+    weather.setKind(level.weather ?? 'clear');
     keyX = level.keyPos.x;
     keyY = level.keyPos.y;
 
@@ -486,6 +502,14 @@ export function initLevel(): void {
 export function restartLevel(): void {
     initLevel();
     flora.reset();
+    // Line Noodle and the parade up behind Flora, instead of them walking back from
+    // wherever the last level ended.
+    noodle.x = 20;
+    rescuedFriends.forEach((pet, i) => {
+        pet.x = noodle.x - (i + 1) * PARADE_GAP;
+        pet.vx = 0;
+        pet.facingLeft = false;
+    });
     cameraX = cameraTarget();
 }
 
@@ -530,24 +554,88 @@ function updateBees(): void {
     }
 }
 
+/** One splash of water on a sprout, from Flora's can or a rain cloud. */
+function splashSprout(s: Sprout): void {
+    if (s.bloomed) return;
+    s.water++;
+    if (s.water >= s.waterNeeded) {
+        s.bloomed = true;
+        audio.playSound('bloom');
+        const big = s.waterNeeded > 1;
+        particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
+        particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
+    } else {
+        particleSystem.spawn(s.x, s.y - 20, '#74B9FF', 8, 'circle');
+    }
+}
+
 export function checkWatering(): void {
     const canCenterX = flora.facing === 'right' ? flora.x + 30 : flora.x + 2;
     const floraFeetY = flora.y + flora.height;
     for (const s of sprouts) {
         if (s.bloomed || Math.abs(canCenterX - s.x) >= 48 || Math.abs(floraFeetY - s.y) >= 48) continue;
-        s.water++;
-        if (s.water >= s.waterNeeded) {
-            s.bloomed = true;
-            audio.playSound('bloom');
-            const big = s.waterNeeded > 1;
-            particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
-            particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
-        } else {
-            particleSystem.spawn(s.x, s.y - 20, '#74B9FF', 8, 'circle');
-        }
+        splashSprout(s);
     }
     updateStatus();
 }
+
+/**
+ * The wind's push this tick: calm, then a gust that eases in and out. `soon` is true in the
+ * second before a gust, when warning leaves start to blow.
+ */
+export function currentWind(): { x: number; soon: boolean } {
+    const wind = LEVELS[currentLevel].wind;
+    if (!wind) return { x: 0, soon: false };
+    const t = levelTicks % (wind.calm + wind.gust);
+    if (t < wind.calm) return { x: 0, soon: t > wind.calm - 60 };
+    const into = t - wind.calm;
+    const ease = Math.min(1, into / 25, (wind.gust - into) / 25);
+    return { x: wind.strength * ease, soon: false };
+}
+
+/** Rain clouds drift like the moving clouds, without being solid. */
+function rainCloudsAt(t: number): number[] {
+    return (LEVELS[currentLevel].rainClouds ?? []).map(
+        c => c.x + (c.range * (1 - Math.cos((2 * Math.PI * t) / c.period))) / 2
+    );
+}
+
+/** Sprouts under a rain cloud get a splash every so often, helping Flora along. */
+function updateRain(): void {
+    rainCloudXs = rainCloudsAt(levelTicks);
+    if (rainCloudXs.length === 0) return;
+    let changed = false;
+    for (const s of sprouts) {
+        if (s.bloomed) continue;
+        const underRain = rainCloudXs.some(cx => Math.abs(cx - s.x) <= RAIN_WIDTH / 2);
+        if (!underRain) continue;
+        s.rainTicks = (s.rainTicks ?? 0) + 1;
+        if (s.rainTicks >= RAIN_SPLASH_TICKS) {
+            s.rainTicks = 0;
+            splashSprout(s);
+            changed = true;
+        }
+    }
+    if (changed) updateStatus();
+}
+
+/** Ponds: remember the last dry spot, and splash Flora back to it if she drops in. */
+function updatePond(): void {
+    const water = LEVELS[currentLevel].water ?? [];
+    noodle.swimming = water.some(w => noodle.x + 12 >= w.x && noodle.x + 12 <= w.x + w.width);
+    if (water.length === 0) return;
+    if (flora.grounded && flora.y + flora.height >= GROUND_Y - 1 && !flora.over(water)) lastSafeX = flora.x;
+    if (!flora.fellInWater) return;
+    particleSystem.spawn(flora.x + flora.width / 2, GROUND_Y + 6, '#74B9FF', 16, 'circle');
+    audio.playSound('bump');
+    flora.reset();
+    flora.x = lastSafeX;
+    flora.safeTimer = 60;
+    noodle.sayFirst("Splash! Hop on the lily pads 🪷", 120);
+}
+
+const overWater = (x: number): boolean =>
+    (LEVELS[currentLevel].water ?? []).some(w => x >= w.x && x <= w.x + w.width);
 
 export function checkDigging(): void {
     if (flora.y + flora.height < GROUND_Y - 5) return;
@@ -639,11 +727,12 @@ function updateLevelClear(): void {
 }
 
 /** Positions of the level's moving platforms at tick `t`: an eased glide out and back. */
-function movingPlatformsAt(t: number): Platform[] {
+function movingPlatformsAt(t: number): (Platform & { style?: 'cloud' | 'lily' })[] {
     return (LEVELS[currentLevel].movingPlatforms ?? []).map(p => ({
         x: p.x + (p.range * (1 - Math.cos((2 * Math.PI * t) / p.period))) / 2,
         y: p.y,
-        width: p.width
+        width: p.width,
+        style: p.style
     }));
 }
 
@@ -682,6 +771,8 @@ export function update(): void {
     // Butterflies keep fluttering on every screen, including behind the start screen.
     butterflies.update();
     skyVisitors.update();
+    const wind = screen === 'playing' ? currentWind() : { x: 0, soon: false };
+    weather.update(wind.x, wind.soon);
     tick();
     for (const code of Object.keys(pressed)) pressed[code] = false;
 }
@@ -694,20 +785,30 @@ function tick(): void {
     updateMovingPlatforms();
 
     const level = LEVELS[currentLevel];
+    const world: PhysicsWorld = {
+        platforms: [...level.platforms, ...(level.lilyPads ?? []), ...movingPlatforms],
+        mushrooms: level.mushrooms ?? [],
+        bushes: level.bushes ?? [],
+        water: level.water ?? [],
+        ice: level.ice ?? [],
+        windX: levelClearTimer > 0 ? 0 : currentWind().x,
+        width: levelWidth(level)
+    };
     flora.update(
         keys,
         pressed,
-        [...level.platforms, ...movingPlatforms],
-        level.mushrooms ?? [],
-        level.bushes ?? [],
-        levelWidth(level),
+        world,
         levelClearTimer > 0,
         type => audio.playSound(type),
         checkWatering,
         checkDigging
     );
     noodle.update(flora.x, digMounds, boneFound, false, type => audio.playSound(type));
-    if (levelClearTimer === 0) updateBees();
+    updatePond();
+    if (levelClearTimer === 0) {
+        updateBees();
+        updateRain();
+    }
     particleSystem.update();
     updateCamera();
 
@@ -724,16 +825,24 @@ export function render(): void {
     // Sky things stay put on screen; everything else is drawn in level space and scrolls.
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
-    drawSun(ctx);
-    skyVisitors.draw(ctx);
-    butterflies.draw(ctx);
+    if (weather.drawSky(ctx, level.bg)) drawSun(ctx);
+    if (weather.calmSky) {
+        skyVisitors.draw(ctx);
+        butterflies.draw(ctx);
+    }
 
     const houseX = doghouseX(level);
     ctx.save();
     ctx.translate(-cameraX, 0);
-    drawTreeAndGround(ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], digMounds, boneFound, boneX);
+    drawTreeAndGround(
+        ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], digMounds, boneFound, boneX, level.weather === 'snow'
+    );
+    drawWater(ctx, level.water ?? []);
+    drawIce(ctx, level.ice ?? []);
+    drawRainClouds(ctx, rainCloudXs);
     drawPlatforms(ctx, level.platforms);
-    drawCloudPlatforms(ctx, movingPlatforms);
+    drawLilyPads(ctx, [...(level.lilyPads ?? []), ...movingPlatforms.filter(p => p.style === 'lily')]);
+    drawCloudPlatforms(ctx, movingPlatforms.filter(p => p.style !== 'lily'));
     drawMushrooms(ctx, level.mushrooms ?? []);
     drawBushes(ctx, level.bushes ?? []);
     drawSprouts(ctx, sprouts, allBloomed());
@@ -746,11 +855,31 @@ export function render(): void {
         drawKey(ctx, keyX, keyY);
     }
 
-    for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0);
+    for (const pet of rescuedFriends) {
+        drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0, overWater(pet.x));
+    }
     flora.draw(ctx);
     noodle.draw(ctx);
     for (const bee of bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
     particleSystem.draw(ctx);
+    ctx.restore();
+
+    // Weather in front of the scene, then the night's darkness with its soft lights.
+    weather.drawFront(ctx);
+    if (weather.kind === 'night') {
+        const lights: Light[] = [
+            { x: flora.x + flora.width / 2 - cameraX, y: flora.y + 20, r: 165 },
+            { x: houseX - cameraX, y: 400, r: 95 },
+            ...weather.fireflyLights()
+        ];
+        if (allBloomed() && boneFound && !keyCollected) lights.push({ x: keyX - cameraX, y: keyY, r: 70 });
+        for (const s of sprouts) if (s.bloomed) lights.push({ x: s.x - cameraX, y: s.y - 24, r: 40 });
+        weather.drawDarkness(ctx, lights, pixelScale);
+        weather.drawFireflies(ctx);
+    }
+    // Noodle's tips stay readable above the weather.
+    ctx.save();
+    ctx.translate(-cameraX, 0);
     noodle.drawSpeech(ctx, cameraX, cameraX + CANVAS_WIDTH);
     ctx.restore();
 

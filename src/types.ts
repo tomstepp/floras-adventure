@@ -1,6 +1,9 @@
 export type Species =
     | 'kitty' | 'puppy' | 'hamster' | 'turtle' | 'bunny'
-    | 'duckling' | 'piglet' | 'fox' | 'panda' | 'unicorn';
+    | 'duckling' | 'piglet' | 'fox' | 'panda' | 'unicorn'
+    | 'frog' | 'bird' | 'snail' | 'bear' | 'owl';
+/** Each level's sky and weather. 'clear' is the default sunny day. */
+export type Weather = 'clear' | 'wind' | 'rain' | 'snow' | 'night';
 export type Direction = 'left' | 'right';
 export type SoundType = 'jump' | 'water' | 'dig' | 'bloom' | 'bark' | 'key' | 'victory' | 'bounce' | 'bump';
 export type ParticleShape = 'circle' | 'star' | 'heart';
@@ -20,6 +23,41 @@ export interface Platform {
 export interface MovingPlatform extends Platform {
     range: number;
     period: number;
+    /** Clouds glide through the sky; lily pads drift across a pond. */
+    style?: 'cloud' | 'lily';
+}
+
+/** A stretch of the ground, from `x` to `x + width` (used for ponds and ice). */
+export interface GroundSpan {
+    x: number;
+    width: number;
+}
+
+/** Wind blows in gusts: calm for `calm` ticks, then a gust of `gust` ticks pushing at `strength` px/tick. */
+export interface WindConfig {
+    /** Negative blows left (against Flora's way to the doghouse). */
+    strength: number;
+    calm: number;
+    gust: number;
+}
+
+/** A rain cloud drifting from `x` to `x + range` and back; it waters sprouts below it. */
+export interface RainCloudConfig {
+    x: number;
+    range: number;
+    period: number;
+}
+
+/** Everything Flora's physics needs to know about the level this tick. */
+export interface PhysicsWorld {
+    platforms: readonly Platform[];
+    mushrooms: readonly Point[];
+    bushes: readonly Bush[];
+    water: readonly GroundSpan[];
+    ice: readonly GroundSpan[];
+    /** Wind push this tick, in px per tick (0 when calm). */
+    windX: number;
+    width: number;
 }
 
 /** A bumblebee that flies from `x` to `x + range` and back around height `y`, once every `period` ticks. */
@@ -48,6 +86,8 @@ export interface Sprout {
     bloomed: boolean;
     color: string;
     danceOffset: number;
+    /** Ticks spent under a rain cloud since its last splash. */
+    rainTicks?: number;
 }
 
 export interface DigMound {
@@ -95,6 +135,15 @@ export interface LevelConfig {
     mushrooms?: readonly Point[];
     bees?: readonly BeeConfig[];
     bushes?: readonly Bush[];
+    weather?: Weather;
+    /** Ponds: Flora can't stand here, only on lily pads. */
+    water?: readonly GroundSpan[];
+    /** Lily pads floating on a pond; standable like platforms. */
+    lilyPads?: readonly Platform[];
+    /** Slippery ice on the ground. */
+    ice?: readonly GroundSpan[];
+    wind?: WindConfig;
+    rainClouds?: readonly RainCloudConfig[];
     sprouts: readonly SproutConfig[];
     mounds: readonly number[];
     keyPos: Point;

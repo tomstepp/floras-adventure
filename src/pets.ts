@@ -273,6 +273,158 @@ const drawUnicorn: PetDrawer = (ctx, step) => {
     face(ctx, 11, -19.5);
 };
 
+const drawFrog: PetDrawer = (ctx, step, now) => {
+    const skin = "#7BC86C", dark = "#5DAA4F", belly = "#D9F2C4";
+    // Folded back legs and little front feet
+    ellipse(ctx, -6, -4, 6, 4.5, dark, -0.3);
+    ellipse(ctx, 7, -4, 6, 4.5, dark, 0.3);
+    ellipse(ctx, -9 - step, -0.8, 3.5, 1.5, dark);
+    ellipse(ctx, 10 + step, -0.8, 3.5, 1.5, dark);
+    // Squat round body; a breathing throat
+    const breathe = 1 + Math.sin(now * 0.008) * 0.06;
+    ellipse(ctx, 1, -9, 12, 8, skin);
+    ellipse(ctx, 4, -6.5, 7 * breathe, 4 * breathe, belly);
+    // Big eyes on top of the head
+    circle(ctx, 1, -17, 4.2, skin);
+    circle(ctx, 9, -17, 4.2, skin);
+    circle(ctx, 1.8, -17.5, 2.2, "#FFFFFF");
+    circle(ctx, 9.8, -17.5, 2.2, "#FFFFFF");
+    circle(ctx, 2.4, -17.3, 1.3, "#2D3436");
+    circle(ctx, 10.4, -17.3, 1.3, "#2D3436");
+    circle(ctx, 2.8, -17.9, 0.45, "#FFFFFF");
+    circle(ctx, 10.8, -17.9, 0.45, "#FFFFFF");
+    // Wide smile and blush
+    ctx.strokeStyle = "#2D3436";
+    ctx.lineWidth = 0.9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(8, -11.5, 3.2, 0.3, Math.PI - 0.6);
+    ctx.stroke();
+    ellipse(ctx, 12, -11, 1.8, 1.1, "rgba(255, 118, 117, 0.55)");
+};
+
+const drawBird: PetDrawer = (ctx, step, now) => {
+    const feathers = "#74B9FF", dark = "#4A90D9", belly = "#FFF3E0", beak = "#FDCB6E";
+    // Thin orange legs
+    ctx.strokeStyle = "#E67E22";
+    ctx.lineWidth = 1.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-1, -5); ctx.lineTo(-1 + step, -0.5);
+    ctx.moveTo(3, -5); ctx.lineTo(3 - step, -0.5);
+    ctx.stroke();
+    // Tail feathers
+    triangle(ctx, [[-8, -11], [-16, -15], [-15, -8]], dark);
+    // Round body with a cream belly, and a wing that flutters
+    ellipse(ctx, 0, -12, 9, 7.5, feathers);
+    ellipse(ctx, 3, -9.5, 5.5, 4.5, belly);
+    ctx.save();
+    ctx.translate(-2, -13);
+    ctx.rotate(-0.3 + Math.sin(now * 0.02) * 0.25);
+    ellipse(ctx, -2, 0, 6, 3.5, dark);
+    ctx.restore();
+    // Head with a little tuft
+    circle(ctx, 7, -20, 6, feathers);
+    ellipse(ctx, 5, -26.5, 1.4, 2.8, dark, -0.4);
+    triangle(ctx, [[12, -21], [16.5, -19.5], [12, -18]], beak);
+    face(ctx, 6.5, -20.5, { smile: false });
+};
+
+const drawSnail: PetDrawer = (ctx, _step, now) => {
+    const body = "#F7D9A8", shell = "#E17055", shellLight = "#FAB1A0";
+    // Soft body gliding along, slightly stretching
+    const stretch = 1 + Math.sin(now * 0.004) * 0.05;
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.ellipse(1, -3.5, 14 * stretch, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Head rising at the front, with two eye-stalks
+    ellipse(ctx, 11, -9, 4.5, 6, body, 0.2);
+    ctx.strokeStyle = body;
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(10, -14); ctx.lineTo(9, -20);
+    ctx.moveTo(13, -14); ctx.lineTo(14.5, -19.5);
+    ctx.stroke();
+    circle(ctx, 9, -20.5, 1.6, body);
+    circle(ctx, 14.5, -20, 1.6, body);
+    circle(ctx, 9.3, -20.7, 0.8, "#2D3436");
+    circle(ctx, 14.8, -20.2, 0.8, "#2D3436");
+    ellipse(ctx, 13, -7.5, 1.6, 1, "rgba(255, 118, 117, 0.55)");
+    ctx.strokeStyle = "#2D3436";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(12.5, -10, 1.3, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    // Big swirly shell
+    circle(ctx, -2, -12, 9.5, shell);
+    circle(ctx, -3, -13, 6, shellLight);
+    circle(ctx, -2.5, -12.5, 3, shell);
+    circle(ctx, -2.2, -12.3, 1.2, shellLight);
+};
+
+const drawBear: PetDrawer = (ctx, step) => {
+    const fur = "#A47148", dark = "#7D5233", light = "#E3C4A3";
+    legs(ctx, fur, dark, step, 7);
+    ellipse(ctx, 0, -10, 12, 8, fur);
+    ellipse(ctx, 3, -7.5, 6, 3.5, light);
+    circle(ctx, -11, -11, 2.5, fur);
+    // Round ears with light insides
+    circle(ctx, 4, -24, 3.2, fur);
+    circle(ctx, 14, -24, 3.2, fur);
+    circle(ctx, 4, -24, 1.6, light);
+    circle(ctx, 14, -24, 1.6, light);
+    circle(ctx, 9, -18, 8, fur);
+    ellipse(ctx, 13, -15.5, 4, 3, light);
+    ellipse(ctx, 15.5, -16.5, 1.5, 1.1, "#3B2A1E");
+    face(ctx, 9, -19.5, { smile: false });
+    ctx.strokeStyle = "#3B2A1E";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(14.4, -14.5, 1.2, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+};
+
+const drawOwl: PetDrawer = (ctx, _step, now) => {
+    const feathers = "#A1887F", dark = "#7E6A62", belly = "#F3E5D8", disc = "#FFF8F0";
+    // Little orange talons
+    ellipse(ctx, -3, -1, 2.6, 1.4, "#F39C12");
+    ellipse(ctx, 4, -1, 2.6, 1.4, "#F39C12");
+    // Round body, speckled belly, wings at the sides
+    ellipse(ctx, 0, -12, 10, 11, feathers);
+    ellipse(ctx, 0.5, -9, 6.5, 7, belly);
+    for (const [bx, by] of [[-2, -10], [2, -11], [0, -7], [3, -6.5], [-3, -6]] as const) {
+        ellipse(ctx, bx, by, 1, 0.7, dark);
+    }
+    ellipse(ctx, -9, -12, 3, 7, dark, 0.15);
+    ellipse(ctx, 9.5, -12, 3, 7, dark, -0.15);
+    // Ear tufts
+    triangle(ctx, [[-7, -20], [-8, -27], [-3, -21.5]], dark);
+    triangle(ctx, [[7, -20], [8, -27], [3, -21.5]], dark);
+    // Big round eye discs facing forward, blinking slowly
+    circle(ctx, -3.5, -17, 4.2, disc);
+    circle(ctx, 4, -17, 4.2, disc);
+    const blink = now % 4000 < 160;
+    if (blink) {
+        ctx.strokeStyle = "#2D3436";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(-3.5, -17, 2, 0.2, Math.PI - 0.2);
+        ctx.moveTo(6, -17);
+        ctx.arc(4, -17, 2, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+    } else {
+        circle(ctx, -3, -17, 2.2, "#2D3436");
+        circle(ctx, 4.5, -17, 2.2, "#2D3436");
+        circle(ctx, -2.3, -17.8, 0.8, "#FFFFFF");
+        circle(ctx, 5.2, -17.8, 0.8, "#FFFFFF");
+    }
+    triangle(ctx, [[-0.5, -14.5], [1.5, -14.5], [0.5, -11.5]], "#F39C12");
+    ellipse(ctx, -6.5, -13, 1.6, 1, "rgba(255, 118, 117, 0.55)");
+    ellipse(ctx, 7.5, -13, 1.6, 1, "rgba(255, 118, 117, 0.55)");
+};
+
 /** Every species has a drawing; the type makes adding a species without one a compile error. */
 export const PET_DRAWERS: Readonly<Record<Species, PetDrawer>> = {
     kitty: drawKitty,
@@ -284,7 +436,12 @@ export const PET_DRAWERS: Readonly<Record<Species, PetDrawer>> = {
     piglet: drawPiglet,
     fox: drawFox,
     panda: drawPanda,
-    unicorn: drawUnicorn
+    unicorn: drawUnicorn,
+    frog: drawFrog,
+    bird: drawBird,
+    snail: drawSnail,
+    bear: drawBear,
+    owl: drawOwl
 };
 
 /** Draws `species` standing on (x, groundY). `step` (-1..1) swings the legs while walking. */

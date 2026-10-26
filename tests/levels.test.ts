@@ -8,9 +8,10 @@ import {
     levelWidth,
     MAX_BOUNCE_HEIGHT,
     MAX_JUMP_HEIGHT,
-    MUSHROOM_WIDTH
+    MUSHROOM_WIDTH,
+    WATER_SURFACE_Y
 } from '../src/levels.ts';
-import type { LevelConfig, Platform, Point } from '../src/types.ts';
+import type { GroundSpan, LevelConfig, Platform, Point } from '../src/types.ts';
 
 /** The doghouse body's left edge: nothing may be built into it. */
 const doghouseLeft = (level: LevelConfig): number => levelWidth(level) - 130;
@@ -20,9 +21,23 @@ const JUMP_REACH_X = 140;
 /** A bounce goes nearly straight up, so the target must be just about overhead. */
 const BOUNCE_REACH_X = 40;
 
-const groundOf = (level: LevelConfig): Platform => ({ x: 0, y: GROUND_Y, width: levelWidth(level) });
+/** The dry ground, as separate pieces wherever ponds cut through it. */
+function groundSegments(level: LevelConfig): Platform[] {
+    const pieces: Platform[] = [];
+    let x = 0;
+    for (const w of [...(level.water ?? [])].sort((a, b) => a.x - b.x)) {
+        if (w.x > x) pieces.push({ x, y: GROUND_Y, width: w.x - x });
+        x = w.x + w.width;
+    }
+    if (x < levelWidth(level)) pieces.push({ x, y: GROUND_Y, width: levelWidth(level) - x });
+    return pieces;
+}
 /** Surfaces that hold still: things can be placed on these. */
-const surfaces = (level: LevelConfig): readonly Platform[] => [groundOf(level), ...level.platforms];
+const surfaces = (level: LevelConfig): readonly Platform[] => [
+    ...groundSegments(level), ...level.platforms, ...(level.lilyPads ?? [])
+];
+const inSpan = (spansList: readonly GroundSpan[], x: number, pad: number = 0): boolean =>
+    spansList.some(w => x >= w.x - pad && x <= w.x + w.width + pad);
 /** A moving platform as the full stretch it sweeps across. */
 const movingSpans = (level: LevelConfig): Platform[] =>
     (level.movingPlatforms ?? []).map(p => ({ x: p.x, y: p.y, width: p.width + p.range }));
@@ -36,8 +51,13 @@ interface ReachOptions {
 
 /** Every platform Flora can get onto, found by repeatedly jumping/bouncing from ones already reached. */
 function reachable(level: LevelConfig, { useMushrooms = true, useMovingPlatforms = true }: ReachOptions = {}): Platform[] {
-    const reached: Platform[] = [groundOf(level)];
-    const todo: Platform[] = [...level.platforms, ...(useMovingPlatforms ? movingSpans(level) : [])];
+    // Start on the piece of ground where Flora starts; the rest must be earned.
+    const ground = groundSegments(level);
+    const reached: Platform[] = [ground[0]];
+    const todo: Platform[] = [
+        ...ground.slice(1), ...level.platforms, ...(level.lilyPads ?? []),
+        ...(useMovingPlatforms ? movingSpans(level) : [])
+    ];
     const mushrooms: readonly Point[] = useMushrooms ? (level.mushrooms ?? []) : [];
 
     let progress = true;
@@ -47,8 +67,8 @@ function reachable(level: LevelConfig, { useMushrooms = true, useMovingPlatforms
             const byJump = reached.some(
                 r => r.y > p.y && r.y - p.y <= MAX_JUMP_HEIGHT - JUMP_MARGIN && gapX(r, p) <= JUMP_REACH_X
             );
-            // Dropping down from a higher ledge works too
-            const byDrop = reached.some(r => r.y < p.y && gapX(r, p) <= JUMP_REACH_X);
+            // Dropping down from a higher ledge works too, and hopping across at the same height
+            const byDrop = reached.some(r => r.y <= p.y && gapX(r, p) <= JUMP_REACH_X);
             const byBounce = mushrooms.some(
                 m =>
                     reached.some(r => r.y === m.y && spans(r, m.x)) &&
@@ -69,8 +89,8 @@ function reachable(level: LevelConfig, { useMushrooms = true, useMovingPlatforms
 const keySurface = (level: LevelConfig): Platform | undefined =>
     surfaces(level).find(p => p.y - level.keyPos.y === 30 && spans(p, level.keyPos.x));
 
-test('LD-1: ten levels, each with a unique pet and a melody', () => {
-    assert.equal(LEVELS.length, 10);
+test('LD-1: fifteen levels, each with a unique pet and a melody', () => {
+    assert.equal(LEVELS.length, 15);
     assert.equal(new Set(LEVELS.map(l => l.species)).size, LEVELS.length);
     assert.equal(LEVEL_MELODIES.length, LEVELS.length);
 });
@@ -89,13 +109,40 @@ test('TW-1: level 1 is plain; each later level adds a twist, and the last mixes 
     for (const level of LEVELS.slice(1)) assert.ok(level.tip, `${level.name} needs a tip from Noodle`);
 });
 
-test('BG-1: levels 1–5 fit one screen; levels 6–10 scroll and grow bigger', () => {
+test('BG-1: levels 1–5 fit one screen; levels 6–10 scroll and grow bigger; 11–15 scroll too', () => {
     for (const level of LEVELS.slice(0, 5)) assert.equal(levelWidth(level), 800, level.name);
-    const big = LEVELS.slice(5);
+    const big = LEVELS.slice(5, 10);
     for (let i = 0; i < big.length; i++) {
         assert.ok(levelWidth(big[i]) > 800, `${big[i].name} should scroll`);
         if (i > 0) assert.ok(levelWidth(big[i]) >= levelWidth(big[i - 1]), `${big[i].name} should not shrink`);
     }
+    for (const level of LEVELS.slice(10)) assert.ok(levelWidth(level) >= 1600, `${level.name} should scroll`);
+});
+
+test('WX-1: levels 11–15 are the pond, wind, rain, snow and night levels, with their new pets', () => {
+    const themed = LEVELS.slice(10);
+    assert.deepEqual(themed.map(l => l.species), ['frog', 'bird', 'snail', 'bear', 'owl']);
+    assert.ok((themed[0].water ?? []).length > 0 && (themed[0].lilyPads ?? []).length > 0, 'pond has water and lily pads');
+    assert.ok(themed[1].weather === 'wind' && themed[1].wind, 'wind level blows');
+    assert.ok(themed[2].weather === 'rain' && (themed[2].rainClouds ?? []).length > 0, 'rain level has rain clouds');
+    assert.ok(themed[3].weather === 'snow' && (themed[3].ice ?? []).length > 0, 'snow level has ice');
+    assert.equal(themed[4].weather, 'night', 'the finale is at night');
+    for (const level of LEVELS.slice(0, 10)) {
+        assert.ok(!level.water && !level.ice && !level.wind && !level.rainClouds, `${level.name} keeps its old rules`);
+    }
+});
+
+test('WX-2: the Lily Pond ponds can only be crossed on the lily pads', () => {
+    const pond = LEVELS[10];
+    const withoutPads: LevelConfig = {
+        ...pond,
+        lilyPads: [],
+        movingPlatforms: (pond.movingPlatforms ?? []).filter(p => p.style !== 'lily')
+    };
+    const farBank = (lvl: LevelConfig) => groundSegments(lvl)[groundSegments(lvl).length - 1];
+    const reachedFar = (lvl: LevelConfig) => reachable(lvl).some(r => r.x === farBank(lvl).x && r.y === GROUND_Y);
+    assert.equal(reachedFar(withoutPads), false, 'too wide to jump without lily pads');
+    assert.equal(reachedFar(pond), true);
 });
 
 test('BG-2: bees arrive in level 6 and bushes in level 7; the final level has every obstacle and twist', () => {
@@ -142,7 +189,7 @@ for (const [i, level] of LEVELS.entries()) {
 
     test(`LD-3: ${name} platforms are all reachable`, () => {
         const reached = reachable(level);
-        for (const p of [...level.platforms, ...movingSpans(level)]) {
+        for (const p of [...groundSegments(level), ...level.platforms, ...(level.lilyPads ?? []), ...movingSpans(level)]) {
             assert.ok(reached.includes(p) || reached.some(r => r.x === p.x && r.y === p.y), `platform at (${p.x}, ${p.y}) can't be reached`);
         }
     });
@@ -164,9 +211,48 @@ for (const [i, level] of LEVELS.entries()) {
     });
 
     test(`LD-6: ${name} platforms fit in the level and avoid the doghouse`, () => {
+        const lily = (level.movingPlatforms ?? []).filter(p => p.style === 'lily').map(p => p.x);
         for (const p of [...level.platforms, ...movingSpans(level)]) {
             assert.ok(p.x >= 0 && p.x + p.width <= doghouseLeft(level), `platform at x=${p.x} overlaps`);
-            assert.ok(p.y > 60 && p.y < GROUND_Y, `platform at y=${p.y} is off the playfield`);
+            // Lily pads float at water level, just below the grass; everything else is above it.
+            const lowest = lily.includes(p.x) ? WATER_SURFACE_Y : GROUND_Y;
+            assert.ok(p.y > 60 && p.y < lowest, `platform at y=${p.y} is off the playfield`);
+        }
+    });
+
+    test(`LD-12: ${name} ponds keep the start, doghouse, sprouts, mounds and obstacles dry`, () => {
+        const water = level.water ?? [];
+        for (const w of water) {
+            assert.ok(w.x > 200, 'pond too close to the start');
+            assert.ok(w.x + w.width < doghouseLeft(level) - 60, 'pond too close to the doghouse');
+        }
+        for (const s of level.sprouts.filter(s => s.y === GROUND_Y)) assert.ok(!inSpan(water, s.x, 15), `sprout ${s.x} in a pond`);
+        for (const m of level.mounds) assert.ok(!inSpan(water, m, 30), `mound ${m} in a pond`);
+        for (const m of level.mushrooms ?? []) assert.ok(!inSpan(water, m.x, 30), `mushroom ${m.x} in a pond`);
+        for (const b of level.bushes ?? []) {
+            assert.ok(!inSpan(water, b.x, 30) && !inSpan(water, b.x + b.width, 30), `bush ${b.x} in a pond`);
+        }
+        for (const pad of [...(level.lilyPads ?? []), ...(level.movingPlatforms ?? []).filter(p => p.style === 'lily')]) {
+            const pads = 'range' in pad ? { x: pad.x, width: pad.width + (pad as { range: number }).range } : pad;
+            assert.ok(water.some(w => pads.x >= w.x && pads.x + pads.width <= w.x + w.width), `lily pad at ${pad.x} is not on a pond`);
+            assert.ok(pad.y < WATER_SURFACE_Y, 'lily pads float on top of the water');
+        }
+    });
+
+    test(`LD-13: ${name} ice stays on dry ground and clear of the start and doghouse`, () => {
+        for (const i of level.ice ?? []) {
+            assert.ok(i.x > 200 && i.x + i.width < doghouseLeft(level) - 60, `ice at ${i.x} is in the way`);
+            assert.ok(!inSpan(level.water ?? [], i.x) && !inSpan(level.water ?? [], i.x + i.width), 'ice over a pond');
+        }
+    });
+
+    test(`LD-14: ${name} wind can always be walked against, and rain clouds stay in the level`, () => {
+        if (level.wind) {
+            assert.ok(Math.abs(level.wind.strength) < 3.5 * 0.6, 'Flora can still walk into the gust');
+            assert.ok(level.wind.calm >= 120, 'there is time to move between gusts');
+        }
+        for (const c of level.rainClouds ?? []) {
+            assert.ok(c.x >= 0 && c.x + c.range <= levelWidth(level), 'rain cloud leaves the level');
         }
     });
 

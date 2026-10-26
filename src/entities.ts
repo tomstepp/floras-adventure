@@ -6,15 +6,18 @@ import {
     CONTROLS,
     GRAVITY,
     GROUND_Y,
+    ICE_GRIP,
     JUMP_BUFFER_TICKS,
     JUMP_CUT_VY,
     JUMP_VY,
     MUSHROOM_HEIGHT,
     MUSHROOM_WIDTH,
     SPEECH_TOP_Y,
-    WATER_HOLD_TICKS
+    WATER_HOLD_TICKS,
+    WATER_SURFACE_Y
 } from './levels.ts';
-import type { Bush, DigMound, Direction, Platform, Point, SoundType } from './types.ts';
+import { drawSwimRipple } from './renderer.ts';
+import type { DigMound, Direction, GroundSpan, PhysicsWorld, SoundType } from './types.ts';
 
 export class Player {
     public x: number = 50;
@@ -41,6 +44,8 @@ export class Player {
     public stunTimer: number = 0;
     public safeTimer: number = 0;
     private knockVx: number = 0;
+    /** Set when she drops into a pond; the game splashes her back onto the bank. */
+    public fellInWater: boolean = false;
 
     public reset(): void {
         this.x = 50;
@@ -55,6 +60,13 @@ export class Player {
         this.stunTimer = 0;
         this.safeTimer = 0;
         this.knockVx = 0;
+        this.fellInWater = false;
+    }
+
+    /** Whether her middle is over one of these ground spans. */
+    public over(spans: readonly GroundSpan[]): boolean {
+        const cx = this.x + this.width / 2;
+        return spans.some(s => cx >= s.x && cx <= s.x + s.width);
     }
 
     /**
@@ -77,10 +89,7 @@ export class Player {
     public update(
         keys: Readonly<Record<string, boolean>>,
         pressed: Readonly<Record<string, boolean>>,
-        platforms: readonly Platform[],
-        mushrooms: readonly Point[],
-        bushes: readonly Bush[],
-        worldWidth: number,
+        world: PhysicsWorld,
         disabled: boolean,
         playSound: (type: SoundType) => void,
         onWater: () => void,
@@ -94,19 +103,21 @@ export class Player {
             this.stunTimer--;
             this.vx = this.knockVx;
             this.knockVx *= 0.9;
-            this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+            this.applyPhysics(world, playSound);
             return;
         }
 
+        let targetVx = 0;
         if (keys[CONTROLS.right]) {
-            this.vx = 3.5;
+            targetVx = 3.5;
             this.facing = 'right';
         } else if (keys[CONTROLS.left]) {
-            this.vx = -3.5;
+            targetVx = -3.5;
             this.facing = 'left';
-        } else {
-            this.vx = 0;
         }
+        // On ice she speeds up and slows down gradually, so she slides.
+        const onIce = this.grounded && this.y + this.height >= GROUND_Y - 1 && this.over(world.ice);
+        this.vx = onIce ? this.vx + (targetVx - this.vx) * ICE_GRIP : targetVx;
 
         // Jumps fire on a press (latched even if released within the same tick), not while held,
         // so the buffer can remember a press made just before landing.
@@ -154,20 +165,16 @@ export class Player {
         if (this.digTimer > 0) this.digTimer--;
         else this.isDigging = false;
 
-        this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+        this.applyPhysics(world, playSound);
     }
 
-    private applyPhysics(
-        platforms: readonly Platform[],
-        mushrooms: readonly Point[],
-        bushes: readonly Bush[],
-        worldWidth: number,
-        playSound: (type: SoundType) => void
-    ): void {
+    private applyPhysics(world: PhysicsWorld, playSound: (type: SoundType) => void): void {
+        const { platforms, mushrooms, bushes } = world;
         const prevX = this.x;
         const prevBottom = this.y + this.height;
         this.vy += GRAVITY;
-        this.x += this.vx;
+        // Wind pushes her whether she's walking, jumping or knocked back.
+        this.x += this.vx + world.windX;
 
         // Bushes are solid from the side: walk into one and you stop at its edge.
         for (const b of bushes) {
@@ -220,15 +227,17 @@ export class Player {
             }
         }
 
-        // Ground collision (y = 428)
-        if (this.y >= 380) {
+        // Ground collision (y = 428), except over a pond, where she drops in
+        if (this.over(world.water)) {
+            if (!this.grounded && this.y + this.height > WATER_SURFACE_Y + 12) this.fellInWater = true;
+        } else if (this.y >= 380) {
             this.y = 380;
             this.vy = 0;
             this.grounded = true;
         }
 
         if (this.x < 0) this.x = 0;
-        if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
+        if (this.x > world.width - this.width) this.x = world.width - this.width;
 
         this.coyoteTimer = this.grounded ? COYOTE_TICKS : Math.max(0, this.coyoteTimer - 1);
         if (this.jumpBufferTimer > 0) this.jumpBufferTimer--;
@@ -440,6 +449,8 @@ export class Noodle {
     /** How far Noodle moved last tick; drives trotting and which way he faces. */
     public vx: number = 0;
     public facing: Direction = 'right';
+    /** Set by the game while he's paddling across a pond. */
+    public swimming: boolean = false;
     /** Lines waiting their turn in the speech bubble, with how long each shows. */
     private speechQueue: [string, number][] = [];
 
@@ -508,16 +519,19 @@ export class Noodle {
 
         ctx.save();
         // Origin on the ground under his middle, facing right; mirror for left.
-        ctx.translate(this.x + 12, this.y + 22);
+        // Paddling across a pond he sits lower, legs hidden by the water.
+        ctx.translate(this.x + 12, this.y + 22 + (this.swimming ? 14 : 0));
         if (this.facing === 'left') ctx.scale(-1, 1);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
         // Soft shadow
-        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 14, 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if (!this.swimming) {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 14, 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         ctx.translate(0, hop);
 
@@ -638,6 +652,7 @@ export class Noodle {
 
         ctx.restore();
         ctx.restore();
+        if (this.swimming) drawSwimRipple(ctx, this.x + 12, 17);
     }
 
     /**

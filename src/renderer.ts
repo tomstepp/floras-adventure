@@ -1,6 +1,17 @@
-import { BEE_RADIUS, GROUND_Y, MUSHROOM_HEIGHT, MUSHROOM_WIDTH, RAINBOW_COLORS } from './levels.ts';
+import {
+    BEE_RADIUS,
+    GROUND_Y,
+    MUSHROOM_HEIGHT,
+    MUSHROOM_WIDTH,
+    RAIN_CLOUD_Y,
+    RAIN_WIDTH,
+    RAINBOW_COLORS,
+    WATER_SURFACE_Y
+} from './levels.ts';
 import { drawPetSprite } from './pets.ts';
-import type { Bush, DigMound, Platform, Point, Species, Sprout } from './types.ts';
+import type { Bush, DigMound, GroundSpan, Platform, Point, Species, Sprout } from './types.ts';
+
+export const WATER_COLOR: string = "#5DADE2";
 
 /** A smiling sun in the characters' style: soft rays that turn and breathe, and eyes that blink. */
 export function drawSun(ctx: CanvasRenderingContext2D): void {
@@ -97,6 +108,141 @@ export function drawPlatforms(ctx: CanvasRenderingContext2D, platforms: readonly
         ctx.roundRect(p.x - 2, p.y, p.width + 4, 8, 5);
         ctx.fill();
     }
+}
+
+/** Ponds cut into the ground, with soft banks and gentle ripples. */
+export function drawWater(ctx: CanvasRenderingContext2D, water: readonly GroundSpan[]): void {
+    const now = Date.now();
+    for (const w of water) {
+        ctx.fillStyle = "#3C8DBC";
+        ctx.fillRect(w.x, GROUND_Y, w.width, 72);
+        ctx.fillStyle = WATER_COLOR;
+        ctx.fillRect(w.x, WATER_SURFACE_Y, w.width, 64);
+        // Rounded muddy banks at each edge
+        ctx.fillStyle = "#8D6E63";
+        for (const bx of [w.x, w.x + w.width]) {
+            ctx.beginPath();
+            ctx.ellipse(bx, GROUND_Y + 4, 6, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Little ripples
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        for (let rx = w.x + 18; rx < w.x + w.width - 14; rx += 34) {
+            const shift = Math.sin(now * 0.002 + rx) * 4;
+            ctx.beginPath();
+            ctx.moveTo(rx + shift, WATER_SURFACE_Y + 8);
+            ctx.lineTo(rx + shift + 10, WATER_SURFACE_Y + 8);
+            ctx.stroke();
+        }
+    }
+}
+
+/** Slippery ice patches: a pale blue sheen on the ground with a few sparkly streaks. */
+export function drawIce(ctx: CanvasRenderingContext2D, ice: readonly GroundSpan[]): void {
+    for (const i of ice) {
+        ctx.fillStyle = "#BDE3F7";
+        ctx.beginPath();
+        ctx.roundRect(i.x, GROUND_Y - 1, i.width, 9, 4);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        for (let sx = i.x + 12; sx < i.x + i.width - 10; sx += 40) {
+            ctx.beginPath();
+            ctx.moveTo(sx, GROUND_Y + 5);
+            ctx.lineTo(sx + 12, GROUND_Y + 1);
+            ctx.stroke();
+        }
+    }
+}
+
+/** Round lily pads with a notch, some with a tiny pink flower; they bob very slightly. */
+export function drawLilyPads(ctx: CanvasRenderingContext2D, pads: readonly Platform[]): void {
+    const now = Date.now();
+    pads.forEach((p, i) => {
+        const cx = p.x + p.width / 2;
+        const bob = Math.sin(now * 0.003 + p.x) * 0.8;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+        ctx.beginPath();
+        ctx.ellipse(cx, p.y + 6, p.width / 2, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#4CAF50";
+        ctx.beginPath();
+        ctx.ellipse(cx, p.y + 3 + bob, p.width / 2 + 2, 6, 0, 0.35, Math.PI * 2 - 0.05);
+        ctx.lineTo(cx, p.y + 3 + bob);
+        ctx.fill();
+        ctx.fillStyle = "#66BB6A";
+        ctx.beginPath();
+        ctx.ellipse(cx - 4, p.y + 1.5 + bob, p.width / 4, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (i % 2 === 0) {
+            ctx.fillStyle = "#FFB8D0";
+            for (let k = 0; k < 5; k++) {
+                const a = (k / 5) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.arc(cx - p.width / 4 + Math.cos(a) * 2.4, p.y + bob + Math.sin(a) * 1.6, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    });
+}
+
+/** Puffy grey rain clouds with sleepy faces, raining a soft column down to the ground. */
+export function drawRainClouds(ctx: CanvasRenderingContext2D, cloudXs: readonly number[]): void {
+    const now = Date.now();
+    for (const cx of cloudXs) {
+        // A soft blue column shows exactly where this cloud is watering.
+        const grad = ctx.createLinearGradient(0, RAIN_CLOUD_Y, 0, GROUND_Y);
+        grad.addColorStop(0, "rgba(116, 185, 255, 0.28)");
+        grad.addColorStop(1, "rgba(116, 185, 255, 0.08)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(cx - RAIN_WIDTH / 2, RAIN_CLOUD_Y, RAIN_WIDTH, GROUND_Y - RAIN_CLOUD_Y);
+        ctx.strokeStyle = "rgba(9, 132, 227, 0.75)";
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let i = 0; i < 22; i++) {
+            const dx = ((i * 37) % RAIN_WIDTH) - RAIN_WIDTH / 2;
+            const dy = (now * 0.4 + i * 53) % (GROUND_Y - RAIN_CLOUD_Y - 10);
+            ctx.moveTo(cx + dx, RAIN_CLOUD_Y + 12 + dy);
+            ctx.lineTo(cx + dx - 1.5, RAIN_CLOUD_Y + 22 + dy);
+        }
+        ctx.stroke();
+        ctx.fillStyle = "#B2BEC3";
+        for (const [px, py, r] of [[-24, 4, 16], [0, -6, 22], [24, 4, 16], [10, 10, 14], [-10, 10, 14]] as const) {
+            ctx.beginPath();
+            ctx.arc(cx + px, RAIN_CLOUD_Y + py, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.beginPath();
+        ctx.arc(cx - 8, RAIN_CLOUD_Y - 12, 8, 0, Math.PI * 2);
+        ctx.fill();
+        // Sleepy closed eyes and a small smile
+        ctx.strokeStyle = "#636E72";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(cx - 6, RAIN_CLOUD_Y + 1, 2.2, 0.2, Math.PI - 0.2);
+        ctx.moveTo(cx + 8.2, RAIN_CLOUD_Y + 1.5);
+        ctx.arc(cx + 6, RAIN_CLOUD_Y + 1, 2.2, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, RAIN_CLOUD_Y + 6, 2.5, 0.3, Math.PI - 0.3);
+        ctx.stroke();
+    }
+}
+
+/** A swimmer's ripple: a band of water hiding the legs, with a little ring on top. */
+export function drawSwimRipple(ctx: CanvasRenderingContext2D, x: number, halfWidth: number): void {
+    ctx.fillStyle = WATER_COLOR;
+    ctx.fillRect(x - halfWidth, WATER_SURFACE_Y - 2, halfWidth * 2, 12);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(x, WATER_SURFACE_Y - 1, halfWidth, 2.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
 }
 
 /** Bramble bushes: round leafy clumps with little thorns and berries. */
@@ -269,7 +415,12 @@ export const PET_EMOJI: Readonly<Record<Species, string>> = {
     piglet: "🐷",
     fox: "🦊",
     panda: "🐼",
-    unicorn: "🦄"
+    unicorn: "🦄",
+    frog: "🐸",
+    bird: "🐦",
+    snail: "🐌",
+    bear: "🐻",
+    owl: "🦉"
 };
 
 /**
@@ -282,7 +433,8 @@ export function drawRescuedPet(
     x: number,
     y: number,
     facingLeft: boolean = false,
-    vx: number = 0
+    vx: number = 0,
+    swimming: boolean = false
 ): void {
     const now = Date.now();
     // Each species bobs on its own rhythm so the parade doesn't move in lockstep.
@@ -290,16 +442,21 @@ export function drawRescuedPet(
     const moving = Math.abs(vx) > 0.4;
     const step = moving ? Math.sin(now * 0.022 + phase) : 0;
     const hop = moving ? Math.abs(step) * 1.5 : Math.abs(Math.sin(now * 0.004 + phase)) * 2.5;
-    const groundY = y + 12;
+    // Paddling across a pond: sit lower in the water, no hopping, legs hidden by a ripple
+    const groundY = swimming ? WATER_SURFACE_Y + 6 : y + 12;
+    const lift = swimming ? Math.sin(now * 0.006 + phase) * 1 : hop;
 
     ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.beginPath();
-    ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    drawPetSprite(ctx, species, x, groundY - hop, facingLeft, step);
+    if (!swimming) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+        ctx.beginPath();
+        ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    drawPetSprite(ctx, species, x, groundY - lift, facingLeft, swimming ? 0 : step);
+    if (swimming) drawSwimRipple(ctx, x + 2, 15);
     ctx.fillStyle = "#FF7A93";
-    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - hop, 4);
+    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - lift, 4);
     ctx.restore();
 }
 
@@ -309,13 +466,18 @@ export function drawTreeAndGround(
     trees: readonly number[],
     digMounds: readonly DigMound[],
     boneFound: boolean,
-    boneX: number
+    boneX: number,
+    snowy: boolean = false
 ): void {
-    for (const treeX of trees) drawTree(ctx, treeX);
+    for (const treeX of trees) drawTree(ctx, treeX, snowy);
 
-    // Ground
-    ctx.fillStyle = "#00B894";
+    // Ground: green grass, or soft snow
+    ctx.fillStyle = snowy ? "#F5F9FC" : "#00B894";
     ctx.fillRect(0, 428, worldWidth, 72);
+    if (snowy) {
+        ctx.fillStyle = "#DDEAF3";
+        ctx.fillRect(0, 446, worldWidth, 54);
+    }
 
     // Dirt Mounds & Hidden Bone
     for (const m of digMounds) {
@@ -331,12 +493,16 @@ export function drawTreeAndGround(
     }
 
     if (boneFound) {
-        ctx.fillStyle = "#FFF";
-        ctx.fillRect(boneX - 10, 421, 20, 6);
+        // The dug-up hole, with the bone resting on a little pile of dirt beside it
+        ctx.fillStyle = "#6D4C41";
         ctx.beginPath();
-        ctx.arc(boneX - 10, 424, 4, 0, Math.PI * 2);
-        ctx.arc(boneX + 10, 424, 4, 0, Math.PI * 2);
+        ctx.ellipse(boneX, 429, 11, 3, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = "#8D6E63";
+        ctx.beginPath();
+        ctx.ellipse(boneX + 3, 427, 9, 3.5, 0, Math.PI, 0);
+        ctx.fill();
+        drawBone(ctx, boneX, 420);
     }
 }
 
@@ -505,7 +671,7 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
 }
 
 /** Puffy round canopy on a soft tapered trunk, swaying gently, dotted with blossoms. */
-export function drawTree(ctx: CanvasRenderingContext2D, treeX: number): void {
+export function drawTree(ctx: CanvasRenderingContext2D, treeX: number, snowy: boolean = false): void {
     const now = Date.now();
     ctx.save();
     ctx.translate(treeX, 0);
@@ -559,6 +725,18 @@ export function drawTree(ctx: CanvasRenderingContext2D, treeX: number): void {
         ctx.beginPath();
         ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    if (snowy) {
+        // Fluffy snow resting on top of the canopy instead of blossoms
+        ctx.fillStyle = "#FFFFFF";
+        for (const [sx, sy, r] of [[-24, 298, 11], [-8, 276, 13], [10, 270, 12], [26, 292, 10], [0, 262, 9]] as const) {
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, r, r * 0.6, 0, Math.PI, 0);
+            ctx.fill();
+        }
+        ctx.restore();
+        return;
     }
 
     // Tiny pink blossoms
@@ -665,15 +843,134 @@ export function drawDoghouse(ctx: CanvasRenderingContext2D, centerX: number = 70
     ctx.restore();
 }
 
-export function drawKey(ctx: CanvasRenderingContext2D, keyX: number, keyY: number): void {
-    const bobY = keyY + Math.sin(Date.now() * 0.006) * 4;
-    ctx.fillStyle = "#F1C40F";
+/** A four-point twinkle, like the sparkles in Flora's eyes. */
+function drawTwinkle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.beginPath();
-    ctx.arc(keyX, bobY, 8, 0, Math.PI * 2);
+    ctx.moveTo(x, y - size);
+    ctx.quadraticCurveTo(x, y, x + size, y);
+    ctx.quadraticCurveTo(x, y, x, y + size);
+    ctx.quadraticCurveTo(x, y, x - size, y);
+    ctx.quadraticCurveTo(x, y, x, y - size);
     ctx.fill();
-    ctx.fillRect(keyX + 6, bobY - 2, 14, 4);
-    ctx.fillRect(keyX + 14, bobY + 2, 3, 4);
-    ctx.fillRect(keyX + 18, bobY + 2, 3, 4);
+}
+
+/** The golden key: a glowing, gently swaying key with a smiling round bow and twinkles. */
+export function drawKey(ctx: CanvasRenderingContext2D, keyX: number, keyY: number): void {
+    const now = Date.now();
+    const bobY = keyY + Math.sin(now * 0.006) * 4;
+    ctx.save();
+    // Soft warm glow that fades out at the edges, so it catches the eye on any sky
+    const glow = 0.45 + Math.sin(now * 0.005) * 0.15;
+    const halo = ctx.createRadialGradient(keyX + 6, bobY, 4, keyX + 6, bobY, 22);
+    halo.addColorStop(0, `rgba(255, 246, 204, ${glow})`);
+    halo.addColorStop(1, "rgba(255, 246, 204, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(keyX + 6, bobY, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(keyX, bobY);
+    ctx.rotate(Math.sin(now * 0.003) * 0.15);
+    const gold = "#F7C948", deep = "#E1A33B", light = "#FFE9A8";
+    // Shaft and two rounded teeth
+    ctx.fillStyle = deep;
+    ctx.beginPath();
+    ctx.roundRect(4, -2.5, 19, 5, 2.5);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(14, 1, 3.6, 6, 1.6);
+    ctx.roundRect(19.4, 1, 3.6, 4.5, 1.6);
+    ctx.fill();
+    ctx.fillStyle = gold;
+    ctx.beginPath();
+    ctx.roundRect(4, -2.5, 19, 3.5, 1.8);
+    ctx.fill();
+    // Round bow with a shiny rim and a happy little face
+    ctx.fillStyle = deep;
+    ctx.beginPath();
+    ctx.arc(0, 0, 9.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = gold;
+    ctx.beginPath();
+    ctx.arc(-0.5, -0.6, 8.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath();
+    ctx.ellipse(-3.5, -4, 3, 1.8, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#6D4C41";
+    ctx.beginPath();
+    ctx.arc(-2.6, 0, 1, 0, Math.PI * 2);
+    ctx.arc(2.2, 0, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#6D4C41";
+    ctx.lineWidth = 0.9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(-0.2, 1.6, 1.8, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.55)";
+    ctx.beginPath();
+    ctx.arc(-5, 2.4, 1.4, 0, Math.PI * 2);
+    ctx.arc(4.6, 2.4, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Twinkles popping in and out around it
+    ctx.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 3; i++) {
+        const t = now * 0.004 + i * 2.1;
+        const size = Math.max(0, Math.sin(t)) * 3.5;
+        if (size < 0.4) continue;
+        drawTwinkle(ctx, keyX + [-13, 22, 8][i], bobY + [-12, -10, 13][i], size);
+    }
+}
+
+/** Noodle's bone: a plump cream bone with rounded knobs, a shine and a sleepy-happy face. */
+export function drawBone(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const cream = "#FFF8E7", shade = "#EADCC0";
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-0.12);
+    // Shadow underneath
+    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 14, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Darker underside first, then the bone on top, so it looks round
+    for (const [fill, dy] of [[shade, 1.2], [cream, 0]] as const) {
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.roundRect(-9, -2.8 + dy, 18, 5.6, 2.8);
+        ctx.fill();
+        for (const [kx, ky] of [[-10.5, -2.4], [-10.5, 2.4], [10.5, -2.4], [10.5, 2.4]] as const) {
+            ctx.beginPath();
+            ctx.arc(kx, ky + dy, 3.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.beginPath();
+    ctx.ellipse(-3, -1.6, 4.5, 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Happy closed eyes and a smile
+    ctx.strokeStyle = "#8D6E63";
+    ctx.lineWidth = 0.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(-2.4, 0, 1, Math.PI + 0.3, -0.3);
+    ctx.moveTo(3.4, 0);
+    ctx.arc(2.4, 0, 1, Math.PI + 0.3, -0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0.8, 1.4, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.5)";
+    ctx.beginPath();
+    ctx.arc(-4.6, 1.4, 1.1, 0, Math.PI * 2);
+    ctx.arc(4.6, 1.4, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 }
 
 export function drawCelebrationBanner(ctx: CanvasRenderingContext2D, petName: string): void {

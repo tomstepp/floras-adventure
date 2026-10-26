@@ -153,6 +153,9 @@ export function loadGame(options: LoadOptions = {}): Game {
                 if (prop === 'measureText') return (txt: string) => ({ width: txt.length * 6 });
                 if (prop === 'fillText') return (text: string, x: number, y: number) => void frameText.push({ text, x, y });
                 if (prop === 'setTransform') return () => void (frameText = []);
+                if (prop === 'createRadialGradient' || prop === 'createLinearGradient') {
+                    return () => ({ addColorStop() {} });
+                }
                 return () => {};
             },
             set: () => true

@@ -299,7 +299,7 @@ test('LV-7: clearing every level opens the victory dialog, closing it restarts',
     assert.equal(game.dialog.open, true);
     assert.equal(game.run('screen'), 'victory');
     assert.equal(game.run('progress.roster.join()'), LEVELS.map(l => l.species).join(), 'every pet is in the roster');
-    assert.equal(game.run('rescuedFriends.map(f => f.species).join()'), 'fox,panda,unicorn', 'the 3 newest follow');
+    assert.equal(game.run('rescuedFriends.map(f => f.species).join()'), 'snail,bear,owl', 'the 3 newest follow');
 
     // The game stays frozen behind the dialog.
     const x = game.run<number>('flora.x');
@@ -532,7 +532,7 @@ test('SV-5: an older save with only a level still works, and unlocks up to it', 
     const game = loadGame({ storage, atStartScreen: true });
     assert.match(game.text('continue-btn'), /Level 4/);
     game.click('levels-btn');
-    assert.deepEqual(game.levelCards().map(c => c.disabled), [false, false, false, false, true, true, true, true, true, true]);
+    assert.deepEqual(game.levelCards().map(c => c.disabled), LEVELS.map((_, i) => i > 3));
 });
 
 test('SV-4: a broken or out-of-range save is ignored', () => {
@@ -806,8 +806,8 @@ test('LV-7: the victory dialog lists every rescued pet', () => {
     const game = loadGame();
     const items = game.elements['rescued-list'].items as string[];
     assert.equal(items.length, LEVELS.length);
-    assert.ok(items[0].includes('🐱') && items[9].includes('🦄'));
-    assert.match(game.text('victory-text'), /all 10 magical pets/);
+    assert.ok(items[0].includes('🐱') && items[9].includes('🦄') && items[14].includes('🦉'));
+    assert.match(game.text('victory-text'), /all 15 magical pets/);
 });
 
 test('PS-1: the Pause button and Esc pause and resume the game', () => {
@@ -1103,4 +1103,123 @@ test('RS-3: a roster with unknown or duplicate pets is cleaned up', () => {
     const game = loadGame({ storage, atStartScreen: true });
     assert.equal(game.run('progress.roster.join()'), 'kitty,puppy');
     assert.equal(game.run('progress.followers.join()'), 'puppy,kitty', 'only rostered pets, no repeats');
+});
+
+test('RS-4: when a level starts, Noodle and the parade line up behind Flora', () => {
+    const game = loadGame();
+    goToLevel(game, 5);
+    clearLevel(game); // ends at the far right of a 1600px level
+    clearLevel(game);
+    const xs = game.run<number[]>('[noodle.x, ...rescuedFriends.map(p => p.x)]');
+    assert.equal(xs[0], 20, 'Noodle starts next to Flora');
+    for (let i = 1; i < xs.length; i++) assert.equal(xs[i], 20 - i * 32, `pet ${i} lines up behind`);
+});
+
+test('WX-3: walking into a pond is just a splash: Flora pops back on the bank, nothing lost', () => {
+    const game = loadGame();
+    goToLevel(game, 10); // Lily Pond: first pond is x 500–760
+    bloomAll(game);
+    placeFlora(game, 420, 428);
+    game.run('flora.safeTimer = 0;');
+    game.press('ArrowRight');
+    let splashed = false;
+    for (let i = 0; i < 80 && !splashed; i++) {
+        game.step();
+        splashed = /Splash/.test(game.run<string>('noodle.speechBubble'));
+    }
+    game.release('ArrowRight');
+    assert.ok(splashed, 'falls in and splashes');
+    const x = game.run<number>('flora.x');
+    assert.ok(x < 500 && x > 400, `back on the bank near where she left it (x=${x})`);
+    assert.equal(game.run('flora.y'), 380);
+    assert.equal(game.run('sprouts.every(s => s.bloomed)'), true, 'flowers are kept');
+});
+
+test('WX-3: Flora can stand on lily pads, and Noodle paddles across the water', () => {
+    const game = loadGame();
+    goToLevel(game, 10);
+    placeFlora(game, 585 - 16, 430);
+    game.step(30);
+    assert.equal(game.run('flora.grounded'), true);
+    assert.equal(game.run('flora.y + flora.height'), 430, 'standing on the lily pad');
+    assert.equal(game.run('flora.fellInWater'), false);
+    game.run('noodle.x = 600;');
+    game.step();
+    assert.equal(game.run('noodle.swimming'), true);
+});
+
+test('WX-4: gusts of wind push Flora back, but she can still walk into them', () => {
+    const game = loadGame();
+    goToLevel(game, 11); // Windy Hills: calm 200 ticks, then a 150-tick gust blowing left
+    placeFlora(game, 700, 428);
+    game.step(100);
+    assert.equal(game.run('flora.x'), 700, 'calm: standing still stays put');
+    game.step(130); // 30 ticks into the gust, once it has eased up to full strength
+    assert.ok(game.run<number>('currentWind().x') < -1, 'gust is blowing');
+    const before = game.run<number>('flora.x');
+    game.step(20);
+    assert.ok(game.run<number>('flora.x') < before - 20, 'pushed back while standing');
+    const start = game.run<number>('flora.x');
+    game.press('ArrowRight');
+    game.step(30);
+    game.release('ArrowRight');
+    const walked = game.run<number>('flora.x') - start;
+    assert.ok(walked > 30 && walked < 3.5 * 30, `walks forward, but slower (${walked}px)`);
+});
+
+test('WX-4: leaves start blowing just before a gust, as a warning', () => {
+    const game = loadGame();
+    goToLevel(game, 11);
+    game.step(120);
+    assert.equal(game.run('weather.drops.length'), 0, 'nothing while calm');
+    game.step(60); // the last second before the gust
+    assert.equal(game.run('currentWind().soon'), true);
+    assert.ok(game.run<number>('weather.drops.length') > 0, 'warning leaves');
+});
+
+test('WX-5: rain clouds water the sprouts beneath them over time', () => {
+    const game = loadGame();
+    goToLevel(game, 12); // Rainy Meadow
+    // Park a cloud over the first ground sprout and let it rain
+    game.run('LEVELS[12].rainClouds[0].range = 0; LEVELS[12].rainClouds[0].x = sprouts[0].x; restartLevel();');
+    placeFlora(game, 60, 428);
+    game.step(95);
+    assert.equal(game.run('sprouts[0].bloomed'), true, 'bloomed by the rain alone');
+    const bloomed = game.run<number>('sprouts.filter(s => s.bloomed).length');
+    assert.ok(game.text('status-display').startsWith(`Flowers: ${bloomed}/`), 'the HUD counts rain-bloomed flowers');
+});
+
+test('WX-6: on ice Flora slides; on snow she stops right away', () => {
+    const game = loadGame();
+    goToLevel(game, 13); // Snowy Peaks: ice at x 400–650
+    placeFlora(game, 410, 428);
+    game.press('ArrowRight');
+    game.step();
+    assert.ok(game.run<number>('flora.vx') < 1, 'speeds up gradually on ice');
+    game.step(40);
+    game.release('ArrowRight');
+    game.step(10);
+    assert.ok(game.run<number>('flora.vx') > 1, 'keeps sliding after letting go');
+
+    placeFlora(game, 300, 428);
+    game.press('ArrowRight');
+    game.step(10);
+    game.release('ArrowRight');
+    game.step();
+    assert.equal(game.run('flora.vx'), 0, 'stops at once on snow');
+});
+
+test('WX-7: the night has a moon, fireflies and darkness; quiet weather keeps kites and butterflies away', () => {
+    const game = loadGame();
+    goToLevel(game, 14); // Starry Night
+    assert.equal(game.run('weather.kind'), 'night');
+    assert.equal(game.run('weather.drawSky(ctx, "#1B2A4A")'), false, 'no sun at night');
+    assert.ok(game.run<number>('weather.fireflyLights().length') >= 8, 'fireflies light the dark');
+    assert.equal(game.run('weather.calmSky'), false);
+    game.step(); // renders the darkness without errors
+    for (const [lvl, kind] of [[12, 'rain'], [13, 'snow'], [11, 'wind'], [0, 'clear']] as const) {
+        goToLevel(game, lvl);
+        assert.equal(game.run('weather.kind'), kind);
+        assert.equal(game.run('weather.calmSky'), kind === 'wind' || kind === 'clear');
+    }
 });

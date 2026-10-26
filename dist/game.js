@@ -2,10 +2,62 @@
 "use strict";
 
 // --- src/types.ts ---
+/** Each level's sky and weather. 'clear' is the default sunny day. */
+                                                                   
+                                         
+                                                                                                            
+                                                        
+
+                        
+              
+              
+ 
+
+                           
+              
+              
+                  
+ 
+
 /** A platform that glides from `x` to `x + range` and back, once every `period` ticks. */
                                                   
                   
                    
+                                                                       
+                             
+ 
+
+/** A stretch of the ground, from `x` to `x + width` (used for ponds and ice). */
+                             
+              
+                  
+ 
+
+/** Wind blows in gusts: calm for `calm` ticks, then a gust of `gust` ticks pushing at `strength` px/tick. */
+                             
+                                                                     
+                     
+                 
+                 
+ 
+
+/** A rain cloud drifting from `x` to `x + range` and back; it waters sprouts below it. */
+                                  
+              
+                  
+                   
+ 
+
+/** Everything Flora's physics needs to know about the level this tick. */
+                               
+                                   
+                                
+                            
+                                 
+                               
+                                                             
+                  
+                  
  
 
 /** A bumblebee that flies from `x` to `x + range` and back around height `y`, once every `period` ticks. */
@@ -51,6 +103,17 @@ const MUSHROOM_HEIGHT         = 18;
 const MAX_BOUNCE_HEIGHT         = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY) + MUSHROOM_HEIGHT;
 /** Highest jump in px (jump held): v^2 / 2g. */
 const MAX_JUMP_HEIGHT         = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
+
+/** Pond water surface; lily pads float just above it. Falling below the surface is a splash. */
+const WATER_SURFACE_Y         = 436;
+const LILY_Y         = 430;
+/** Rain clouds float at this height and water a column this wide below them. */
+const RAIN_CLOUD_Y         = 150;
+const RAIN_WIDTH         = 70;
+/** A sprout under the rain gets one splash this often. */
+const RAIN_SPLASH_TICKS         = 90;
+/** On ice Flora speeds up and slows down gradually: this fraction of the change per tick. */
+const ICE_GRIP         = 0.05;
 
 /** Bee hitbox radius. Touching a bee bumps Flora back; she can't be bumped again for a moment. */
 const BEE_RADIUS         = 10;
@@ -100,7 +163,12 @@ const LEVEL_MELODIES                                 = [
     ["C4", "G4", "E4", "A4", "G4", "E4", "D4", "G4"],
     ["D4", "A4", "F#4", "B4", "A4", "F#4", "E4", "A4"],
     ["E4", "B4", "G4", "C5", "B4", "G4", "F#4", "B4"],
-    ["C5", "E5", "G5", "C6", "B5", "G5", "E5", "D5"]
+    ["C5", "E5", "G5", "C6", "B5", "G5", "E5", "D5"],
+    ["F4", "A4", "C5", "A4", "G4", "F4", "D4", "C4"],
+    ["G4", "D5", "B4", "G4", "A4", "E5", "C5", "A4"],
+    ["E4", "G4", "B4", "G4", "F#4", "A4", "C5", "B4"],
+    ["C5", "G4", "E4", "G4", "B4", "D5", "G5", "E5"],
+    ["A4", "E4", "C4", "E4", "G4", "B4", "E5", "C5"]
 ];
 
 const LEVELS                         = [
@@ -372,7 +440,7 @@ const LEVELS                         = [
         width: 2400,
         treeX: 1100,
         trees: [520, 1600, 2150],
-        tip: "The grand finale! You can do it 🦄",
+        tip: "Everything at once! You can do it 🦄",
         platforms: [
             { x: 220, y: 345, width: 110 },
             { x: 780, y: 170, width: 110 },
@@ -403,6 +471,201 @@ const LEVELS                         = [
             { x: 2105, y: 340 }
         ],
         mounds: [560, 1050, 1600, 1840],
+        keyPos: { x: 1805, y: 150 }
+    },
+
+    // ---- Weather and water levels ----
+    {
+        name: "Lily Pond",
+        flowersNeeded: 6,
+        pet: "Lily the Frog",
+        species: "frog",
+        bg: "#9FD8E8",
+        width: 2000,
+        treeX: 1050,
+        trees: [300, 1700],
+        tip: "Hop across the lily pads! 🪷",
+        water: [
+            { x: 500, width: 260 },
+            { x: 1150, width: 320 }
+        ],
+        lilyPads: [
+            { x: 560, y: 430, width: 50 },
+            { x: 670, y: 430, width: 50 }
+        ],
+        movingPlatforms: [{ x: 1190, y: 430, width: 60, range: 150, period: 260, style: "lily" }],
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 860, y: 340, width: 110 },
+            { x: 1000, y: 265, width: 110 },
+            { x: 1600, y: 340, width: 110 },
+            { x: 1750, y: 265, width: 110 }
+        ],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 305, y: 345 },
+            { x: 585, y: 430 },
+            { x: 915, y: 340 },
+            { x: 1055, y: 265 },
+            { x: 1805, y: 265 }
+        ],
+        mounds: [400, 900, 1550],
+        keyPos: { x: 1805, y: 235 }
+    },
+    {
+        name: "Windy Hills",
+        flowersNeeded: 6,
+        pet: "Kiwi the Bluebird",
+        species: "bird",
+        bg: "#CFE8FF",
+        width: 2200,
+        weather: "wind",
+        wind: { strength: -1.6, calm: 200, gust: 150 },
+        treeX: 1250,
+        trees: [350, 1900],
+        tip: "Whoosh! Lean into the wind 🍃",
+        platforms: [
+            { x: 250, y: 345, width: 110 },
+            { x: 420, y: 270, width: 110 },
+            { x: 800, y: 340, width: 110 },
+            { x: 960, y: 265, width: 110 },
+            { x: 1110, y: 190, width: 110 },
+            { x: 1550, y: 340, width: 110 },
+            { x: 1720, y: 265, width: 120 }
+        ],
+        mushrooms: [{ x: 1300, y: 428 }],
+        bushes: [
+            { x: 600, width: 50, height: 32 },
+            { x: 1400, width: 60, height: 34 }
+        ],
+        bees: [{ x: 1000, y: 400, range: 180, period: 260 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 475, y: 270 },
+            { x: 855, y: 340 },
+            { x: 1165, y: 190 },
+            { x: 1605, y: 340 },
+            { x: 1780, y: 265, waterNeeded: 2 }
+        ],
+        mounds: [700, 1050, 1500, 1900],
+        keyPos: { x: 1165, y: 160 }
+    },
+    {
+        name: "Rainy Meadow",
+        flowersNeeded: 7,
+        pet: "Squiggle the Snail",
+        species: "snail",
+        bg: "#B8C6D1",
+        width: 2200,
+        weather: "rain",
+        rainClouds: [
+            { x: 280, range: 450, period: 900 },
+            { x: 1180, range: 600, period: 1000 }
+        ],
+        treeX: 1100,
+        trees: [520, 1850],
+        tip: "Rain clouds help your flowers grow! 🌧️",
+        platforms: [
+            { x: 230, y: 345, width: 110 },
+            { x: 450, y: 270, width: 110 },
+            { x: 760, y: 340, width: 110 },
+            { x: 1000, y: 340, width: 110 },
+            { x: 1150, y: 265, width: 110 },
+            { x: 1500, y: 345, width: 110 },
+            { x: 1700, y: 270, width: 120 }
+        ],
+        bushes: [{ x: 880, width: 50, height: 32 }],
+        bees: [
+            { x: 600, y: 400, range: 150, period: 240 },
+            { x: 1300, y: 330, range: 150, period: 260 }
+        ],
+        sprouts: [
+            { x: 140, y: 428 },
+            { x: 285, y: 345 },
+            { x: 505, y: 270, waterNeeded: 2 },
+            { x: 650, y: 428 },
+            { x: 1055, y: 340 },
+            { x: 1205, y: 265 },
+            { x: 1760, y: 270, waterNeeded: 3 }
+        ],
+        mounds: [380, 1300, 1650, 1900],
+        keyPos: { x: 1760, y: 240 }
+    },
+    {
+        name: "Snowy Peaks",
+        flowersNeeded: 6,
+        pet: "Bruno the Bear",
+        species: "bear",
+        bg: "#DCEBF5",
+        width: 2200,
+        weather: "snow",
+        ice: [
+            { x: 400, width: 250 },
+            { x: 1100, width: 300 },
+            { x: 1700, width: 200 }
+        ],
+        treeX: 1250,
+        trees: [600, 1820],
+        tip: "Brrr! Ice is slippery ⛸️",
+        platforms: [
+            { x: 220, y: 345, width: 110 },
+            { x: 700, y: 340, width: 110 },
+            { x: 860, y: 265, width: 110 },
+            { x: 1450, y: 345, width: 110 },
+            { x: 1600, y: 270, width: 110 },
+            { x: 1950, y: 340, width: 100 }
+        ],
+        movingPlatforms: [{ x: 1150, y: 280, width: 90, range: 180, period: 280 }],
+        bushes: [{ x: 1000, width: 50, height: 32 }],
+        sprouts: [
+            { x: 150, y: 428 },
+            { x: 275, y: 345 },
+            { x: 520, y: 428 },
+            { x: 915, y: 265 },
+            { x: 1505, y: 345 },
+            { x: 1655, y: 270, waterNeeded: 2 }
+        ],
+        mounds: [330, 760, 1550, 1960],
+        keyPos: { x: 1655, y: 240 }
+    },
+    {
+        name: "Starry Night",
+        flowersNeeded: 7,
+        pet: "Olive the Owl",
+        species: "owl",
+        bg: "#1B2A4A",
+        width: 2400,
+        weather: "night",
+        treeX: 1100,
+        trees: [450, 1700],
+        tip: "It's dark! Fireflies light the way ✨",
+        platforms: [
+            { x: 230, y: 345, width: 110 },
+            { x: 420, y: 270, width: 110 },
+            { x: 780, y: 170, width: 110 },
+            { x: 1000, y: 340, width: 110 },
+            { x: 1250, y: 345, width: 110 },
+            { x: 1750, y: 180, width: 110 },
+            { x: 2050, y: 340, width: 110 }
+        ],
+        movingPlatforms: [{ x: 1400, y: 260, width: 90, range: 220, period: 300 }],
+        mushrooms: [{ x: 820, y: 428 }],
+        bushes: [
+            { x: 600, width: 50, height: 32 },
+            { x: 1150, width: 60, height: 34 },
+            { x: 1900, width: 50, height: 32 }
+        ],
+        water: [{ x: 1560, width: 110 }],
+        sprouts: [
+            { x: 140, y: 428 },
+            { x: 275, y: 345 },
+            { x: 475, y: 270 },
+            { x: 835, y: 170, waterNeeded: 2 },
+            { x: 1055, y: 340 },
+            { x: 1805, y: 180, waterNeeded: 3 },
+            { x: 2105, y: 340 }
+        ],
+        mounds: [520, 1050, 1350, 1800],
         keyPos: { x: 1805, y: 150 }
     }
 ];
@@ -1049,6 +1312,268 @@ function drawTinyFace(ctx                          , x        , y        , r    
     ctx.fill();
 }
 
+// --- src/weather.ts ---
+/*
+ * Weather visuals, drawn in screen space like the sun and butterflies: rain, snow, leaves on
+ * the wind, and the night (stars, a moon, fireflies and darkness with soft lights). Purely
+ * visual — the gameplay side of weather (wind push, rain watering) lives in game.ts.
+ */
+
+                
+              
+              
+               
+               
+                 
+                  
+ 
+
+/** A soft light cut out of the night's darkness, in screen coordinates. */
+                        
+              
+              
+              
+ 
+
+const STAR_COUNT = 40;
+const FIREFLY_COUNT = 10;
+
+class WeatherEffects {
+           kind          = 'clear';
+           drops         = [];
+            stars                                                          = [];
+            ticks         = 0;
+            random              ;
+            darkness                           = null;
+
+    constructor(random               = Math.random) {
+        this.random = random;
+        for (let i = 0; i < STAR_COUNT; i++) {
+            this.stars.push({
+                x: random() * CANVAS_WIDTH,
+                y: 20 + random() * 260,
+                size: 0.8 + random() * 1.6,
+                phase: random() * Math.PI * 2
+            });
+        }
+    }
+
+           setKind(kind         )       {
+        if (kind === this.kind && this.drops.length > 0) return;
+        this.kind = kind;
+        this.drops = [];
+        const count = kind === 'rain' ? 80 : kind === 'snow' ? 70 : kind === 'night' ? FIREFLY_COUNT : 0;
+        for (let i = 0; i < count; i++) this.drops.push(this.newDrop(true));
+    }
+
+    /** Butterflies and kites stay home in the rain, snow and dark. */
+           get calmSky()          {
+        return this.kind === 'clear' || this.kind === 'wind';
+    }
+
+            newDrop(anywhere         )       {
+        const r = this.random;
+        const x = r() * (CANVAS_WIDTH + 100) - 50;
+        if (this.kind === 'rain') {
+            return { x, y: anywhere ? r() * CANVAS_HEIGHT : -20, vx: -1.2, vy: 9 + r() * 3, size: 8 + r() * 6, phase: 0 };
+        }
+        if (this.kind === 'snow') {
+            return { x, y: anywhere ? r() * CANVAS_HEIGHT : -10, vx: 0, vy: 0.6 + r() * 0.8, size: 1.5 + r() * 2.5, phase: r() * 6 };
+        }
+        if (this.kind === 'night') {
+            // Fireflies drift slowly around the lower sky.
+            return { x: r() * CANVAS_WIDTH, y: 180 + r() * 220, vx: (r() - 0.5) * 0.6, vy: 0, size: 2.2, phase: r() * 6 };
+        }
+        // Leaves on the wind enter from the side the gust blows from.
+        return { x, y: 120 + r() * 300, vx: 0, vy: 0, size: 4 + r() * 3, phase: r() * 6 };
+    }
+
+    /** `windX` is the push this tick; `gustSoon` adds a few warning leaves before a gust. */
+           update(windX        , gustSoon         )       {
+        this.ticks++;
+        if (this.kind === 'wind') {
+            const want = Math.abs(windX) > 0.1 ? 26 : gustSoon ? 6 : 0;
+            if (this.drops.length < want && this.ticks % 4 === 0) {
+                const leaf = this.newDrop(false);
+                leaf.x = windX <= 0 ? CANVAS_WIDTH + 20 : -20;
+                this.drops.push(leaf);
+            }
+            const blow = windX !== 0 ? windX * 3.2 : (gustSoon ? -1.5 : 0);
+            for (const d of this.drops) {
+                d.vx += (blow - d.vx) * 0.05;
+                d.x += d.vx;
+                d.y += Math.sin(this.ticks * 0.08 + d.phase) * 1.2 + 0.25;
+            }
+            this.drops = this.drops.filter(d => d.x > -40 && d.x < CANVAS_WIDTH + 40 && d.y < CANVAS_HEIGHT);
+            return;
+        }
+        for (const d of this.drops) {
+            if (this.kind === 'night') {
+                d.x += d.vx + Math.sin(this.ticks * 0.02 + d.phase) * 0.3;
+                d.y += Math.cos(this.ticks * 0.017 + d.phase) * 0.35;
+                if (d.x < -10) d.x = CANVAS_WIDTH + 10;
+                if (d.x > CANVAS_WIDTH + 10) d.x = -10;
+                continue;
+            }
+            d.x += d.vx + (this.kind === 'snow' ? Math.sin(this.ticks * 0.03 + d.phase) * 0.5 : 0);
+            d.y += d.vy;
+            if (d.y > CANVAS_HEIGHT + 10) Object.assign(d, this.newDrop(false));
+        }
+    }
+
+    /** Draws the sky backdrop for this weather. Returns true if the sun should shine. */
+           drawSky(ctx                          , skyColor        )          {
+        if (this.kind === 'night') {
+            for (const s of this.stars) {
+                ctx.globalAlpha = 0.5 + Math.sin(this.ticks * 0.05 + s.phase) * 0.4;
+                ctx.fillStyle = "#FFF9DB";
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            drawMoon(ctx, 700, 80, this.ticks, skyColor);
+            return false;
+        }
+        if (this.kind === 'rain') {
+            // A soft blanket of grey clouds hides the sun.
+            ctx.fillStyle = "rgba(149, 165, 166, 0.55)";
+            for (let i = 0; i < 9; i++) {
+                ctx.beginPath();
+                ctx.arc(i * 100 + ((this.ticks * 0.1) % 100), 40 + (i % 2) * 18, 70, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /** Weather in front of the scenery: rain, snow and leaves. */
+           drawFront(ctx                          )       {
+        if (this.kind === 'rain') {
+            ctx.strokeStyle = "rgba(116, 185, 255, 0.65)";
+            ctx.lineWidth = 1.6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            for (const d of this.drops) {
+                ctx.moveTo(d.x, d.y);
+                ctx.lineTo(d.x + d.vx * 1.2, d.y + d.size);
+            }
+            ctx.stroke();
+        } else if (this.kind === 'snow') {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+            for (const d of this.drops) {
+                ctx.beginPath();
+                ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (this.kind === 'wind') {
+            for (const d of this.drops) {
+                ctx.save();
+                ctx.translate(d.x, d.y);
+                ctx.rotate(this.ticks * 0.1 + d.phase);
+                ctx.fillStyle = d.phase > 3 ? "#F0932B" : "#6AB04C";
+                ctx.beginPath();
+                ctx.ellipse(0, 0, d.size, d.size * 0.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+    }
+
+    /** Fireflies glow on top of the darkness. */
+           drawFireflies(ctx                          )       {
+        if (this.kind !== 'night') return;
+        for (const d of this.drops) {
+            const glow = 0.55 + Math.sin(this.ticks * 0.08 + d.phase) * 0.45;
+            ctx.fillStyle = `rgba(255, 234, 167, ${0.25 * glow})`;
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(253, 203, 110, ${glow})`;
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    /** Where the fireflies are, so they light up the dark around them. */
+           fireflyLights()          {
+        return this.kind === 'night' ? this.drops.map(d => ({ x: d.x, y: d.y, r: 38 })) : [];
+    }
+
+    /**
+     * At night, covers the scene in soft darkness with glowing holes at each light. Uses a
+     * second canvas so the lights can be cut out with soft edges.
+     */
+           drawDarkness(ctx                          , lights                  , pixelScale        )       {
+        if (this.kind !== 'night') return;
+        const w = Math.round(CANVAS_WIDTH * pixelScale);
+        const h = Math.round(CANVAS_HEIGHT * pixelScale);
+        if (!this.darkness) this.darkness = document.createElement('canvas');
+        const layer = this.darkness;
+        if (layer.width !== w || layer.height !== h) {
+            layer.width = w;
+            layer.height = h;
+        }
+        const g = layer.getContext('2d');
+        if (!g) return;
+        g.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
+        g.globalCompositeOperation = 'source-over';
+        g.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        g.fillStyle = "rgba(10, 14, 40, 0.62)";
+        g.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        g.globalCompositeOperation = 'destination-out';
+        for (const l of lights) {
+            const grad = g.createRadialGradient(l.x, l.y, l.r * 0.2, l.x, l.y, l.r);
+            grad.addColorStop(0, "rgba(0, 0, 0, 1)");
+            grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+            g.fillStyle = grad;
+            g.beginPath();
+            g.arc(l.x, l.y, l.r, 0, Math.PI * 2);
+            g.fill();
+        }
+        g.globalCompositeOperation = 'source-over';
+        ctx.drawImage(layer, 0, 0, w, h, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+}
+
+/** A sleepy crescent moon with the same face everyone has, gently glowing. */
+function drawMoon(ctx                          , x        , y        , ticks        , skyColor        )       {
+    // Crescent: a full disc with a bite painted over in the sky colour
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, 32, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = "#FFF3C4";
+    ctx.fillRect(x - 40, y - 40, 80, 80);
+    ctx.fillStyle = skyColor;
+    ctx.beginPath();
+    ctx.arc(x + 16, y - 10, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // Soft halo over everything, so the bite and the sky around it glow evenly
+    const glow = 0.16 + Math.sin(ticks * 0.02) * 0.05;
+    ctx.fillStyle = `rgba(255, 249, 219, ${glow})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 50, 0, Math.PI * 2);
+    ctx.fill();
+    // Sleepy closed eye and a little smile on the crescent
+    ctx.strokeStyle = "#5D4E75";
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x - 16, y + 2, 3, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x - 12, y + 13, 4, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.5)";
+    ctx.beginPath();
+    ctx.arc(x - 22, y + 9, 3, 0, Math.PI * 2);
+    ctx.fill();
+}
+
 // --- src/pets.ts ---
 /*
  * The rescued pets, drawn in the same soft, rounded, outline-free style as Flora and Noodle.
@@ -1323,6 +1848,158 @@ const drawUnicorn            = (ctx, step) => {
     face(ctx, 11, -19.5);
 };
 
+const drawFrog            = (ctx, step, now) => {
+    const skin = "#7BC86C", dark = "#5DAA4F", belly = "#D9F2C4";
+    // Folded back legs and little front feet
+    ellipse(ctx, -6, -4, 6, 4.5, dark, -0.3);
+    ellipse(ctx, 7, -4, 6, 4.5, dark, 0.3);
+    ellipse(ctx, -9 - step, -0.8, 3.5, 1.5, dark);
+    ellipse(ctx, 10 + step, -0.8, 3.5, 1.5, dark);
+    // Squat round body; a breathing throat
+    const breathe = 1 + Math.sin(now * 0.008) * 0.06;
+    ellipse(ctx, 1, -9, 12, 8, skin);
+    ellipse(ctx, 4, -6.5, 7 * breathe, 4 * breathe, belly);
+    // Big eyes on top of the head
+    circle(ctx, 1, -17, 4.2, skin);
+    circle(ctx, 9, -17, 4.2, skin);
+    circle(ctx, 1.8, -17.5, 2.2, "#FFFFFF");
+    circle(ctx, 9.8, -17.5, 2.2, "#FFFFFF");
+    circle(ctx, 2.4, -17.3, 1.3, "#2D3436");
+    circle(ctx, 10.4, -17.3, 1.3, "#2D3436");
+    circle(ctx, 2.8, -17.9, 0.45, "#FFFFFF");
+    circle(ctx, 10.8, -17.9, 0.45, "#FFFFFF");
+    // Wide smile and blush
+    ctx.strokeStyle = "#2D3436";
+    ctx.lineWidth = 0.9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(8, -11.5, 3.2, 0.3, Math.PI - 0.6);
+    ctx.stroke();
+    ellipse(ctx, 12, -11, 1.8, 1.1, "rgba(255, 118, 117, 0.55)");
+};
+
+const drawBird            = (ctx, step, now) => {
+    const feathers = "#74B9FF", dark = "#4A90D9", belly = "#FFF3E0", beak = "#FDCB6E";
+    // Thin orange legs
+    ctx.strokeStyle = "#E67E22";
+    ctx.lineWidth = 1.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-1, -5); ctx.lineTo(-1 + step, -0.5);
+    ctx.moveTo(3, -5); ctx.lineTo(3 - step, -0.5);
+    ctx.stroke();
+    // Tail feathers
+    triangle(ctx, [[-8, -11], [-16, -15], [-15, -8]], dark);
+    // Round body with a cream belly, and a wing that flutters
+    ellipse(ctx, 0, -12, 9, 7.5, feathers);
+    ellipse(ctx, 3, -9.5, 5.5, 4.5, belly);
+    ctx.save();
+    ctx.translate(-2, -13);
+    ctx.rotate(-0.3 + Math.sin(now * 0.02) * 0.25);
+    ellipse(ctx, -2, 0, 6, 3.5, dark);
+    ctx.restore();
+    // Head with a little tuft
+    circle(ctx, 7, -20, 6, feathers);
+    ellipse(ctx, 5, -26.5, 1.4, 2.8, dark, -0.4);
+    triangle(ctx, [[12, -21], [16.5, -19.5], [12, -18]], beak);
+    face(ctx, 6.5, -20.5, { smile: false });
+};
+
+const drawSnail            = (ctx, _step, now) => {
+    const body = "#F7D9A8", shell = "#E17055", shellLight = "#FAB1A0";
+    // Soft body gliding along, slightly stretching
+    const stretch = 1 + Math.sin(now * 0.004) * 0.05;
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.ellipse(1, -3.5, 14 * stretch, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Head rising at the front, with two eye-stalks
+    ellipse(ctx, 11, -9, 4.5, 6, body, 0.2);
+    ctx.strokeStyle = body;
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(10, -14); ctx.lineTo(9, -20);
+    ctx.moveTo(13, -14); ctx.lineTo(14.5, -19.5);
+    ctx.stroke();
+    circle(ctx, 9, -20.5, 1.6, body);
+    circle(ctx, 14.5, -20, 1.6, body);
+    circle(ctx, 9.3, -20.7, 0.8, "#2D3436");
+    circle(ctx, 14.8, -20.2, 0.8, "#2D3436");
+    ellipse(ctx, 13, -7.5, 1.6, 1, "rgba(255, 118, 117, 0.55)");
+    ctx.strokeStyle = "#2D3436";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(12.5, -10, 1.3, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    // Big swirly shell
+    circle(ctx, -2, -12, 9.5, shell);
+    circle(ctx, -3, -13, 6, shellLight);
+    circle(ctx, -2.5, -12.5, 3, shell);
+    circle(ctx, -2.2, -12.3, 1.2, shellLight);
+};
+
+const drawBear            = (ctx, step) => {
+    const fur = "#A47148", dark = "#7D5233", light = "#E3C4A3";
+    legs(ctx, fur, dark, step, 7);
+    ellipse(ctx, 0, -10, 12, 8, fur);
+    ellipse(ctx, 3, -7.5, 6, 3.5, light);
+    circle(ctx, -11, -11, 2.5, fur);
+    // Round ears with light insides
+    circle(ctx, 4, -24, 3.2, fur);
+    circle(ctx, 14, -24, 3.2, fur);
+    circle(ctx, 4, -24, 1.6, light);
+    circle(ctx, 14, -24, 1.6, light);
+    circle(ctx, 9, -18, 8, fur);
+    ellipse(ctx, 13, -15.5, 4, 3, light);
+    ellipse(ctx, 15.5, -16.5, 1.5, 1.1, "#3B2A1E");
+    face(ctx, 9, -19.5, { smile: false });
+    ctx.strokeStyle = "#3B2A1E";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(14.4, -14.5, 1.2, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+};
+
+const drawOwl            = (ctx, _step, now) => {
+    const feathers = "#A1887F", dark = "#7E6A62", belly = "#F3E5D8", disc = "#FFF8F0";
+    // Little orange talons
+    ellipse(ctx, -3, -1, 2.6, 1.4, "#F39C12");
+    ellipse(ctx, 4, -1, 2.6, 1.4, "#F39C12");
+    // Round body, speckled belly, wings at the sides
+    ellipse(ctx, 0, -12, 10, 11, feathers);
+    ellipse(ctx, 0.5, -9, 6.5, 7, belly);
+    for (const [bx, by] of [[-2, -10], [2, -11], [0, -7], [3, -6.5], [-3, -6]]         ) {
+        ellipse(ctx, bx, by, 1, 0.7, dark);
+    }
+    ellipse(ctx, -9, -12, 3, 7, dark, 0.15);
+    ellipse(ctx, 9.5, -12, 3, 7, dark, -0.15);
+    // Ear tufts
+    triangle(ctx, [[-7, -20], [-8, -27], [-3, -21.5]], dark);
+    triangle(ctx, [[7, -20], [8, -27], [3, -21.5]], dark);
+    // Big round eye discs facing forward, blinking slowly
+    circle(ctx, -3.5, -17, 4.2, disc);
+    circle(ctx, 4, -17, 4.2, disc);
+    const blink = now % 4000 < 160;
+    if (blink) {
+        ctx.strokeStyle = "#2D3436";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(-3.5, -17, 2, 0.2, Math.PI - 0.2);
+        ctx.moveTo(6, -17);
+        ctx.arc(4, -17, 2, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+    } else {
+        circle(ctx, -3, -17, 2.2, "#2D3436");
+        circle(ctx, 4.5, -17, 2.2, "#2D3436");
+        circle(ctx, -2.3, -17.8, 0.8, "#FFFFFF");
+        circle(ctx, 5.2, -17.8, 0.8, "#FFFFFF");
+    }
+    triangle(ctx, [[-0.5, -14.5], [1.5, -14.5], [0.5, -11.5]], "#F39C12");
+    ellipse(ctx, -6.5, -13, 1.6, 1, "rgba(255, 118, 117, 0.55)");
+    ellipse(ctx, 7.5, -13, 1.6, 1, "rgba(255, 118, 117, 0.55)");
+};
+
 /** Every species has a drawing; the type makes adding a species without one a compile error. */
 const PET_DRAWERS                                       = {
     kitty: drawKitty,
@@ -1334,7 +2011,12 @@ const PET_DRAWERS                                       = {
     piglet: drawPiglet,
     fox: drawFox,
     panda: drawPanda,
-    unicorn: drawUnicorn
+    unicorn: drawUnicorn,
+    frog: drawFrog,
+    bird: drawBird,
+    snail: drawSnail,
+    bear: drawBear,
+    owl: drawOwl
 };
 
 /** Draws `species` standing on (x, groundY). `step` (-1..1) swings the legs while walking. */
@@ -1355,6 +2037,8 @@ function drawPetSprite(
 }
 
 // --- src/renderer.ts ---
+const WATER_COLOR         = "#5DADE2";
+
 /** A smiling sun in the characters' style: soft rays that turn and breathe, and eyes that blink. */
 function drawSun(ctx                          )       {
     const now = Date.now();
@@ -1450,6 +2134,141 @@ function drawPlatforms(ctx                          , platforms                 
         ctx.roundRect(p.x - 2, p.y, p.width + 4, 8, 5);
         ctx.fill();
     }
+}
+
+/** Ponds cut into the ground, with soft banks and gentle ripples. */
+function drawWater(ctx                          , water                       )       {
+    const now = Date.now();
+    for (const w of water) {
+        ctx.fillStyle = "#3C8DBC";
+        ctx.fillRect(w.x, GROUND_Y, w.width, 72);
+        ctx.fillStyle = WATER_COLOR;
+        ctx.fillRect(w.x, WATER_SURFACE_Y, w.width, 64);
+        // Rounded muddy banks at each edge
+        ctx.fillStyle = "#8D6E63";
+        for (const bx of [w.x, w.x + w.width]) {
+            ctx.beginPath();
+            ctx.ellipse(bx, GROUND_Y + 4, 6, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Little ripples
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        for (let rx = w.x + 18; rx < w.x + w.width - 14; rx += 34) {
+            const shift = Math.sin(now * 0.002 + rx) * 4;
+            ctx.beginPath();
+            ctx.moveTo(rx + shift, WATER_SURFACE_Y + 8);
+            ctx.lineTo(rx + shift + 10, WATER_SURFACE_Y + 8);
+            ctx.stroke();
+        }
+    }
+}
+
+/** Slippery ice patches: a pale blue sheen on the ground with a few sparkly streaks. */
+function drawIce(ctx                          , ice                       )       {
+    for (const i of ice) {
+        ctx.fillStyle = "#BDE3F7";
+        ctx.beginPath();
+        ctx.roundRect(i.x, GROUND_Y - 1, i.width, 9, 4);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        for (let sx = i.x + 12; sx < i.x + i.width - 10; sx += 40) {
+            ctx.beginPath();
+            ctx.moveTo(sx, GROUND_Y + 5);
+            ctx.lineTo(sx + 12, GROUND_Y + 1);
+            ctx.stroke();
+        }
+    }
+}
+
+/** Round lily pads with a notch, some with a tiny pink flower; they bob very slightly. */
+function drawLilyPads(ctx                          , pads                     )       {
+    const now = Date.now();
+    pads.forEach((p, i) => {
+        const cx = p.x + p.width / 2;
+        const bob = Math.sin(now * 0.003 + p.x) * 0.8;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+        ctx.beginPath();
+        ctx.ellipse(cx, p.y + 6, p.width / 2, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#4CAF50";
+        ctx.beginPath();
+        ctx.ellipse(cx, p.y + 3 + bob, p.width / 2 + 2, 6, 0, 0.35, Math.PI * 2 - 0.05);
+        ctx.lineTo(cx, p.y + 3 + bob);
+        ctx.fill();
+        ctx.fillStyle = "#66BB6A";
+        ctx.beginPath();
+        ctx.ellipse(cx - 4, p.y + 1.5 + bob, p.width / 4, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (i % 2 === 0) {
+            ctx.fillStyle = "#FFB8D0";
+            for (let k = 0; k < 5; k++) {
+                const a = (k / 5) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.arc(cx - p.width / 4 + Math.cos(a) * 2.4, p.y + bob + Math.sin(a) * 1.6, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    });
+}
+
+/** Puffy grey rain clouds with sleepy faces, raining a soft column down to the ground. */
+function drawRainClouds(ctx                          , cloudXs                   )       {
+    const now = Date.now();
+    for (const cx of cloudXs) {
+        // A soft blue column shows exactly where this cloud is watering.
+        const grad = ctx.createLinearGradient(0, RAIN_CLOUD_Y, 0, GROUND_Y);
+        grad.addColorStop(0, "rgba(116, 185, 255, 0.28)");
+        grad.addColorStop(1, "rgba(116, 185, 255, 0.08)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(cx - RAIN_WIDTH / 2, RAIN_CLOUD_Y, RAIN_WIDTH, GROUND_Y - RAIN_CLOUD_Y);
+        ctx.strokeStyle = "rgba(9, 132, 227, 0.75)";
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let i = 0; i < 22; i++) {
+            const dx = ((i * 37) % RAIN_WIDTH) - RAIN_WIDTH / 2;
+            const dy = (now * 0.4 + i * 53) % (GROUND_Y - RAIN_CLOUD_Y - 10);
+            ctx.moveTo(cx + dx, RAIN_CLOUD_Y + 12 + dy);
+            ctx.lineTo(cx + dx - 1.5, RAIN_CLOUD_Y + 22 + dy);
+        }
+        ctx.stroke();
+        ctx.fillStyle = "#B2BEC3";
+        for (const [px, py, r] of [[-24, 4, 16], [0, -6, 22], [24, 4, 16], [10, 10, 14], [-10, 10, 14]]         ) {
+            ctx.beginPath();
+            ctx.arc(cx + px, RAIN_CLOUD_Y + py, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.beginPath();
+        ctx.arc(cx - 8, RAIN_CLOUD_Y - 12, 8, 0, Math.PI * 2);
+        ctx.fill();
+        // Sleepy closed eyes and a small smile
+        ctx.strokeStyle = "#636E72";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(cx - 6, RAIN_CLOUD_Y + 1, 2.2, 0.2, Math.PI - 0.2);
+        ctx.moveTo(cx + 8.2, RAIN_CLOUD_Y + 1.5);
+        ctx.arc(cx + 6, RAIN_CLOUD_Y + 1, 2.2, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, RAIN_CLOUD_Y + 6, 2.5, 0.3, Math.PI - 0.3);
+        ctx.stroke();
+    }
+}
+
+/** A swimmer's ripple: a band of water hiding the legs, with a little ring on top. */
+function drawSwimRipple(ctx                          , x        , halfWidth        )       {
+    ctx.fillStyle = WATER_COLOR;
+    ctx.fillRect(x - halfWidth, WATER_SURFACE_Y - 2, halfWidth * 2, 12);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(x, WATER_SURFACE_Y - 1, halfWidth, 2.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
 }
 
 /** Bramble bushes: round leafy clumps with little thorns and berries. */
@@ -1622,7 +2441,12 @@ const PET_EMOJI                                    = {
     piglet: "🐷",
     fox: "🦊",
     panda: "🐼",
-    unicorn: "🦄"
+    unicorn: "🦄",
+    frog: "🐸",
+    bird: "🐦",
+    snail: "🐌",
+    bear: "🐻",
+    owl: "🦉"
 };
 
 /**
@@ -1635,7 +2459,8 @@ function drawRescuedPet(
     x        ,
     y        ,
     facingLeft          = false,
-    vx         = 0
+    vx         = 0,
+    swimming          = false
 )       {
     const now = Date.now();
     // Each species bobs on its own rhythm so the parade doesn't move in lockstep.
@@ -1643,16 +2468,21 @@ function drawRescuedPet(
     const moving = Math.abs(vx) > 0.4;
     const step = moving ? Math.sin(now * 0.022 + phase) : 0;
     const hop = moving ? Math.abs(step) * 1.5 : Math.abs(Math.sin(now * 0.004 + phase)) * 2.5;
-    const groundY = y + 12;
+    // Paddling across a pond: sit lower in the water, no hopping, legs hidden by a ripple
+    const groundY = swimming ? WATER_SURFACE_Y + 6 : y + 12;
+    const lift = swimming ? Math.sin(now * 0.006 + phase) * 1 : hop;
 
     ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.beginPath();
-    ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    drawPetSprite(ctx, species, x, groundY - hop, facingLeft, step);
+    if (!swimming) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+        ctx.beginPath();
+        ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    drawPetSprite(ctx, species, x, groundY - lift, facingLeft, swimming ? 0 : step);
+    if (swimming) drawSwimRipple(ctx, x + 2, 15);
     ctx.fillStyle = "#FF7A93";
-    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - hop, 4);
+    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - lift, 4);
     ctx.restore();
 }
 
@@ -1662,13 +2492,18 @@ function drawTreeAndGround(
     trees                   ,
     digMounds                     ,
     boneFound         ,
-    boneX        
+    boneX        ,
+    snowy          = false
 )       {
-    for (const treeX of trees) drawTree(ctx, treeX);
+    for (const treeX of trees) drawTree(ctx, treeX, snowy);
 
-    // Ground
-    ctx.fillStyle = "#00B894";
+    // Ground: green grass, or soft snow
+    ctx.fillStyle = snowy ? "#F5F9FC" : "#00B894";
     ctx.fillRect(0, 428, worldWidth, 72);
+    if (snowy) {
+        ctx.fillStyle = "#DDEAF3";
+        ctx.fillRect(0, 446, worldWidth, 54);
+    }
 
     // Dirt Mounds & Hidden Bone
     for (const m of digMounds) {
@@ -1684,12 +2519,16 @@ function drawTreeAndGround(
     }
 
     if (boneFound) {
-        ctx.fillStyle = "#FFF";
-        ctx.fillRect(boneX - 10, 421, 20, 6);
+        // The dug-up hole, with the bone resting on a little pile of dirt beside it
+        ctx.fillStyle = "#6D4C41";
         ctx.beginPath();
-        ctx.arc(boneX - 10, 424, 4, 0, Math.PI * 2);
-        ctx.arc(boneX + 10, 424, 4, 0, Math.PI * 2);
+        ctx.ellipse(boneX, 429, 11, 3, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = "#8D6E63";
+        ctx.beginPath();
+        ctx.ellipse(boneX + 3, 427, 9, 3.5, 0, Math.PI, 0);
+        ctx.fill();
+        drawBone(ctx, boneX, 420);
     }
 }
 
@@ -1858,7 +2697,7 @@ function drawHeart(ctx                          , x        , y        , size    
 }
 
 /** Puffy round canopy on a soft tapered trunk, swaying gently, dotted with blossoms. */
-function drawTree(ctx                          , treeX        )       {
+function drawTree(ctx                          , treeX        , snowy          = false)       {
     const now = Date.now();
     ctx.save();
     ctx.translate(treeX, 0);
@@ -1912,6 +2751,18 @@ function drawTree(ctx                          , treeX        )       {
         ctx.beginPath();
         ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    if (snowy) {
+        // Fluffy snow resting on top of the canopy instead of blossoms
+        ctx.fillStyle = "#FFFFFF";
+        for (const [sx, sy, r] of [[-24, 298, 11], [-8, 276, 13], [10, 270, 12], [26, 292, 10], [0, 262, 9]]         ) {
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, r, r * 0.6, 0, Math.PI, 0);
+            ctx.fill();
+        }
+        ctx.restore();
+        return;
     }
 
     // Tiny pink blossoms
@@ -2018,15 +2869,134 @@ function drawDoghouse(ctx                          , centerX         = 707)     
     ctx.restore();
 }
 
-function drawKey(ctx                          , keyX        , keyY        )       {
-    const bobY = keyY + Math.sin(Date.now() * 0.006) * 4;
-    ctx.fillStyle = "#F1C40F";
+/** A four-point twinkle, like the sparkles in Flora's eyes. */
+function drawTwinkle(ctx                          , x        , y        , size        )       {
     ctx.beginPath();
-    ctx.arc(keyX, bobY, 8, 0, Math.PI * 2);
+    ctx.moveTo(x, y - size);
+    ctx.quadraticCurveTo(x, y, x + size, y);
+    ctx.quadraticCurveTo(x, y, x, y + size);
+    ctx.quadraticCurveTo(x, y, x - size, y);
+    ctx.quadraticCurveTo(x, y, x, y - size);
     ctx.fill();
-    ctx.fillRect(keyX + 6, bobY - 2, 14, 4);
-    ctx.fillRect(keyX + 14, bobY + 2, 3, 4);
-    ctx.fillRect(keyX + 18, bobY + 2, 3, 4);
+}
+
+/** The golden key: a glowing, gently swaying key with a smiling round bow and twinkles. */
+function drawKey(ctx                          , keyX        , keyY        )       {
+    const now = Date.now();
+    const bobY = keyY + Math.sin(now * 0.006) * 4;
+    ctx.save();
+    // Soft warm glow that fades out at the edges, so it catches the eye on any sky
+    const glow = 0.45 + Math.sin(now * 0.005) * 0.15;
+    const halo = ctx.createRadialGradient(keyX + 6, bobY, 4, keyX + 6, bobY, 22);
+    halo.addColorStop(0, `rgba(255, 246, 204, ${glow})`);
+    halo.addColorStop(1, "rgba(255, 246, 204, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(keyX + 6, bobY, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(keyX, bobY);
+    ctx.rotate(Math.sin(now * 0.003) * 0.15);
+    const gold = "#F7C948", deep = "#E1A33B", light = "#FFE9A8";
+    // Shaft and two rounded teeth
+    ctx.fillStyle = deep;
+    ctx.beginPath();
+    ctx.roundRect(4, -2.5, 19, 5, 2.5);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(14, 1, 3.6, 6, 1.6);
+    ctx.roundRect(19.4, 1, 3.6, 4.5, 1.6);
+    ctx.fill();
+    ctx.fillStyle = gold;
+    ctx.beginPath();
+    ctx.roundRect(4, -2.5, 19, 3.5, 1.8);
+    ctx.fill();
+    // Round bow with a shiny rim and a happy little face
+    ctx.fillStyle = deep;
+    ctx.beginPath();
+    ctx.arc(0, 0, 9.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = gold;
+    ctx.beginPath();
+    ctx.arc(-0.5, -0.6, 8.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath();
+    ctx.ellipse(-3.5, -4, 3, 1.8, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#6D4C41";
+    ctx.beginPath();
+    ctx.arc(-2.6, 0, 1, 0, Math.PI * 2);
+    ctx.arc(2.2, 0, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#6D4C41";
+    ctx.lineWidth = 0.9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(-0.2, 1.6, 1.8, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.55)";
+    ctx.beginPath();
+    ctx.arc(-5, 2.4, 1.4, 0, Math.PI * 2);
+    ctx.arc(4.6, 2.4, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Twinkles popping in and out around it
+    ctx.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 3; i++) {
+        const t = now * 0.004 + i * 2.1;
+        const size = Math.max(0, Math.sin(t)) * 3.5;
+        if (size < 0.4) continue;
+        drawTwinkle(ctx, keyX + [-13, 22, 8][i], bobY + [-12, -10, 13][i], size);
+    }
+}
+
+/** Noodle's bone: a plump cream bone with rounded knobs, a shine and a sleepy-happy face. */
+function drawBone(ctx                          , x        , y        )       {
+    const cream = "#FFF8E7", shade = "#EADCC0";
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-0.12);
+    // Shadow underneath
+    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 14, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Darker underside first, then the bone on top, so it looks round
+    for (const [fill, dy] of [[shade, 1.2], [cream, 0]]         ) {
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.roundRect(-9, -2.8 + dy, 18, 5.6, 2.8);
+        ctx.fill();
+        for (const [kx, ky] of [[-10.5, -2.4], [-10.5, 2.4], [10.5, -2.4], [10.5, 2.4]]         ) {
+            ctx.beginPath();
+            ctx.arc(kx, ky + dy, 3.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.beginPath();
+    ctx.ellipse(-3, -1.6, 4.5, 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Happy closed eyes and a smile
+    ctx.strokeStyle = "#8D6E63";
+    ctx.lineWidth = 0.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(-2.4, 0, 1, Math.PI + 0.3, -0.3);
+    ctx.moveTo(3.4, 0);
+    ctx.arc(2.4, 0, 1, Math.PI + 0.3, -0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0.8, 1.4, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.5)";
+    ctx.beginPath();
+    ctx.arc(-4.6, 1.4, 1.1, 0, Math.PI * 2);
+    ctx.arc(4.6, 1.4, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 }
 
 function drawCelebrationBanner(ctx                          , petName        )       {
@@ -2072,6 +3042,8 @@ class Player {
            stunTimer         = 0;
            safeTimer         = 0;
             knockVx         = 0;
+    /** Set when she drops into a pond; the game splashes her back onto the bank. */
+           fellInWater          = false;
 
            reset()       {
         this.x = 50;
@@ -2086,6 +3058,13 @@ class Player {
         this.stunTimer = 0;
         this.safeTimer = 0;
         this.knockVx = 0;
+        this.fellInWater = false;
+    }
+
+    /** Whether her middle is over one of these ground spans. */
+           over(spans                       )          {
+        const cx = this.x + this.width / 2;
+        return spans.some(s => cx >= s.x && cx <= s.x + s.width);
     }
 
     /**
@@ -2108,10 +3087,7 @@ class Player {
            update(
         keys                                   ,
         pressed                                   ,
-        platforms                     ,
-        mushrooms                  ,
-        bushes                 ,
-        worldWidth        ,
+        world              ,
         disabled         ,
         playSound                           ,
         onWater            ,
@@ -2125,19 +3101,21 @@ class Player {
             this.stunTimer--;
             this.vx = this.knockVx;
             this.knockVx *= 0.9;
-            this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+            this.applyPhysics(world, playSound);
             return;
         }
 
+        let targetVx = 0;
         if (keys[CONTROLS.right]) {
-            this.vx = 3.5;
+            targetVx = 3.5;
             this.facing = 'right';
         } else if (keys[CONTROLS.left]) {
-            this.vx = -3.5;
+            targetVx = -3.5;
             this.facing = 'left';
-        } else {
-            this.vx = 0;
         }
+        // On ice she speeds up and slows down gradually, so she slides.
+        const onIce = this.grounded && this.y + this.height >= GROUND_Y - 1 && this.over(world.ice);
+        this.vx = onIce ? this.vx + (targetVx - this.vx) * ICE_GRIP : targetVx;
 
         // Jumps fire on a press (latched even if released within the same tick), not while held,
         // so the buffer can remember a press made just before landing.
@@ -2185,20 +3163,16 @@ class Player {
         if (this.digTimer > 0) this.digTimer--;
         else this.isDigging = false;
 
-        this.applyPhysics(platforms, mushrooms, bushes, worldWidth, playSound);
+        this.applyPhysics(world, playSound);
     }
 
-            applyPhysics(
-        platforms                     ,
-        mushrooms                  ,
-        bushes                 ,
-        worldWidth        ,
-        playSound                           
-    )       {
+            applyPhysics(world              , playSound                           )       {
+        const { platforms, mushrooms, bushes } = world;
         const prevX = this.x;
         const prevBottom = this.y + this.height;
         this.vy += GRAVITY;
-        this.x += this.vx;
+        // Wind pushes her whether she's walking, jumping or knocked back.
+        this.x += this.vx + world.windX;
 
         // Bushes are solid from the side: walk into one and you stop at its edge.
         for (const b of bushes) {
@@ -2251,15 +3225,17 @@ class Player {
             }
         }
 
-        // Ground collision (y = 428)
-        if (this.y >= 380) {
+        // Ground collision (y = 428), except over a pond, where she drops in
+        if (this.over(world.water)) {
+            if (!this.grounded && this.y + this.height > WATER_SURFACE_Y + 12) this.fellInWater = true;
+        } else if (this.y >= 380) {
             this.y = 380;
             this.vy = 0;
             this.grounded = true;
         }
 
         if (this.x < 0) this.x = 0;
-        if (this.x > worldWidth - this.width) this.x = worldWidth - this.width;
+        if (this.x > world.width - this.width) this.x = world.width - this.width;
 
         this.coyoteTimer = this.grounded ? COYOTE_TICKS : Math.max(0, this.coyoteTimer - 1);
         if (this.jumpBufferTimer > 0) this.jumpBufferTimer--;
@@ -2471,6 +3447,8 @@ class Noodle {
     /** How far Noodle moved last tick; drives trotting and which way he faces. */
            vx         = 0;
            facing            = 'right';
+    /** Set by the game while he's paddling across a pond. */
+           swimming          = false;
     /** Lines waiting their turn in the speech bubble, with how long each shows. */
             speechQueue                     = [];
 
@@ -2539,16 +3517,19 @@ class Noodle {
 
         ctx.save();
         // Origin on the ground under his middle, facing right; mirror for left.
-        ctx.translate(this.x + 12, this.y + 22);
+        // Paddling across a pond he sits lower, legs hidden by the water.
+        ctx.translate(this.x + 12, this.y + 22 + (this.swimming ? 14 : 0));
         if (this.facing === 'left') ctx.scale(-1, 1);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
         // Soft shadow
-        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 14, 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if (!this.swimming) {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 14, 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         ctx.translate(0, hop);
 
@@ -2669,6 +3650,7 @@ class Noodle {
 
         ctx.restore();
         ctx.restore();
+        if (this.swimming) drawSwimRipple(ctx, this.x + 12, 17);
     }
 
     /**
@@ -2744,6 +3726,7 @@ const audio = new AudioController();
 const particleSystem = new ParticleSystem();
 const butterflies = new ButterflySwarm();
 const skyVisitors = new SkyVisitors();
+const weather = new WeatherEffects();
 const storage = getStorage();
 /** Continue point, unlocked levels, roster and followers; kept in memory and mirrored to storage. */
 let progress           = loadSave(storage, LEVELS.map(l => l.species));
@@ -2758,6 +3741,10 @@ let levelClearTimer         = 0;
 let levelTicks         = 0;
 /** Left edge of the visible part of the level; levels wider than the screen scroll. */
 let cameraX         = 0;
+/** Where each rain cloud's middle is this tick. */
+let rainCloudXs           = [];
+/** The last spot Flora stood on solid ground, where a pond splash puts her back. */
+let lastSafeX         = 50;
 /** Where each bee is this tick, and which way it's flying. */
 let bees                                      = [];
 
@@ -2772,7 +3759,7 @@ let keyCollected          = false;
 let keyX         = 530;
 let keyY         = 315;
 /** Where each of the level's moving platforms is this tick. */
-let movingPlatforms             = [];
+let movingPlatforms                                              = [];
 
 const keys                          = {};
 /** Keys that went down since the last tick, so a tap shorter than one tick still counts. */
@@ -3113,6 +4100,9 @@ function initLevel()       {
     levelTicks = 0;
     movingPlatforms = movingPlatformsAt(0);
     bees = beesAt(0);
+    rainCloudXs = rainCloudsAt(0);
+    lastSafeX = 50;
+    weather.setKind(level.weather ?? 'clear');
     keyX = level.keyPos.x;
     keyY = level.keyPos.y;
 
@@ -3152,6 +4142,14 @@ function initLevel()       {
 function restartLevel()       {
     initLevel();
     flora.reset();
+    // Line Noodle and the parade up behind Flora, instead of them walking back from
+    // wherever the last level ended.
+    noodle.x = 20;
+    rescuedFriends.forEach((pet, i) => {
+        pet.x = noodle.x - (i + 1) * PARADE_GAP;
+        pet.vx = 0;
+        pet.facingLeft = false;
+    });
     cameraX = cameraTarget();
 }
 
@@ -3196,24 +4194,88 @@ function updateBees()       {
     }
 }
 
+/** One splash of water on a sprout, from Flora's can or a rain cloud. */
+function splashSprout(s        )       {
+    if (s.bloomed) return;
+    s.water++;
+    if (s.water >= s.waterNeeded) {
+        s.bloomed = true;
+        audio.playSound('bloom');
+        const big = s.waterNeeded > 1;
+        particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
+        particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
+    } else {
+        particleSystem.spawn(s.x, s.y - 20, '#74B9FF', 8, 'circle');
+    }
+}
+
 function checkWatering()       {
     const canCenterX = flora.facing === 'right' ? flora.x + 30 : flora.x + 2;
     const floraFeetY = flora.y + flora.height;
     for (const s of sprouts) {
         if (s.bloomed || Math.abs(canCenterX - s.x) >= 48 || Math.abs(floraFeetY - s.y) >= 48) continue;
-        s.water++;
-        if (s.water >= s.waterNeeded) {
-            s.bloomed = true;
-            audio.playSound('bloom');
-            const big = s.waterNeeded > 1;
-            particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
-            particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
-        } else {
-            particleSystem.spawn(s.x, s.y - 20, '#74B9FF', 8, 'circle');
-        }
+        splashSprout(s);
     }
     updateStatus();
 }
+
+/**
+ * The wind's push this tick: calm, then a gust that eases in and out. `soon` is true in the
+ * second before a gust, when warning leaves start to blow.
+ */
+function currentWind()                               {
+    const wind = LEVELS[currentLevel].wind;
+    if (!wind) return { x: 0, soon: false };
+    const t = levelTicks % (wind.calm + wind.gust);
+    if (t < wind.calm) return { x: 0, soon: t > wind.calm - 60 };
+    const into = t - wind.calm;
+    const ease = Math.min(1, into / 25, (wind.gust - into) / 25);
+    return { x: wind.strength * ease, soon: false };
+}
+
+/** Rain clouds drift like the moving clouds, without being solid. */
+function rainCloudsAt(t        )           {
+    return (LEVELS[currentLevel].rainClouds ?? []).map(
+        c => c.x + (c.range * (1 - Math.cos((2 * Math.PI * t) / c.period))) / 2
+    );
+}
+
+/** Sprouts under a rain cloud get a splash every so often, helping Flora along. */
+function updateRain()       {
+    rainCloudXs = rainCloudsAt(levelTicks);
+    if (rainCloudXs.length === 0) return;
+    let changed = false;
+    for (const s of sprouts) {
+        if (s.bloomed) continue;
+        const underRain = rainCloudXs.some(cx => Math.abs(cx - s.x) <= RAIN_WIDTH / 2);
+        if (!underRain) continue;
+        s.rainTicks = (s.rainTicks ?? 0) + 1;
+        if (s.rainTicks >= RAIN_SPLASH_TICKS) {
+            s.rainTicks = 0;
+            splashSprout(s);
+            changed = true;
+        }
+    }
+    if (changed) updateStatus();
+}
+
+/** Ponds: remember the last dry spot, and splash Flora back to it if she drops in. */
+function updatePond()       {
+    const water = LEVELS[currentLevel].water ?? [];
+    noodle.swimming = water.some(w => noodle.x + 12 >= w.x && noodle.x + 12 <= w.x + w.width);
+    if (water.length === 0) return;
+    if (flora.grounded && flora.y + flora.height >= GROUND_Y - 1 && !flora.over(water)) lastSafeX = flora.x;
+    if (!flora.fellInWater) return;
+    particleSystem.spawn(flora.x + flora.width / 2, GROUND_Y + 6, '#74B9FF', 16, 'circle');
+    audio.playSound('bump');
+    flora.reset();
+    flora.x = lastSafeX;
+    flora.safeTimer = 60;
+    noodle.sayFirst("Splash! Hop on the lily pads 🪷", 120);
+}
+
+const overWater = (x        )          =>
+    (LEVELS[currentLevel].water ?? []).some(w => x >= w.x && x <= w.x + w.width);
 
 function checkDigging()       {
     if (flora.y + flora.height < GROUND_Y - 5) return;
@@ -3305,11 +4367,12 @@ function updateLevelClear()       {
 }
 
 /** Positions of the level's moving platforms at tick `t`: an eased glide out and back. */
-function movingPlatformsAt(t        )             {
+function movingPlatformsAt(t        )                                              {
     return (LEVELS[currentLevel].movingPlatforms ?? []).map(p => ({
         x: p.x + (p.range * (1 - Math.cos((2 * Math.PI * t) / p.period))) / 2,
         y: p.y,
-        width: p.width
+        width: p.width,
+        style: p.style
     }));
 }
 
@@ -3348,6 +4411,8 @@ function update()       {
     // Butterflies keep fluttering on every screen, including behind the start screen.
     butterflies.update();
     skyVisitors.update();
+    const wind = screen === 'playing' ? currentWind() : { x: 0, soon: false };
+    weather.update(wind.x, wind.soon);
     tick();
     for (const code of Object.keys(pressed)) pressed[code] = false;
 }
@@ -3360,20 +4425,30 @@ function tick()       {
     updateMovingPlatforms();
 
     const level = LEVELS[currentLevel];
+    const world               = {
+        platforms: [...level.platforms, ...(level.lilyPads ?? []), ...movingPlatforms],
+        mushrooms: level.mushrooms ?? [],
+        bushes: level.bushes ?? [],
+        water: level.water ?? [],
+        ice: level.ice ?? [],
+        windX: levelClearTimer > 0 ? 0 : currentWind().x,
+        width: levelWidth(level)
+    };
     flora.update(
         keys,
         pressed,
-        [...level.platforms, ...movingPlatforms],
-        level.mushrooms ?? [],
-        level.bushes ?? [],
-        levelWidth(level),
+        world,
         levelClearTimer > 0,
         type => audio.playSound(type),
         checkWatering,
         checkDigging
     );
     noodle.update(flora.x, digMounds, boneFound, false, type => audio.playSound(type));
-    if (levelClearTimer === 0) updateBees();
+    updatePond();
+    if (levelClearTimer === 0) {
+        updateBees();
+        updateRain();
+    }
     particleSystem.update();
     updateCamera();
 
@@ -3390,16 +4465,24 @@ function render()       {
     // Sky things stay put on screen; everything else is drawn in level space and scrolls.
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
-    drawSun(ctx);
-    skyVisitors.draw(ctx);
-    butterflies.draw(ctx);
+    if (weather.drawSky(ctx, level.bg)) drawSun(ctx);
+    if (weather.calmSky) {
+        skyVisitors.draw(ctx);
+        butterflies.draw(ctx);
+    }
 
     const houseX = doghouseX(level);
     ctx.save();
     ctx.translate(-cameraX, 0);
-    drawTreeAndGround(ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], digMounds, boneFound, boneX);
+    drawTreeAndGround(
+        ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], digMounds, boneFound, boneX, level.weather === 'snow'
+    );
+    drawWater(ctx, level.water ?? []);
+    drawIce(ctx, level.ice ?? []);
+    drawRainClouds(ctx, rainCloudXs);
     drawPlatforms(ctx, level.platforms);
-    drawCloudPlatforms(ctx, movingPlatforms);
+    drawLilyPads(ctx, [...(level.lilyPads ?? []), ...movingPlatforms.filter(p => p.style === 'lily')]);
+    drawCloudPlatforms(ctx, movingPlatforms.filter(p => p.style !== 'lily'));
     drawMushrooms(ctx, level.mushrooms ?? []);
     drawBushes(ctx, level.bushes ?? []);
     drawSprouts(ctx, sprouts, allBloomed());
@@ -3412,11 +4495,31 @@ function render()       {
         drawKey(ctx, keyX, keyY);
     }
 
-    for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0);
+    for (const pet of rescuedFriends) {
+        drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0, overWater(pet.x));
+    }
     flora.draw(ctx);
     noodle.draw(ctx);
     for (const bee of bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
     particleSystem.draw(ctx);
+    ctx.restore();
+
+    // Weather in front of the scene, then the night's darkness with its soft lights.
+    weather.drawFront(ctx);
+    if (weather.kind === 'night') {
+        const lights          = [
+            { x: flora.x + flora.width / 2 - cameraX, y: flora.y + 20, r: 165 },
+            { x: houseX - cameraX, y: 400, r: 95 },
+            ...weather.fireflyLights()
+        ];
+        if (allBloomed() && boneFound && !keyCollected) lights.push({ x: keyX - cameraX, y: keyY, r: 70 });
+        for (const s of sprouts) if (s.bloomed) lights.push({ x: s.x - cameraX, y: s.y - 24, r: 40 });
+        weather.drawDarkness(ctx, lights, pixelScale);
+        weather.drawFireflies(ctx);
+    }
+    // Noodle's tips stay readable above the weather.
+    ctx.save();
+    ctx.translate(-cameraX, 0);
     noodle.drawSpeech(ctx, cameraX, cameraX + CANVAS_WIDTH);
     ctx.restore();
 

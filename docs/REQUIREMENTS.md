@@ -76,6 +76,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | RS-1 | Every rescued pet joins the **roster** for good. At most **3** follow in the parade. A newly rescued pet starts following at the back; if 3 already follow, the one that has followed longest goes home to rest (a puff of hearts, and Noodle says "<name> went home to rest 🏡" before the next level's tip). Rescuing a pet already in the roster changes nothing. |
 | RS-2 | **🐾 My pets** (from the start screen or pause menu) shows a card for every pet, drawn in the game's style: rescued ones are marked 🐾 Following or 💤 Resting, unrescued ones are a grey silhouette with "Rescue in level N" and can't be picked. Tapping a rescued pet makes it rest or follow; with 3 already following it explains to rest one first. Zero followers is allowed. Changes are saved and, from the pause menu, the parade updates straight away. A counter shows "Following: n / 3". |
 | RS-3 | Saves from before the roster get one built from the beaten levels, with the 3 newest following. Unknown or repeated pets in a save are dropped, and only rostered pets can follow. |
+| RS-4 | Whenever a level starts or restarts, Noodle and the parade line up behind Flora at the left, rather than walking back from where the last level ended. |
 
 ## 3. Level flow
 
@@ -110,22 +111,34 @@ Each level after the first adds one new idea; the last level mixes them all.
 
 | ID | Requirement |
 |----|-------------|
-| BG-1 | Levels 1–5 fit one screen (800 px). Levels 6–10 are wider (1600 → 2400 px) and never shrink in that order: 6 Buzzing Meadow 🐥, 7 Bramble Path 🐷, 8 Cloud Canyon 🦊, 9 Bumblebee Woods 🐼, 10 Grand Garden 🦄. |
+| BG-1 | Levels 1–5 fit one screen (800 px). Levels 6–10 are wider (1600 → 2400 px) and never shrink in that order: 6 Buzzing Meadow 🐥, 7 Bramble Path 🐷, 8 Cloud Canyon 🦊, 9 Bumblebee Woods 🐼, 10 Grand Garden 🦄. Levels 11–15 (see 3c) scroll too, at least 1600 px. |
 | BG-2 | Bees first appear in level 6 and bushes in level 7; level 10 has every obstacle and twist (bees, bushes, mushroom, cloud, big flowers). Levels 1–5 have no bees or bushes. |
 | BG-3 | **Camera:** follows Flora smoothly, keeping her a little behind centre and looking ahead the way she faces, and stops at both ends of the level. The sky (sun, rainbow, butterflies), HUD and celebration banner stay fixed on screen; everything else scrolls. |
 | BG-4 | **Bramble bush:** a solid clump on the ground. Walking into one stops Flora at its edge; she can jump onto its top and over it. Bushes are always low enough to jump. |
 | BG-5 | **Bumblebee:** glides back and forth along a path, bobbing. Touching one bumps Flora back away from it with a little hop; for ~0.4 s she can't walk, jump, water or dig, then she blinks for ~1.5 s and can't be bumped again. Nothing is ever lost — flowers, bone and key stay — and Noodle says to jump over the bees. Bees freeze during the level-clear celebration. |
 | BG-6 | **Edge arrows:** when the next goal is off-screen, a pill at the screen edge shows its emoji and points the way: 🔑 once the key appears, 🏠 once it's collected, or 🌱 toward the nearest unbloomed sprout if none are on screen. |
 
+## 3c. Weather and water levels (11–15)
+
+| ID | Requirement |
+|----|-------------|
+| WX-1 | Levels 11–15, in order: **Lily Pond** 🐸 (ponds), **Windy Hills** 🐦 (wind), **Rainy Meadow** 🐌 (rain), **Snowy Peaks** 🐻 (snow and ice), **Starry Night** 🦉 (night, the finale). Each has its own tip from Noodle. Levels 1–10 are unchanged. |
+| WX-2 | **Ponds** cut through the ground and can only be crossed on **lily pads** (some still, some drifting like clouds). Lily pads float just above the water and can be stood on, watered on and jumped from. |
+| WX-3 | Falling into a pond is just a splash: Flora pops back onto the last dry spot she stood on, blinks briefly, and nothing is lost; Noodle says to hop on the lily pads. Noodle and the pets paddle across ponds, lower in the water behind a ripple. |
+| WX-4 | **Wind** blows in gusts (calm ~3.3 s, gust ~2.5 s, easing in and out) pushing Flora back toward the start — standing, walking, jumping or knocked back. She can always walk into it, just slower. A few leaves start blowing a second before each gust as a warning; during a gust leaves stream across the screen. |
+| WX-5 | **Rain clouds** drift across Rainy Meadow, each raining a soft blue column to the ground; a sprout under one gets a splash every 1.5 s, so rain can bloom flowers on its own (big flowers still need all their splashes). The sun hides behind a grey cloud blanket and light rain falls across the screen. |
+| WX-6 | **Snow**: snowflakes fall, the ground and treetops are snowy. On **ice** patches Flora speeds up and slows down gradually, so she slides; off the ice she stops at once as usual. |
+| WX-7 | **Night**: a dark sky with twinkling stars and a sleepy crescent moon instead of the sun; the scene is dimmed except for soft light around Flora, the doghouse, glowing fireflies, the key once it appears, and bloomed flowers. The HUD, edge arrows and Noodle's bubble stay readable. |
+
 ## 3c. Look & feel
 
 | ID | Requirement |
 |----|-------------|
-| PT-1 | Rescued pets are drawn as sprites in the same soft, rounded style as Flora and Noodle (not emoji): each of the 10 species has its own look (kitty, puppy, hamster, turtle, bunny, duckling, piglet, fox, panda, unicorn), with a sparkly eye and blush. They trot while moving, bob gently while waiting, each on its own rhythm, with a small heart and a shadow. The level list and victory dialog still use the pets' emoji. |
+| PT-1 | Rescued pets are drawn as sprites in the same soft, rounded style as Flora and Noodle (not emoji): each of the 15 species has its own look (kitty, puppy, hamster, turtle, bunny, duckling, piglet, fox, panda, unicorn, frog, bluebird, snail, bear, owl), with a sparkly eye and blush. They trot while moving, bob gently while waiting, each on its own rhythm, with a small heart and a shadow. Over a pond they paddle, lower in the water behind a ripple. The level list and victory dialog still use the pets' emoji. |
 | PT-2 | Every species has a drawing (a missing one is a compile error). |
 | PT-3 | Parade pets turn to face the way they walk (with the same dead zone as Noodle), spaced 32 px apart; the pet waiting in the doorway faces out toward Flora. |
 | FW-1 | Flowers match the characters' style. A sprout is two plump leaves around a sleepy little bud. A bloomed flower has five round petals with soft highlights around a yellow centre with a happy face, on a curved stem with a leaf, swaying gently (dancing once the whole garden blooms). Big flowers grow as a teardrop bud in green sepals with 💧 per splash still needed, and bloom as a sunflower with a smiling brown centre. |
-| SK-1 | Occasionally a kite, a little airplane or a bunch of balloons drifts across the sky behind everything, each with a tiny happy face. Only one is up at a time; the first comes a few seconds in, then there's a 6–14 s pause after each leaves. They take turns from a shuffled bag, so all three appear and none repeats twice in a row. They stay in the sky band (balloons fade out before the HUD) and never affect gameplay. |
+| SK-1 | Occasionally a kite, a little airplane or a bunch of balloons drifts across the sky behind everything, each with a tiny happy face. Only one is up at a time; the first comes a few seconds in, then there's a 6–14 s pause after each leaves. They take turns from a shuffled bag, so all three appear and none repeats twice in a row. They stay in the sky band (balloons fade out before the HUD) and never affect gameplay. Sky visitors and butterflies only come out in clear or windy weather. |
 | BF-1 | A few (3–5) butterflies flutter across the sky as decoration, wrapping around the screen edges. They stay between the HUD and the ground (y 110–330), never affect gameplay, and keep moving behind the start screen. |
 | ND-1 | Noodle matches Flora's style: a rounded golden-doodle with a curly coat and topknot, a floppy ear, a sparkly eye, a blush and a pink collar. Short legs trot while he moves, his tail wags (faster when he smells the bone), and he dips his nose and hops while sniffing. He faces the way he's moving, ignoring tiny drifts. His position and following behaviour are unchanged. |
 | SC-1 | The tree and doghouse use the same soft, rounded, outline-free style as the characters. Tree: a tapered trunk with a knothole and a puffy canopy of overlapping circles with highlights and pink blossoms, swaying gently. Doghouse: pink planked walls, a rounded scalloped roof with a heart, a bone sign, an arched door with trim, and a food bowl. Both keep their old footprint, so the door, entry point and the pet's spot are unchanged. |
@@ -148,7 +161,7 @@ These are checked automatically against `src/levels.ts` so new levels can't be u
 
 | ID | Requirement |
 |----|-------------|
-| LD-1 | There are exactly 10 levels, each with a unique pet and a background melody. |
+| LD-1 | There are exactly 15 levels, each with a unique pet and a background melody. |
 | LD-2 | Every sprout sits either on the ground or on top of a platform that holds still, within its horizontal span. |
 | LD-3 | Every platform (and each moving cloud's whole stretch) can be reached, with at least 10 px margin: by a jump (≈ 115 px up, ≤ 140 px sideways gap) from a reached surface, by dropping down from a higher one within that gap, or by a mushroom bounce from almost directly below. |
 | LD-4 | The key sits 30 px above a reachable platform that holds still (or the ground), inside that platform's span. |
@@ -159,6 +172,9 @@ These are checked automatically against `src/levels.ts` so new levels can't be u
 | LD-9 | No flower is drawn in the same color as its level's sky. Big flowers are always orange sunflowers. |
 | LD-10 | Bushes are low enough to jump, at least 30 px clear of mounds, mushrooms and ground sprouts, and away from the start (x > 150) and the doghouse. |
 | LD-11 | Bees fly inside the playfield (between the HUD and the ground), start past x = 250, stay 40 px clear of the doghouse, and take at least 200 ticks per round trip. |
+| LD-12 | Ponds stay clear of the start (x > 200) and the doghouse, and no ground sprout, mound, mushroom or bush is in one. Lily pads sit inside a pond, floating above the water. Every dry piece of ground can be reached, and Lily Pond's ponds can't be crossed without the lily pads. |
+| LD-13 | Ice sits on dry ground, clear of the start and the doghouse. |
+| LD-14 | Wind is never more than 60% of walking speed (so Flora can always walk into it), with at least 2 s of calm between gusts; rain clouds stay inside the level. |
 
 ## 6. Out of scope (ideas for later)
 

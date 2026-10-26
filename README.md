@@ -15,7 +15,7 @@ Then open http://localhost:8765. (Opening `index.html` directly also works once 
 **Controls:** ←/→ move · ↑ jump · Space water · ↓ dig · ↺ button restarts the level. On phones and tablets, on-screen buttons appear.
 
 **Each level:** water every sprout → dig where Noodle sniffs for the bone → grab the key → walk into the doghouse.
-Later levels add a bouncy mushroom, a moving cloud and big flowers. Progress is saved after each level, so you can Continue later.
+Later levels add a bouncy mushroom, a moving cloud and big flowers, then bigger scrolling levels with bees and bushes, and finally a pond, wind, rain, snow and a starry night. Rescued pets join your roster; pick up to 3 to follow you. Progress is saved, so you can Continue later.
 
 ## Develop
 
@@ -29,5 +29,5 @@ Later levels add a bouncy mushroom, a moving cloud and big flowers. Progress is 
 Requires Node 22.18+ (for built-in TypeScript type stripping).
 
 Source layout: `game.ts` (state, fixed-timestep loop, level flow), `entities.ts` (Flora & Noodle),
-`levels.ts` (level data, controls and tuning constants), `layout.ts` (screen fit), `save.ts` (progress in localStorage), `renderer.ts`, `particles.ts`, `audio.ts`.
+`levels.ts` (level data, controls and tuning constants), `layout.ts` (screen fit), `save.ts` (progress and roster in localStorage), `pets.ts` (pet sprites), `weather.ts` (rain, snow, wind and night visuals), `renderer.ts`, `particles.ts`, `audio.ts`.
 New modules must be added to `moduleOrder` in `scripts/build.mjs`.
