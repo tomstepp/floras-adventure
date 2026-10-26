@@ -109,42 +109,43 @@ export function drawMushrooms(ctx: CanvasRenderingContext2D, mushrooms: readonly
     }
 }
 
+export const PET_EMOJI: Readonly<Record<Species, string>> = {
+    kitty: "🐱",
+    puppy: "🐶",
+    hamster: "🐹",
+    turtle: "🐢",
+    bunny: "🐰"
+};
+
+/** A rescued pet: its emoji hopping gently, sitting on `y`, with a little heart above. */
 export function drawRescuedPet(
     ctx: CanvasRenderingContext2D,
     species: Species,
     x: number,
     y: number
 ): void {
+    // Each species hops on its own rhythm so the parade doesn't bob in lockstep.
+    const phase = Object.keys(PET_EMOJI).indexOf(species) * 1.3;
+    const hop = Math.abs(Math.sin(Date.now() * 0.006 + phase)) * 4;
+
     ctx.save();
-    ctx.translate(x, y + Math.sin(Date.now() * 0.005) * 3);
+    ctx.translate(x, y + 12 - hop);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
 
-    if (species === 'kitty') {
-        ctx.fillStyle = "#E67E22";
-        ctx.fillRect(-10, -10, 20, 20);
-        ctx.fillStyle = "#FFF";
-        ctx.fillRect(-6, -4, 12, 10);
-    } else if (species === 'puppy') {
-        ctx.fillStyle = "#D35400";
-        ctx.fillRect(-10, -10, 20, 20);
-    } else if (species === 'hamster') {
-        ctx.fillStyle = "#F39C12";
-        ctx.beginPath();
-        ctx.arc(0, 0, 10, 0, Math.PI * 2);
-        ctx.fill();
-    } else if (species === 'turtle') {
-        ctx.fillStyle = "#27AE60";
-        ctx.beginPath();
-        ctx.arc(0, 8, 12, Math.PI, 0);
-        ctx.fill();
-    } else if (species === 'bunny') {
-        ctx.fillStyle = "#ECF0F1";
-        ctx.fillRect(-8, -10, 16, 20);
-    }
+    // Soft shadow on the grass stays put while the pet hops.
+    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.beginPath();
+    ctx.ellipse(0, hop, 10 - hop / 2, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Sparkles & Heart
-    ctx.fillStyle = "#FF7675";
-    ctx.font = "12px sans-serif";
-    ctx.fillText("💖", -6, -16);
+    // Browsers tint emoji with the fill's alpha, so draw them fully opaque after the shadow.
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.font = "26px sans-serif";
+    ctx.fillText(PET_EMOJI[species], 0, 2);
+    ctx.font = "10px sans-serif";
+    ctx.fillText("💖", 9, -20);
 
     ctx.restore();
 }

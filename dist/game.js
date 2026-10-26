@@ -15,6 +15,8 @@ const LEVEL_CLEAR_FRAMES         = 75;
 /** Ticks the victory rainbow takes to sweep across the sky. */
 const RAINBOW_SWEEP_FRAMES         = 40;
 const DIG_RANGE         = 48;
+/** Noodle's speech bubble sits on the grass, just under everyone's feet. */
+const SPEECH_TOP_Y         = GROUND_Y + 8;
 const GRAVITY         = 0.45;
 const JUMP_VY         = -10.2;
 /** Releasing jump early caps upward speed here, giving a short hop. */
@@ -32,6 +34,9 @@ const MUSHROOM_HEIGHT         = 18;
 const MAX_BOUNCE_HEIGHT         = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY) + MUSHROOM_HEIGHT;
 /** Highest jump in px (jump held): v^2 / 2g. */
 const MAX_JUMP_HEIGHT         = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
+
+/** Holding water keeps splashing for this long, then Flora has to let go and press again. */
+const WATER_HOLD_TICKS         = 120;
 
 /** KeyboardEvent.code for each action. Touch buttons press these same codes. */
 const CONTROLS = {
@@ -395,6 +400,97 @@ class ParticleSystem {
     }
 }
 
+// --- src/butterflies.ts ---
+/** Purely decorative: butterflies never touch gameplay. */
+                            
+              
+                                              
+                  
+              
+                                                            
+               
+                  
+                                                                
+                  
+                 
+ 
+
+const BUTTERFLY_COUNT         = 4;
+/** Butterflies stay in the open sky: below the HUD, above the ground and characters. */
+const BUTTERFLY_MIN_Y         = 110;
+const BUTTERFLY_MAX_Y         = 330;
+const BUTTERFLY_COLORS                    = ["#FD79A8", "#A29BFE", "#74B9FF", "#FAB1A0", "#FFEAA7"];
+const MARGIN = 20;
+
+class ButterflySwarm {
+           items              = [];
+            ticks         = 0;
+
+    constructor(random               = Math.random) {
+        for (let i = 0; i < BUTTERFLY_COUNT; i++) {
+            const baseY = BUTTERFLY_MIN_Y + 20 + random() * (BUTTERFLY_MAX_Y - BUTTERFLY_MIN_Y - 40);
+            this.items.push({
+                // Spread them across the sky so they don't arrive in a clump.
+                x: ((i + random() * 0.6) / BUTTERFLY_COUNT) * CANVAS_WIDTH,
+                baseY,
+                y: baseY,
+                vx: (0.35 + random() * 0.35) * (random() < 0.5 ? -1 : 1),
+                color: BUTTERFLY_COLORS[i % BUTTERFLY_COLORS.length],
+                phase: random() * Math.PI * 2,
+                flap: 0
+            });
+        }
+    }
+
+           update()       {
+        this.ticks++;
+        for (const b of this.items) {
+            b.x += b.vx;
+            // Lazy looping drift: a slow wave plus a faster flutter.
+            const t = this.ticks * 0.02 + b.phase;
+            b.y = b.baseY + Math.sin(t) * 18 + Math.sin(t * 3.7) * 4;
+            b.flap = Math.abs(Math.sin(this.ticks * 0.25 + b.phase));
+            // Wrap around off-screen edges.
+            if (b.x > CANVAS_WIDTH + MARGIN) b.x = -MARGIN;
+            if (b.x < -MARGIN) b.x = CANVAS_WIDTH + MARGIN;
+        }
+    }
+
+           draw(ctx                          )       {
+        for (const b of this.items) {
+            ctx.save();
+            ctx.translate(b.x, b.y);
+            if (b.vx < 0) ctx.scale(-1, 1);
+            ctx.globalAlpha = 0.85;
+
+            // Wings fold in and out by squashing them horizontally.
+            const open = 0.25 + b.flap * 0.75;
+            ctx.fillStyle = b.color;
+            for (const side of [-1, 1]) {
+                ctx.beginPath();
+                ctx.ellipse(side * 4 * open, -2, 5 * open, 4, side * 0.5, 0, Math.PI * 2);
+                ctx.ellipse(side * 3 * open, 3, 3.5 * open, 3, -side * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Body and antennae
+            ctx.fillStyle = "#2D3436";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 1.3, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#2D3436";
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(0, -4);
+            ctx.lineTo(2.5, -8);
+            ctx.moveTo(0, -4);
+            ctx.lineTo(-1.5, -8);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+}
+
 // --- src/renderer.ts ---
 function drawSun(ctx                          )       {
     const time = Date.now() * 0.002;
@@ -504,42 +600,43 @@ function drawMushrooms(ctx                          , mushrooms                 
     }
 }
 
+const PET_EMOJI                                    = {
+    kitty: "🐱",
+    puppy: "🐶",
+    hamster: "🐹",
+    turtle: "🐢",
+    bunny: "🐰"
+};
+
+/** A rescued pet: its emoji hopping gently, sitting on `y`, with a little heart above. */
 function drawRescuedPet(
     ctx                          ,
     species         ,
     x        ,
     y        
 )       {
+    // Each species hops on its own rhythm so the parade doesn't bob in lockstep.
+    const phase = Object.keys(PET_EMOJI).indexOf(species) * 1.3;
+    const hop = Math.abs(Math.sin(Date.now() * 0.006 + phase)) * 4;
+
     ctx.save();
-    ctx.translate(x, y + Math.sin(Date.now() * 0.005) * 3);
+    ctx.translate(x, y + 12 - hop);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
 
-    if (species === 'kitty') {
-        ctx.fillStyle = "#E67E22";
-        ctx.fillRect(-10, -10, 20, 20);
-        ctx.fillStyle = "#FFF";
-        ctx.fillRect(-6, -4, 12, 10);
-    } else if (species === 'puppy') {
-        ctx.fillStyle = "#D35400";
-        ctx.fillRect(-10, -10, 20, 20);
-    } else if (species === 'hamster') {
-        ctx.fillStyle = "#F39C12";
-        ctx.beginPath();
-        ctx.arc(0, 0, 10, 0, Math.PI * 2);
-        ctx.fill();
-    } else if (species === 'turtle') {
-        ctx.fillStyle = "#27AE60";
-        ctx.beginPath();
-        ctx.arc(0, 8, 12, Math.PI, 0);
-        ctx.fill();
-    } else if (species === 'bunny') {
-        ctx.fillStyle = "#ECF0F1";
-        ctx.fillRect(-8, -10, 16, 20);
-    }
+    // Soft shadow on the grass stays put while the pet hops.
+    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.beginPath();
+    ctx.ellipse(0, hop, 10 - hop / 2, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Sparkles & Heart
-    ctx.fillStyle = "#FF7675";
-    ctx.font = "12px sans-serif";
-    ctx.fillText("💖", -6, -16);
+    // Browsers tint emoji with the fill's alpha, so draw them fully opaque after the shadow.
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.font = "26px sans-serif";
+    ctx.fillText(PET_EMOJI[species], 0, 2);
+    ctx.font = "10px sans-serif";
+    ctx.fillText("💖", 9, -20);
 
     ctx.restore();
 }
@@ -713,6 +810,8 @@ class Player {
            jumpBufferTimer         = 0;
     /** True while rising from a jump that letting go of ↑ may still cut short. */
            jumpRising          = false;
+    /** Ticks the water key has been held without letting go. */
+           waterHeldTicks         = 0;
 
            reset()       {
         this.x = 50;
@@ -723,6 +822,7 @@ class Player {
         this.coyoteTimer = COYOTE_TICKS;
         this.jumpBufferTimer = 0;
         this.jumpRising = false;
+        this.waterHeldTicks = 0;
     }
 
            update(
@@ -764,7 +864,15 @@ class Player {
         if (this.jumpRising && !keys[CONTROLS.jump] && this.vy < JUMP_CUT_VY) this.vy = JUMP_CUT_VY;
         if (this.vy >= 0) this.jumpRising = false;
 
-        if (keys[CONTROLS.water] && !this.isWatering) {
+        // A fresh press always splashes (even a tap shorter than a tick); holding keeps
+        // splashing only for a couple of seconds so the key can't just be held down forever.
+        const waterHeld = keys[CONTROLS.water] || pressed[CONTROLS.water];
+        if (pressed[CONTROLS.water]) this.waterHeldTicks = 0;
+        else if (waterHeld) this.waterHeldTicks++;
+        else this.waterHeldTicks = 0;
+        const canPour = waterHeld && (pressed[CONTROLS.water] || this.waterHeldTicks <= WATER_HOLD_TICKS);
+
+        if (canPour && !this.isWatering) {
             this.isWatering = true;
             this.waterTimer = 18;
             playSound('water');
@@ -843,51 +951,197 @@ class Player {
     }
 
            draw(ctx                          )       {
-        // Body (Flora - Cute Pink Outfit)
-        ctx.fillStyle = "#FF6B8B";
-        ctx.fillRect(this.x, this.y + 12, this.width, this.height - 12);
+        const now = Date.now();
+        const walking = this.grounded && this.vx !== 0;
+        const airborne = !this.grounded;
+        const stride = walking ? Math.sin(now * 0.018) : 0;
+        // A tiny bounce while walking, a gentle breath while standing.
+        const bob = walking ? Math.abs(stride) * -1.5 : Math.sin(now * 0.004) * 0.6;
+
+        ctx.save();
+        // Draw facing right around her centre line; mirror for facing left.
+        ctx.translate(this.x + this.width / 2, this.y + bob);
+        if (this.facing === 'left') ctx.scale(-1, 1);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const skin = "#FFE0D6";
+        const hair = "#6C5CE7";
+        const dress = "#FF6B8B";
+
+        // Hair behind the head (falls to the shoulders)
+        ctx.fillStyle = hair;
+        ctx.beginPath();
+        ctx.roundRect(-13, -4, 26, 20, 9);
+        ctx.fill();
+
+        // Legs and shoes
+        const legL = airborne ? -3 : stride * 4;
+        const legR = airborne ? 3 : -stride * 4;
+        ctx.strokeStyle = skin;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-4, 36);
+        ctx.lineTo(-4 + legL, airborne ? 43 : 45);
+        ctx.moveTo(4, 36);
+        ctx.lineTo(4 + legR, airborne ? 41 : 45);
+        ctx.stroke();
+        ctx.fillStyle = "#A55EEA";
+        ctx.beginPath();
+        ctx.ellipse(-3 + legL, airborne ? 45 : 46.5, 4, 2.4, 0, 0, Math.PI * 2);
+        ctx.ellipse(5 + legR, airborne ? 43 : 46.5, 4, 2.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Back arm
+        ctx.strokeStyle = skin;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-6, 18);
+        ctx.lineTo(-10 - stride * 2, airborne ? 20 : 28);
+        ctx.stroke();
+
+        // Dress: narrow at the shoulders, flaring to a scalloped hem
+        ctx.fillStyle = dress;
+        ctx.beginPath();
+        ctx.moveTo(-6, 14);
+        ctx.quadraticCurveTo(0, 12, 6, 14);
+        ctx.lineTo(12, 36);
+        ctx.quadraticCurveTo(0, 40, -12, 36);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#FF8FA8";
+        for (let i = -9; i <= 9; i += 6) {
+            ctx.beginPath();
+            ctx.arc(i, 36.5, 3, 0, Math.PI);
+            ctx.fill();
+        }
+        // Collar and a little flower button
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.ellipse(0, 14.5, 5, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#FFEAA7";
+        ctx.beginPath();
+        ctx.arc(1, 22, 1.8, 0, Math.PI * 2);
+        ctx.fill();
 
         // Head
-        ctx.fillStyle = "#FFD1DC";
+        ctx.fillStyle = skin;
         ctx.beginPath();
-        ctx.arc(this.x + 16, this.y, 16, 0, Math.PI * 2);
+        ctx.arc(0, 2, 12.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Hair
-        ctx.fillStyle = "#6C5CE7";
+        // Bangs swept to the front
+        ctx.fillStyle = hair;
         ctx.beginPath();
-        ctx.arc(this.x + 16, this.y - 4, 17, Math.PI, Math.PI * 2);
+        ctx.moveTo(-13, 3);
+        ctx.quadraticCurveTo(-14, -12, 0, -12);
+        ctx.quadraticCurveTo(13, -12, 13.5, 0);
+        ctx.quadraticCurveTo(7, -5, 3, -2);
+        ctx.quadraticCurveTo(-3, -6, -8, -1);
+        ctx.quadraticCurveTo(-11, 1, -13, 3);
         ctx.fill();
 
-        // Eyes & Rosy Cheeks
+        // Bow
+        ctx.fillStyle = "#FD79A8";
+        ctx.beginPath();
+        ctx.moveTo(-4, -11);
+        ctx.lineTo(-11, -16);
+        ctx.lineTo(-10, -7);
+        ctx.closePath();
+        ctx.moveTo(-4, -11);
+        ctx.lineTo(3, -17);
+        ctx.lineTo(3, -7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#E84393";
+        ctx.beginPath();
+        ctx.arc(-4, -11, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Face (three-quarter view, looking the way she faces); blinks every few seconds
+        const blinking = now % 3600 < 120;
         ctx.fillStyle = "#2D3436";
-        const eyeX = this.facing === 'right' ? this.x + 22 : this.x + 10;
-        ctx.fillRect(eyeX, this.y - 4, 3, 4);
-
-        ctx.fillStyle = "#FF7675";
+        for (const ex of [1, 7.5]) {
+            ctx.beginPath();
+            if (blinking) ctx.ellipse(ex, 3, 2, 0.6, 0, 0, Math.PI * 2);
+            else ctx.ellipse(ex, 3, 1.7, 2.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (!blinking) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.beginPath();
+            ctx.arc(1.6, 2.2, 0.7, 0, Math.PI * 2);
+            ctx.arc(8.1, 2.2, 0.7, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(255, 118, 117, 0.55)";
         ctx.beginPath();
-        ctx.arc(this.facing === 'right' ? this.x + 24 : this.x + 8, this.y + 2, 3, 0, Math.PI * 2);
+        ctx.ellipse(-3, 7.5, 2.6, 1.6, 0, 0, Math.PI * 2);
+        ctx.ellipse(10.5, 7.5, 2, 1.5, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = "#C0392B";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(4.5, 7, 2.4, 0.2, Math.PI - 0.2);
+        ctx.stroke();
 
-        // Watering Can
+        // Front arm holding the watering can
+        ctx.strokeStyle = skin;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(5, 18);
+        ctx.lineTo(11, this.isWatering ? 21 : 25);
+        ctx.stroke();
+
+        // Watering can: tips forward while pouring
+        ctx.save();
+        ctx.translate(15, 25);
+        if (this.isWatering) ctx.rotate(0.45);
         ctx.fillStyle = "#74B9FF";
-        const canX = this.facing === 'right' ? this.x + 24 : this.x - 12;
-        ctx.fillRect(canX, this.y + 20, 12, 10);
-        ctx.fillRect(canX + (this.facing === 'right' ? 12 : -4), this.y + 22, 4, 3);
+        ctx.beginPath();
+        ctx.roundRect(-4, -4, 11, 9, 3);
+        ctx.fill();
+        ctx.strokeStyle = "#74B9FF";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(12, -4);
+        ctx.moveTo(-3, -4);
+        ctx.quadraticCurveTo(1.5, -9, 6, -4);
+        ctx.stroke();
+        ctx.fillStyle = "#0984E3";
+        ctx.beginPath();
+        ctx.arc(12.5, -4.5, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
         if (this.isWatering) {
             ctx.fillStyle = "#0984E3";
             for (let i = 0; i < 6; i++) {
-                const dropX = canX + (this.facing === 'right' ? 16 + i * 2 : -6 - i * 2);
-                const dropY = this.y + 24 + i * 3 + Math.sin(Date.now() * 0.02 + i) * 2;
-                ctx.fillRect(dropX, dropY, 3, 3);
+                const dropX = 24 + i * 1.6 + Math.sin(now * 0.03 + i) * 1.2;
+                const dropY = 24 + ((now * 0.12 + i * 5) % 22);
+                ctx.beginPath();
+                ctx.ellipse(dropX, dropY, 1.3, 2, 0, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
         if (this.isDigging) {
+            // Little trowel scooping the dirt
+            ctx.strokeStyle = "#8D6E63";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(10, 30);
+            ctx.lineTo(16, 40);
+            ctx.stroke();
             ctx.fillStyle = "#B2BEC3";
-            ctx.fillRect(this.x + (this.facing === 'right' ? 28 : -8), this.y + 32, 8, 12);
+            ctx.beginPath();
+            ctx.ellipse(18, 43, 3.5, 5, -0.5, 0, Math.PI * 2);
+            ctx.fill();
         }
+
+        ctx.restore();
     }
 }
 
@@ -963,17 +1217,39 @@ class Noodle {
         ctx.lineTo(this.x - 10, drawY + (Math.sin(Date.now() * wagSpeed) * 8));
         ctx.stroke();
 
-        // Bark speech bubble
-        if (this.barkTimer > 0) {
-            ctx.font = "bold 11px sans-serif";
-            const textWidth = Math.max(44, ctx.measureText(this.speechBubble).width + 14);
-            ctx.fillStyle = this.sniffing ? "#FFF9DB" : "#FFF";
-            ctx.beginPath();
-            ctx.roundRect(this.x - 12, drawY - 36, textWidth, 22, 8);
-            ctx.fill();
-            ctx.fillStyle = "#2D3436";
-            ctx.fillText(this.speechBubble, this.x - 5, drawY - 21);
-        }
+    }
+
+    /**
+     * Noodle's speech bubble sits on the grass *below* him, pointing up, so it never
+     * covers Flora or the pets. Drawn after every character.
+     */
+           drawSpeech(ctx                          , canvasWidth        )       {
+        if (this.barkTimer <= 0) return;
+        ctx.save();
+        ctx.font = "bold 12px sans-serif";
+        const width = Math.max(44, ctx.measureText(this.speechBubble).width + 16);
+        const noseX = this.x + 14;
+        const left = Math.min(Math.max(4, noseX - width / 2), canvasWidth - width - 4);
+        const top = SPEECH_TOP_Y;
+
+        ctx.fillStyle = this.sniffing ? "#FFF9DB" : "#FFFFFF";
+        ctx.strokeStyle = "rgba(45, 52, 54, 0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(left, top, width, 22, 9);
+        ctx.fill();
+        ctx.stroke();
+        // Little tail pointing up at Noodle
+        ctx.beginPath();
+        ctx.moveTo(noseX - 5, top + 1);
+        ctx.lineTo(noseX, top - 6);
+        ctx.lineTo(noseX + 5, top + 1);
+        ctx.fill();
+
+        ctx.fillStyle = "#2D3436";
+        ctx.textBaseline = "middle";
+        ctx.fillText(this.speechBubble, left + 8, top + 11.5);
+        ctx.restore();
     }
 }
 
@@ -994,6 +1270,7 @@ const continueBtn = document.getElementById('continue-btn')                     
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
+const butterflies = new ButterflySwarm();
 const storage = getStorage();
 
                                               
@@ -1258,7 +1535,9 @@ function updateKey()       {
 }
 
 function updateDoghouse()       {
-    if (flora.x <= DOGHOUSE_ENTRY_X || levelClearTimer > 0) return;
+    // Flora has to walk in at the door, not fall past it from above.
+    const atDoor = flora.grounded && flora.y + flora.height >= GROUND_Y - 1;
+    if (flora.x <= DOGHOUSE_ENTRY_X || !atDoor || levelClearTimer > 0) return;
     if (keyCollected) {
         levelClearTimer = LEVEL_CLEAR_FRAMES;
         audio.playSound('victory');
@@ -1331,6 +1610,8 @@ function updateParade()       {
 
 /** Advances the simulation by exactly one fixed tick (1/60 s). */
 function update()       {
+    // Butterflies keep fluttering on every screen, including behind the start screen.
+    butterflies.update();
     tick();
     for (const code of Object.keys(pressed)) pressed[code] = false;
 }
@@ -1370,6 +1651,7 @@ function render()       {
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
+    butterflies.draw(ctx);
     drawTreeAndGround(ctx, CANVAS_WIDTH, level.treeX, digMounds, boneFound, boneX);
     drawPlatforms(ctx, level.platforms);
     drawCloudPlatforms(ctx, movingPlatforms);
@@ -1387,6 +1669,7 @@ function render()       {
     flora.draw(ctx);
     noodle.draw(ctx);
     particleSystem.draw(ctx);
+    noodle.drawSpeech(ctx, CANVAS_WIDTH);
 
     if (levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
 }

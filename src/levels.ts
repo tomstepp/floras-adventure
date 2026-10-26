@@ -10,6 +10,8 @@ export const LEVEL_CLEAR_FRAMES: number = 75;
 /** Ticks the victory rainbow takes to sweep across the sky. */
 export const RAINBOW_SWEEP_FRAMES: number = 40;
 export const DIG_RANGE: number = 48;
+/** Noodle's speech bubble sits on the grass, just under everyone's feet. */
+export const SPEECH_TOP_Y: number = GROUND_Y + 8;
 export const GRAVITY: number = 0.45;
 export const JUMP_VY: number = -10.2;
 /** Releasing jump early caps upward speed here, giving a short hop. */
@@ -27,6 +29,9 @@ export const MUSHROOM_HEIGHT: number = 18;
 export const MAX_BOUNCE_HEIGHT: number = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY) + MUSHROOM_HEIGHT;
 /** Highest jump in px (jump held): v^2 / 2g. */
 export const MAX_JUMP_HEIGHT: number = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
+
+/** Holding water keeps splashing for this long, then Flora has to let go and press again. */
+export const WATER_HOLD_TICKS: number = 120;
 
 /** KeyboardEvent.code for each action. Touch buttons press these same codes. */
 export const CONTROLS = {

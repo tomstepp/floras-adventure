@@ -1,4 +1,5 @@
 import { AudioController } from './audio.ts';
+import { ButterflySwarm } from './butterflies.ts';
 import { Noodle, Player } from './entities.ts';
 import {
     CONTROLS,
@@ -47,6 +48,7 @@ const continueBtn = document.getElementById('continue-btn') as HTMLButtonElement
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
+const butterflies = new ButterflySwarm();
 const storage = getStorage();
 
 type Screen = 'start' | 'playing' | 'victory';
@@ -311,7 +313,9 @@ function updateKey(): void {
 }
 
 function updateDoghouse(): void {
-    if (flora.x <= DOGHOUSE_ENTRY_X || levelClearTimer > 0) return;
+    // Flora has to walk in at the door, not fall past it from above.
+    const atDoor = flora.grounded && flora.y + flora.height >= GROUND_Y - 1;
+    if (flora.x <= DOGHOUSE_ENTRY_X || !atDoor || levelClearTimer > 0) return;
     if (keyCollected) {
         levelClearTimer = LEVEL_CLEAR_FRAMES;
         audio.playSound('victory');
@@ -384,6 +388,8 @@ function updateParade(): void {
 
 /** Advances the simulation by exactly one fixed tick (1/60 s). */
 export function update(): void {
+    // Butterflies keep fluttering on every screen, including behind the start screen.
+    butterflies.update();
     tick();
     for (const code of Object.keys(pressed)) pressed[code] = false;
 }
@@ -423,6 +429,7 @@ export function render(): void {
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
+    butterflies.draw(ctx);
     drawTreeAndGround(ctx, CANVAS_WIDTH, level.treeX, digMounds, boneFound, boneX);
     drawPlatforms(ctx, level.platforms);
     drawCloudPlatforms(ctx, movingPlatforms);
@@ -440,6 +447,7 @@ export function render(): void {
     flora.draw(ctx);
     noodle.draw(ctx);
     particleSystem.draw(ctx);
+    noodle.drawSpeech(ctx, CANVAS_WIDTH);
 
     if (levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
 }

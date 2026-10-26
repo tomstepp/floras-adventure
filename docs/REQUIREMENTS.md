@@ -34,6 +34,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | CT-9 | Releasing ↑ early cuts the jump short (a small hop); holding it gives the full jump height. |
 | CT-10 | Coyote time: a jump still works for 6 ticks (~0.1 s) after walking off a ledge. |
 | CT-11 | Jump buffer: a jump pressed up to 6 ticks before landing fires on landing. |
+| CT-12 | Holding the water key keeps splashing for at most 2 s (120 ticks); then the can stops until the key is released and pressed again. A tap shorter than one tick still waters. |
 
 ## 2a. Start screen
 
@@ -63,7 +64,7 @@ Each level is completed in this order:
 | LV-2 | **Find the bone**: one of the level's dirt mounds, chosen at random each time the level starts, hides Noodle's bone. Digging an empty mound shows "Keep sniffing!". Digging targets the *closest undug* mound within 48 px. The bone may be dug before all flowers bloom. |
 | LV-3 | When Flora is within 95 px of the bone mound, Noodle runs to it and barks "🦴 Dig here!". |
 | LV-4 | **Collect the key**: the key appears only once all sprouts are bloomed **and** the bone is found. Touching it collects it. |
-| LV-5 | **Enter the doghouse**: walking right past x = 685 while holding the key starts a 75-tick celebration that names the rescued pet. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
+| LV-5 | **Enter the doghouse**: walking right past x = 685 **on the ground** while holding the key starts a 75-tick celebration that names the rescued pet. Falling past the door from above doesn't count until Flora lands. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
 | LV-6 | After the celebration the pet joins the parade following Noodle, and the next level starts with Flora back at the left side. |
 | LV-7 | After level 5 the victory dialog opens and the game pauses. Closing it (button, Esc, or clicking outside) starts a new game at level 1 with an empty parade. |
 | LV-8 | The rainbow is hidden during play. When the level is beaten it sweeps across the sky from left to right (~2/3 s) during the celebration, disappears when the next level starts, and stays fully drawn behind the final victory dialog. |
@@ -81,6 +82,15 @@ Each level after the first adds one new idea; the last level mixes them all.
 | TW-5 | **Moving cloud:** glides smoothly out and back along a fixed stretch; Flora standing on it is carried along. It's drawn as a white cloud, unlike the earthy ledges. |
 | TW-6 | **Big flower:** needs several splashes. The bud grows with each splash and shows 💧 for each splash still needed; it blooms bigger than a normal flower. The objective line mentions that big ones need extra splashes. |
 | TW-7 | When a level with a twist starts, Noodle's speech bubble introduces it for ~4 s. |
+
+## 3b. Look & feel
+
+| ID | Requirement |
+|----|-------------|
+| PT-1 | Rescued pets are drawn as fully opaque emojis (🐱 🐶 🐹 🐢 🐰) that hop gently, each on its own rhythm, with a small heart and a shadow. |
+| BF-1 | A few (3–5) butterflies flutter across the sky as decoration, wrapping around the screen edges. They stay between the HUD and the ground (y 110–330), never affect gameplay, and keep moving behind the start screen. |
+| SP-1 | Noodle's speech bubble is drawn on the grass just below the characters' feet, with a small tail pointing up at him, so it never covers Flora or the pets. It stays fully on screen near the edges. |
+| FL-1 | Flora is drawn with rounded shapes: swept bangs and a bow, eyes with highlights that blink, a flared dress with a scalloped hem, arms and legs that swing while walking, and a watering can that tips while pouring. The drawing never changes her 32×48 hitbox. |
 
 ## 4. HUD
 

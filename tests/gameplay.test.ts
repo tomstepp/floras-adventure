@@ -530,3 +530,88 @@ test('LD-9: no flower is the same color as its level sky', () => {
         assert.ok(!colors.includes(LEVELS[lvl].bg.toUpperCase()), `level ${lvl + 1} hides a flower in the sky`);
     }
 });
+
+test('LV-5: falling past the doghouse door from above does not end the level until Flora lands', () => {
+    const game = loadGame();
+    bloomAll(game);
+    digBone(game);
+    collectKey(game);
+    game.run('flora.x = 700; flora.y = 200; flora.vy = 0; flora.grounded = false; flora.coyoteTimer = 0;');
+    let clearedInAir = false;
+    while (!game.run('flora.grounded')) {
+        game.step();
+        if (game.run<number>('levelClearTimer') > 0 && !game.run('flora.grounded')) clearedInAir = true;
+    }
+    assert.equal(clearedInAir, false, 'no celebration while still falling');
+    game.step();
+    assert.ok(game.run<number>('levelClearTimer') > 0, 'celebration starts once on the ground');
+});
+
+test('CT-12: holding water splashes for about two seconds, then stops until pressed again', () => {
+    const game = loadGame();
+    placeFlora(game, 400, 428);
+    game.run('flora.isWatering = false; flora.waterTimer = 0;');
+    game.press('Space');
+    let lastPourTick = -1;
+    for (let t = 0; t < 400; t++) {
+        game.step();
+        if (game.run('flora.waterTimer === 17')) lastPourTick = t; // a splash just started
+    }
+    assert.ok(lastPourTick > 90 && lastPourTick <= 125, `last splash while held at tick ${lastPourTick}`);
+    assert.equal(game.run('flora.isWatering'), false, 'can is empty while still held');
+
+    game.release('Space');
+    game.step();
+    game.tap('Space');
+    assert.equal(game.run('flora.isWatering'), true, 'a new press waters again');
+});
+
+test('CT-12: a tap shorter than one tick still waters', () => {
+    const game = loadGame();
+    const sprout = game.run<{ x: number; y: number }>('({ x: sprouts[0].x, y: sprouts[0].y })');
+    placeFlora(game, sprout.x - 20, sprout.y);
+    game.press('Space');
+    game.release('Space');
+    game.step();
+    assert.equal(game.run('sprouts[0].bloomed'), true);
+});
+
+test('PT-1: rescued pets are drawn as emojis in the parade and at the doghouse', () => {
+    const game = loadGame();
+    clearLevel(game);
+    clearLevel(game);
+    game.step();
+    const text = game.drawnText();
+    assert.ok(text.includes('🐱') && text.includes('🐶'), `parade draws ${text.join(' ')}`);
+
+    bloomAll(game);
+    digBone(game);
+    collectKey(game);
+    game.step();
+    assert.ok(game.drawnText().includes('🐹'), 'the pet waits at the doghouse once the key is found');
+});
+
+test('BF-1: a few butterflies flutter in the sky and wrap around the screen', () => {
+    const game = loadGame({ atStartScreen: true });
+    const count = game.run<number>('butterflies.items.length');
+    assert.ok(count >= 3 && count <= 5, `${count} butterflies`);
+    for (let i = 0; i < 3000; i++) game.run('update();');
+    const all = game.run<{ x: number; y: number }[]>('butterflies.items.map(b => ({ x: b.x, y: b.y }))');
+    for (const b of all) {
+        assert.ok(b.x >= -20 && b.x <= 820, `x=${b.x} left the screen`);
+        assert.ok(b.y >= 100 && b.y <= 340, `y=${b.y} left the sky band`);
+    }
+    assert.equal(game.run('screen'), 'start', 'fluttering behind the start screen changes nothing else');
+});
+
+test("SP-1: Noodle's speech bubble sits on the grass below the characters", () => {
+    const game = loadGame();
+    goToLevel(game, 2); // level start: Noodle announces the cloud
+    placeFlora(game, 60, 428);
+    game.run('noodle.x = 40;');
+    game.step();
+    const bubble = game.drawnTextAt().find(t => /cloud/.test(t.text));
+    assert.ok(bubble, 'tip is drawn');
+    assert.ok(bubble.y > 428, `bubble text at y=${bubble.y} should be below the ground line`);
+    assert.ok(bubble.x >= 4, 'bubble stays on screen at the left edge');
+});

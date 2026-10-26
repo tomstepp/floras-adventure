@@ -13,6 +13,7 @@ const moduleOrder = [
     'save.ts',
     'audio.ts',
     'particles.ts',
+    'butterflies.ts',
     'renderer.ts',
     'entities.ts',
     'game.ts'

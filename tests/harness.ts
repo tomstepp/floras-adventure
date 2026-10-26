@@ -28,6 +28,10 @@ export interface Game {
     /** Simulates a finger on an on-screen button, by its data-key code. */
     touch(code: string, type: 'pointerdown' | 'pointerup' | 'pointercancel'): void;
     resize(width: number, height: number, devicePixelRatio?: number): void;
+    /** Text drawn on the canvas by the most recent render(). */
+    drawnText(): string[];
+    /** Text drawn by the most recent render(), with where it was drawn. */
+    drawnTextAt(): { text: string; x: number; y: number }[];
     /** Clicks a button element by id. */
     click(id: string): void;
     dialog: DialogMock;
@@ -84,12 +88,17 @@ export function loadGame(options: LoadOptions = {}): Game {
         }
     };
 
-    // Every canvas call is a no-op; render() still runs so drawing code is exercised.
+    // Canvas calls are no-ops, except text, which is recorded per frame so tests can check it.
+    let frameText: { text: string; x: number; y: number }[] = [];
     const ctx = new Proxy(
         {},
         {
-            get: (_target, prop) =>
-                prop === 'measureText' ? (txt: string) => ({ width: txt.length * 6 }) : () => {},
+            get: (_target, prop) => {
+                if (prop === 'measureText') return (txt: string) => ({ width: txt.length * 6 });
+                if (prop === 'fillText') return (text: string, x: number, y: number) => void frameText.push({ text, x, y });
+                if (prop === 'setTransform') return () => void (frameText = []);
+                return () => {};
+            },
             set: () => true
         }
     );
@@ -169,6 +178,8 @@ export function loadGame(options: LoadOptions = {}): Game {
         run,
         click,
         storage,
+        drawnText: () => frameText.map(t => t.text),
+        drawnTextAt: () => [...frameText],
         step(ticks = 1) {
             for (let i = 0; i < ticks; i++) run('update(); render();');
         },

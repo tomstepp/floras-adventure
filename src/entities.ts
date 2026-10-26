@@ -7,7 +7,9 @@ import {
     JUMP_CUT_VY,
     JUMP_VY,
     MUSHROOM_HEIGHT,
-    MUSHROOM_WIDTH
+    MUSHROOM_WIDTH,
+    SPEECH_TOP_Y,
+    WATER_HOLD_TICKS
 } from './levels.ts';
 import type { DigMound, Direction, Platform, Point, SoundType } from './types.ts';
 
@@ -30,6 +32,8 @@ export class Player {
     public jumpBufferTimer: number = 0;
     /** True while rising from a jump that letting go of ↑ may still cut short. */
     public jumpRising: boolean = false;
+    /** Ticks the water key has been held without letting go. */
+    public waterHeldTicks: number = 0;
 
     public reset(): void {
         this.x = 50;
@@ -40,6 +44,7 @@ export class Player {
         this.coyoteTimer = COYOTE_TICKS;
         this.jumpBufferTimer = 0;
         this.jumpRising = false;
+        this.waterHeldTicks = 0;
     }
 
     public update(
@@ -81,7 +86,15 @@ export class Player {
         if (this.jumpRising && !keys[CONTROLS.jump] && this.vy < JUMP_CUT_VY) this.vy = JUMP_CUT_VY;
         if (this.vy >= 0) this.jumpRising = false;
 
-        if (keys[CONTROLS.water] && !this.isWatering) {
+        // A fresh press always splashes (even a tap shorter than a tick); holding keeps
+        // splashing only for a couple of seconds so the key can't just be held down forever.
+        const waterHeld = keys[CONTROLS.water] || pressed[CONTROLS.water];
+        if (pressed[CONTROLS.water]) this.waterHeldTicks = 0;
+        else if (waterHeld) this.waterHeldTicks++;
+        else this.waterHeldTicks = 0;
+        const canPour = waterHeld && (pressed[CONTROLS.water] || this.waterHeldTicks <= WATER_HOLD_TICKS);
+
+        if (canPour && !this.isWatering) {
             this.isWatering = true;
             this.waterTimer = 18;
             playSound('water');
@@ -160,51 +173,197 @@ export class Player {
     }
 
     public draw(ctx: CanvasRenderingContext2D): void {
-        // Body (Flora - Cute Pink Outfit)
-        ctx.fillStyle = "#FF6B8B";
-        ctx.fillRect(this.x, this.y + 12, this.width, this.height - 12);
+        const now = Date.now();
+        const walking = this.grounded && this.vx !== 0;
+        const airborne = !this.grounded;
+        const stride = walking ? Math.sin(now * 0.018) : 0;
+        // A tiny bounce while walking, a gentle breath while standing.
+        const bob = walking ? Math.abs(stride) * -1.5 : Math.sin(now * 0.004) * 0.6;
+
+        ctx.save();
+        // Draw facing right around her centre line; mirror for facing left.
+        ctx.translate(this.x + this.width / 2, this.y + bob);
+        if (this.facing === 'left') ctx.scale(-1, 1);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const skin = "#FFE0D6";
+        const hair = "#6C5CE7";
+        const dress = "#FF6B8B";
+
+        // Hair behind the head (falls to the shoulders)
+        ctx.fillStyle = hair;
+        ctx.beginPath();
+        ctx.roundRect(-13, -4, 26, 20, 9);
+        ctx.fill();
+
+        // Legs and shoes
+        const legL = airborne ? -3 : stride * 4;
+        const legR = airborne ? 3 : -stride * 4;
+        ctx.strokeStyle = skin;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-4, 36);
+        ctx.lineTo(-4 + legL, airborne ? 43 : 45);
+        ctx.moveTo(4, 36);
+        ctx.lineTo(4 + legR, airborne ? 41 : 45);
+        ctx.stroke();
+        ctx.fillStyle = "#A55EEA";
+        ctx.beginPath();
+        ctx.ellipse(-3 + legL, airborne ? 45 : 46.5, 4, 2.4, 0, 0, Math.PI * 2);
+        ctx.ellipse(5 + legR, airborne ? 43 : 46.5, 4, 2.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Back arm
+        ctx.strokeStyle = skin;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-6, 18);
+        ctx.lineTo(-10 - stride * 2, airborne ? 20 : 28);
+        ctx.stroke();
+
+        // Dress: narrow at the shoulders, flaring to a scalloped hem
+        ctx.fillStyle = dress;
+        ctx.beginPath();
+        ctx.moveTo(-6, 14);
+        ctx.quadraticCurveTo(0, 12, 6, 14);
+        ctx.lineTo(12, 36);
+        ctx.quadraticCurveTo(0, 40, -12, 36);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#FF8FA8";
+        for (let i = -9; i <= 9; i += 6) {
+            ctx.beginPath();
+            ctx.arc(i, 36.5, 3, 0, Math.PI);
+            ctx.fill();
+        }
+        // Collar and a little flower button
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.ellipse(0, 14.5, 5, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#FFEAA7";
+        ctx.beginPath();
+        ctx.arc(1, 22, 1.8, 0, Math.PI * 2);
+        ctx.fill();
 
         // Head
-        ctx.fillStyle = "#FFD1DC";
+        ctx.fillStyle = skin;
         ctx.beginPath();
-        ctx.arc(this.x + 16, this.y, 16, 0, Math.PI * 2);
+        ctx.arc(0, 2, 12.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Hair
-        ctx.fillStyle = "#6C5CE7";
+        // Bangs swept to the front
+        ctx.fillStyle = hair;
         ctx.beginPath();
-        ctx.arc(this.x + 16, this.y - 4, 17, Math.PI, Math.PI * 2);
+        ctx.moveTo(-13, 3);
+        ctx.quadraticCurveTo(-14, -12, 0, -12);
+        ctx.quadraticCurveTo(13, -12, 13.5, 0);
+        ctx.quadraticCurveTo(7, -5, 3, -2);
+        ctx.quadraticCurveTo(-3, -6, -8, -1);
+        ctx.quadraticCurveTo(-11, 1, -13, 3);
         ctx.fill();
 
-        // Eyes & Rosy Cheeks
+        // Bow
+        ctx.fillStyle = "#FD79A8";
+        ctx.beginPath();
+        ctx.moveTo(-4, -11);
+        ctx.lineTo(-11, -16);
+        ctx.lineTo(-10, -7);
+        ctx.closePath();
+        ctx.moveTo(-4, -11);
+        ctx.lineTo(3, -17);
+        ctx.lineTo(3, -7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#E84393";
+        ctx.beginPath();
+        ctx.arc(-4, -11, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Face (three-quarter view, looking the way she faces); blinks every few seconds
+        const blinking = now % 3600 < 120;
         ctx.fillStyle = "#2D3436";
-        const eyeX = this.facing === 'right' ? this.x + 22 : this.x + 10;
-        ctx.fillRect(eyeX, this.y - 4, 3, 4);
-
-        ctx.fillStyle = "#FF7675";
+        for (const ex of [1, 7.5]) {
+            ctx.beginPath();
+            if (blinking) ctx.ellipse(ex, 3, 2, 0.6, 0, 0, Math.PI * 2);
+            else ctx.ellipse(ex, 3, 1.7, 2.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (!blinking) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.beginPath();
+            ctx.arc(1.6, 2.2, 0.7, 0, Math.PI * 2);
+            ctx.arc(8.1, 2.2, 0.7, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(255, 118, 117, 0.55)";
         ctx.beginPath();
-        ctx.arc(this.facing === 'right' ? this.x + 24 : this.x + 8, this.y + 2, 3, 0, Math.PI * 2);
+        ctx.ellipse(-3, 7.5, 2.6, 1.6, 0, 0, Math.PI * 2);
+        ctx.ellipse(10.5, 7.5, 2, 1.5, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = "#C0392B";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(4.5, 7, 2.4, 0.2, Math.PI - 0.2);
+        ctx.stroke();
 
-        // Watering Can
+        // Front arm holding the watering can
+        ctx.strokeStyle = skin;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(5, 18);
+        ctx.lineTo(11, this.isWatering ? 21 : 25);
+        ctx.stroke();
+
+        // Watering can: tips forward while pouring
+        ctx.save();
+        ctx.translate(15, 25);
+        if (this.isWatering) ctx.rotate(0.45);
         ctx.fillStyle = "#74B9FF";
-        const canX = this.facing === 'right' ? this.x + 24 : this.x - 12;
-        ctx.fillRect(canX, this.y + 20, 12, 10);
-        ctx.fillRect(canX + (this.facing === 'right' ? 12 : -4), this.y + 22, 4, 3);
+        ctx.beginPath();
+        ctx.roundRect(-4, -4, 11, 9, 3);
+        ctx.fill();
+        ctx.strokeStyle = "#74B9FF";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(12, -4);
+        ctx.moveTo(-3, -4);
+        ctx.quadraticCurveTo(1.5, -9, 6, -4);
+        ctx.stroke();
+        ctx.fillStyle = "#0984E3";
+        ctx.beginPath();
+        ctx.arc(12.5, -4.5, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
         if (this.isWatering) {
             ctx.fillStyle = "#0984E3";
             for (let i = 0; i < 6; i++) {
-                const dropX = canX + (this.facing === 'right' ? 16 + i * 2 : -6 - i * 2);
-                const dropY = this.y + 24 + i * 3 + Math.sin(Date.now() * 0.02 + i) * 2;
-                ctx.fillRect(dropX, dropY, 3, 3);
+                const dropX = 24 + i * 1.6 + Math.sin(now * 0.03 + i) * 1.2;
+                const dropY = 24 + ((now * 0.12 + i * 5) % 22);
+                ctx.beginPath();
+                ctx.ellipse(dropX, dropY, 1.3, 2, 0, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
         if (this.isDigging) {
+            // Little trowel scooping the dirt
+            ctx.strokeStyle = "#8D6E63";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(10, 30);
+            ctx.lineTo(16, 40);
+            ctx.stroke();
             ctx.fillStyle = "#B2BEC3";
-            ctx.fillRect(this.x + (this.facing === 'right' ? 28 : -8), this.y + 32, 8, 12);
+            ctx.beginPath();
+            ctx.ellipse(18, 43, 3.5, 5, -0.5, 0, Math.PI * 2);
+            ctx.fill();
         }
+
+        ctx.restore();
     }
 }
 
@@ -280,16 +439,38 @@ export class Noodle {
         ctx.lineTo(this.x - 10, drawY + (Math.sin(Date.now() * wagSpeed) * 8));
         ctx.stroke();
 
-        // Bark speech bubble
-        if (this.barkTimer > 0) {
-            ctx.font = "bold 11px sans-serif";
-            const textWidth = Math.max(44, ctx.measureText(this.speechBubble).width + 14);
-            ctx.fillStyle = this.sniffing ? "#FFF9DB" : "#FFF";
-            ctx.beginPath();
-            ctx.roundRect(this.x - 12, drawY - 36, textWidth, 22, 8);
-            ctx.fill();
-            ctx.fillStyle = "#2D3436";
-            ctx.fillText(this.speechBubble, this.x - 5, drawY - 21);
-        }
+    }
+
+    /**
+     * Noodle's speech bubble sits on the grass *below* him, pointing up, so it never
+     * covers Flora or the pets. Drawn after every character.
+     */
+    public drawSpeech(ctx: CanvasRenderingContext2D, canvasWidth: number): void {
+        if (this.barkTimer <= 0) return;
+        ctx.save();
+        ctx.font = "bold 12px sans-serif";
+        const width = Math.max(44, ctx.measureText(this.speechBubble).width + 16);
+        const noseX = this.x + 14;
+        const left = Math.min(Math.max(4, noseX - width / 2), canvasWidth - width - 4);
+        const top = SPEECH_TOP_Y;
+
+        ctx.fillStyle = this.sniffing ? "#FFF9DB" : "#FFFFFF";
+        ctx.strokeStyle = "rgba(45, 52, 54, 0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(left, top, width, 22, 9);
+        ctx.fill();
+        ctx.stroke();
+        // Little tail pointing up at Noodle
+        ctx.beginPath();
+        ctx.moveTo(noseX - 5, top + 1);
+        ctx.lineTo(noseX, top - 6);
+        ctx.lineTo(noseX + 5, top + 1);
+        ctx.fill();
+
+        ctx.fillStyle = "#2D3436";
+        ctx.textBaseline = "middle";
+        ctx.fillText(this.speechBubble, left + 8, top + 11.5);
+        ctx.restore();
     }
 }
