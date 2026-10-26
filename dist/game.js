@@ -492,45 +492,73 @@ class ButterflySwarm {
 }
 
 // --- src/renderer.ts ---
+/** A smiling sun in the characters' style: soft rays that turn and breathe, and eyes that blink. */
 function drawSun(ctx                          )       {
-    const time = Date.now() * 0.002;
+    const now = Date.now();
+    const cx = 700;
+    const cy = 75;
+
+    // Rounded rays, alternating long and short, slowly turning; each one pulses on its own beat
     ctx.save();
-    ctx.translate(700, 75);
-    ctx.rotate(time * 0.15);
-    ctx.fillStyle = "#FDCB6E";
-    for (let i = 0; i < 8; i++) {
-        ctx.rotate(Math.PI / 4);
-        ctx.fillRect(-4, -48, 8, 14);
+    ctx.translate(cx, cy);
+    ctx.rotate(now * 0.00025);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 12; i++) {
+        const long = i % 2 === 0;
+        const pulse = Math.sin(now * 0.003 + i * 0.9) * 2.5;
+        const outer = (long ? 50 : 45) + pulse;
+        ctx.strokeStyle = long ? "#FDCB6E" : "#FFE08A";
+        ctx.lineWidth = long ? 6 : 4.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -40);
+        ctx.lineTo(0, -outer);
+        ctx.stroke();
+        ctx.rotate(Math.PI / 6);
     }
     ctx.restore();
 
+    // Face: a soft glow ring keeps it visible on the pale yellow Pet Paradise sky
+    ctx.fillStyle = "#FDCB6E";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = "#FFEAA7";
     ctx.beginPath();
-    ctx.arc(700, 75, 34, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 32, 0, Math.PI * 2);
     ctx.fill();
-    // Outline keeps the sun visible on the pale yellow Pet Paradise sky.
-    ctx.strokeStyle = "#FDCB6E";
-    ctx.lineWidth = 4;
-    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+    ctx.beginPath();
+    ctx.ellipse(cx - 12, cy - 16, 8, 4.5, -0.5, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Cute Sun Smiling Face
+    // Eyes with sparkles; blinks every few seconds, out of step with Flora
+    const blinking = (now + 1700) % 4300 < 140;
     ctx.fillStyle = "#2D3436";
-    ctx.beginPath();
-    ctx.arc(690, 72, 3, 0, Math.PI * 2);
-    ctx.arc(710, 72, 3, 0, Math.PI * 2);
-    ctx.fill();
+    for (const ex of [cx - 10, cx + 10]) {
+        ctx.beginPath();
+        if (blinking) ctx.ellipse(ex, cy - 2, 3.2, 0.9, 0, 0, Math.PI * 2);
+        else ctx.ellipse(ex, cy - 2, 2.8, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    if (!blinking) {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(cx - 9, cy - 3.5, 1.1, 0, Math.PI * 2);
+        ctx.arc(cx + 11, cy - 3.5, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-    ctx.strokeStyle = "#D63031";
+    // Smile and rosy cheeks
+    ctx.strokeStyle = "#C0392B";
     ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(700, 78, 8, 0.1, Math.PI - 0.1);
+    ctx.arc(cx, cy + 5, 6, 0.25, Math.PI - 0.25);
     ctx.stroke();
-
-    // Rosy cheeks
-    ctx.fillStyle = "#FF7675";
+    ctx.fillStyle = "rgba(255, 118, 117, 0.55)";
     ctx.beginPath();
-    ctx.arc(685, 78, 4, 0, Math.PI * 2);
-    ctx.arc(715, 78, 4, 0, Math.PI * 2);
+    ctx.ellipse(cx - 18, cy + 6, 4.5, 2.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 18, cy + 6, 4.5, 2.8, 0, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -649,13 +677,7 @@ function drawTreeAndGround(
     boneFound         ,
     boneX        
 )       {
-    // Background Tree
-    ctx.fillStyle = "#795548";
-    ctx.fillRect(treeX - 10, 330, 20, 100);
-    ctx.fillStyle = "#2E7D32";
-    ctx.beginPath();
-    ctx.arc(treeX, 310, 40, 0, Math.PI * 2);
-    ctx.fill();
+    drawTree(ctx, treeX);
 
     // Ground
     ctx.fillStyle = "#00B894";
@@ -749,17 +771,171 @@ function drawSprouts(
     }
 }
 
-function drawDoghouse(ctx                          )       {
-    ctx.fillStyle = "#FF7675";
-    ctx.fillRect(670, 350, 75, 78);
-    ctx.fillStyle = "#D63031";
+function drawHeart(ctx                          , x        , y        , size        )       {
     ctx.beginPath();
-    ctx.moveTo(660, 350);
-    ctx.lineTo(707, 310);
-    ctx.lineTo(755, 350);
+    ctx.moveTo(x, y + size * 0.35);
+    ctx.bezierCurveTo(x - size, y - size * 0.4, x - size * 0.4, y - size, x, y - size * 0.35);
+    ctx.bezierCurveTo(x + size * 0.4, y - size, x + size, y - size * 0.4, x, y + size * 0.35);
     ctx.fill();
-    ctx.fillStyle = "#2D3436";
-    ctx.fillRect(690, 385, 35, 43);
+}
+
+/** Puffy round canopy on a soft tapered trunk, swaying gently, dotted with blossoms. */
+function drawTree(ctx                          , treeX        )       {
+    const now = Date.now();
+    ctx.save();
+    ctx.translate(treeX, 0);
+
+    // Trunk: tapers up from a little root flare; the base hides under the grass
+    ctx.fillStyle = "#A1887F";
+    ctx.beginPath();
+    ctx.moveTo(-7, 322);
+    ctx.quadraticCurveTo(-8, 395, -15, 432);
+    ctx.lineTo(15, 432);
+    ctx.quadraticCurveTo(8, 395, 7, 322);
+    ctx.closePath();
+    ctx.fill();
+    // Shade down one side, and a little knothole
+    ctx.fillStyle = "#8D6E63";
+    ctx.beginPath();
+    ctx.moveTo(2, 322);
+    ctx.quadraticCurveTo(3, 395, 8, 432);
+    ctx.lineTo(15, 432);
+    ctx.quadraticCurveTo(8, 395, 7, 322);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#6D4C41";
+    ctx.beginPath();
+    ctx.ellipse(-2, 382, 3, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Canopy sways a touch around the top of the trunk
+    ctx.translate(0, 330);
+    ctx.rotate(Math.sin(now * 0.0012 + treeX) * 0.025);
+    ctx.translate(0, -330);
+
+    const puffs                                      = [
+        [-27, 314, 22], [27, 314, 22], [-15, 292, 24], [15, 290, 25], [0, 276, 22], [0, 312, 28]
+    ];
+    // Darker underside first, then the main green, then soft highlights
+    ctx.fillStyle = "#3FA866";
+    for (const [px, py, r] of puffs) {
+        ctx.beginPath();
+        ctx.arc(px, py + 5, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = "#55C57A";
+    for (const [px, py, r] of puffs) {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    for (const [px, py, r] of [[-18, 284, 9], [6, 268, 7], [-32, 306, 6]]         ) {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Tiny pink blossoms
+    for (const [bx, by] of [[-22, 300], [18, 280], [28, 318], [-4, 322], [4, 288]]         ) {
+        ctx.fillStyle = "#FFB8D0";
+        for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(bx + Math.cos(a) * 2.6, by + Math.sin(a) * 2.6, 2.1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "#FFEAA7";
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+/** Noodle's house: soft pink walls, a scalloped rounded roof, an arched door and a bone sign. */
+function drawDoghouse(ctx                          )       {
+    ctx.save();
+
+    // Walls with faint planks
+    ctx.fillStyle = "#FF9AA2";
+    ctx.beginPath();
+    ctx.roundRect(670, 346, 75, 84, [6, 6, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    for (let py = 360; py < 428; py += 14) ctx.fillRect(672, py, 71, 2);
+
+    // Roof: a rounded peak with rows of scalloped shingles
+    ctx.beginPath();
+    ctx.moveTo(654, 356);
+    ctx.quadraticCurveTo(690, 322, 703, 309);
+    ctx.quadraticCurveTo(707.5, 304, 712, 309);
+    ctx.quadraticCurveTo(725, 322, 761, 356);
+    ctx.closePath();
+    ctx.fillStyle = "#E17055";
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = "#EE8A6E";
+    for (let row = 0; row < 4; row++) {
+        const sy = 322 + row * 10;
+        for (let sx = 650 + (row % 2) * 6; sx < 765; sx += 12) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5.5, 0, Math.PI);
+            ctx.fill();
+        }
+    }
+    ctx.restore();
+    // Rounded eave along the bottom of the roof
+    ctx.fillStyle = "#C8553D";
+    ctx.beginPath();
+    ctx.roundRect(652, 352, 111, 8, 4);
+    ctx.fill();
+
+    // Heart on the gable
+    ctx.fillStyle = "#FFFFFF";
+    drawHeart(ctx, 707.5, 330, 6);
+
+    // Bone sign over the door
+    ctx.fillStyle = "#FDCB6E";
+    ctx.beginPath();
+    ctx.roundRect(694, 365, 27, 13, 5);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(701, 370, 13, 3);
+    for (const [bx, by] of [[700.5, 369.5], [700.5, 373.5], [714.5, 369.5], [714.5, 373.5]]         ) {
+        ctx.beginPath();
+        ctx.arc(bx, by, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Arched door with a cream trim
+    ctx.beginPath();
+    ctx.moveTo(690, 430);
+    ctx.lineTo(690, 402);
+    ctx.arc(707.5, 402, 17.5, Math.PI, 0);
+    ctx.lineTo(725, 430);
+    ctx.closePath();
+    ctx.fillStyle = "#4A3B47";
+    ctx.fill();
+    ctx.strokeStyle = "#FFE0D6";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Food bowl beside the house
+    ctx.fillStyle = "#C8A27A";
+    ctx.beginPath();
+    ctx.ellipse(756, 424, 7, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#74B9FF";
+    ctx.beginPath();
+    ctx.moveTo(747, 423);
+    ctx.lineTo(765, 423);
+    ctx.quadraticCurveTo(764, 430, 756, 430);
+    ctx.quadraticCurveTo(748, 430, 747, 423);
+    ctx.fill();
+
+    ctx.restore();
 }
 
 function drawKey(ctx                          , keyX        , keyY        )       {
@@ -1151,6 +1327,9 @@ class Noodle {
            barkTimer         = 0;
            speechBubble         = "";
            sniffing          = false;
+    /** How far Noodle moved last tick; drives trotting and which way he faces. */
+           vx         = 0;
+           facing            = 'right';
 
            update(
         playerX        ,
@@ -1160,6 +1339,7 @@ class Noodle {
         playSound                           
     )       {
         if (gamePaused) return;
+        const prevX = this.x;
 
         const boneMound = digMounds.find(m => m.hasBone);
         if (!boneFound && boneMound && Math.abs((playerX + 16) - boneMound.x) < 95) {
@@ -1185,38 +1365,157 @@ class Noodle {
         }
 
         if (this.barkTimer > 0) this.barkTimer--;
+
+        this.vx = this.x - prevX;
+        // A little dead zone so tiny drifts don't make him flip back and forth.
+        if (this.vx > 0.3) this.facing = 'right';
+        else if (this.vx < -0.3) this.facing = 'left';
     }
 
            draw(ctx                          )       {
-        const bounceY = this.sniffing ? Math.abs(Math.sin(Date.now() * 0.02)) * -4 : 0;
-        const drawY = this.y + bounceY;
+        const now = Date.now();
+        const trotting = Math.abs(this.vx) > 0.4;
+        const step = trotting ? Math.sin(now * 0.022) : 0;
+        // Sniffing: nose down to the ground with an excited little hop.
+        const hop = this.sniffing ? Math.abs(Math.sin(now * 0.02)) * -3 : trotting ? Math.abs(step) * -1.5 : 0;
+        const headDip = this.sniffing ? 5 : 0;
 
-        // Golden Doodle body & legs (grounded at y = 428)
-        ctx.fillStyle = "#C49102";
-        ctx.fillRect(this.x + 2, this.y + 18, 4, 4);
-        ctx.fillRect(this.x + 18, this.y + 18, 4, 4);
+        const fur = "#F2C46D";
+        const furDark = "#D9A441";
+        const furLight = "#FBE3B0";
 
-        ctx.fillStyle = "#E1B12C";
-        ctx.fillRect(this.x, drawY, 24, 18);
-        ctx.fillRect(this.x + 14, drawY - 10, 14, 14); // Fluffy Head
+        ctx.save();
+        // Origin on the ground under his middle, facing right; mirror for left.
+        ctx.translate(this.x + 12, this.y + 22);
+        if (this.facing === 'left') ctx.scale(-1, 1);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-        // Snout & Ears
-        ctx.fillStyle = "#C49102";
-        ctx.fillRect(this.x + 12, drawY - 6, 4, 8); // Ear
-
-        // Eyes
-        ctx.fillStyle = "#000";
-        ctx.fillRect(this.x + 22, drawY - 6, 2, 3);
-
-        // Fluffy Wagging tail (wags faster when sniffing a bone!)
-        const wagSpeed = this.sniffing ? 0.05 : 0.02;
-        ctx.strokeStyle = "#E1B12C";
-        ctx.lineWidth = 5;
+        // Soft shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
         ctx.beginPath();
-        ctx.moveTo(this.x, drawY + 6);
-        ctx.lineTo(this.x - 10, drawY + (Math.sin(Date.now() * wagSpeed) * 8));
+        ctx.ellipse(0, 0, 14, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.translate(0, hop);
+
+        // Legs: far pair darker, trotting in opposite phase to the near pair
+        const legs                             = [
+            [-8, -step, furDark],
+            [6, step, furDark],
+            [-5, step, fur],
+            [9, -step, fur]
+        ];
+        // Short, chunky legs read as puppy rather than deer.
+        ctx.lineWidth = 5;
+        for (const [lx, swing, color] of legs) {
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(lx, -7);
+            ctx.lineTo(lx + swing * 2, -2.5 - hop);
+            ctx.stroke();
+        }
+
+        // Fluffy tail wags faster when he smells the bone
+        const wag = Math.sin(now * (this.sniffing ? 0.05 : 0.018)) * 0.5;
+        ctx.save();
+        ctx.translate(-13, -13);
+        ctx.rotate(-0.6 + wag);
+        ctx.fillStyle = fur;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.arc(-i * 3.5, -i * 2.5, 3.6 - i * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // Body: a soft oval with doodle curls along the top
+        ctx.fillStyle = fur;
+        ctx.beginPath();
+        ctx.ellipse(0, -11.5, 14, 7.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let i = -10; i <= 6; i += 4) {
+            ctx.beginPath();
+            ctx.arc(i, -17.5, 3.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Fluffy chest patch under the chin
+        ctx.fillStyle = furLight;
+        ctx.beginPath();
+        ctx.ellipse(9, -10, 4, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head (dips toward the ground while sniffing)
+        ctx.save();
+        ctx.translate(12, -20.5 + headDip);
+        if (this.sniffing) ctx.rotate(0.35);
+
+        // Pink collar where head meets body
+        ctx.strokeStyle = "#FF6B8B";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(-2, 4, 6, 0.6, 2.2);
+        ctx.stroke();
+        ctx.fillStyle = "#FDCB6E";
+        ctx.beginPath();
+        ctx.arc(-3.5, 10, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = fur;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Curly topknot
+        for (const [cx, cy, r] of [[-4, -7, 3.6], [0.5, -8.5, 3.8], [4.5, -6.5, 3.2]]         ) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Floppy ear, swinging a little as he moves
+        ctx.fillStyle = furDark;
+        ctx.beginPath();
+        ctx.ellipse(-4.5, 2.5, 3.6, 6.2, 0.25 + step * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Snout and nose
+        ctx.fillStyle = furLight;
+        ctx.beginPath();
+        ctx.ellipse(7, 3, 5, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#2D3436";
+        ctx.beginPath();
+        ctx.ellipse(11, 1.8, 2, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#2D3436";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(8.5, 4.5, 1.8, 0.3, Math.PI - 0.3);
         ctx.stroke();
 
+        // Eye with a sparkle (closes happily while sniffing), plus blush
+        ctx.fillStyle = "#2D3436";
+        ctx.beginPath();
+        if (this.sniffing) {
+            ctx.strokeStyle = "#2D3436";
+            ctx.lineWidth = 1.2;
+            ctx.arc(3.5, -1, 1.8, Math.PI + 0.3, -0.3);
+            ctx.stroke();
+        } else {
+            ctx.ellipse(3.5, -1.5, 1.6, 2.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#FFFFFF";
+            ctx.beginPath();
+            ctx.arc(4, -2.2, 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(255, 118, 117, 0.5)";
+        ctx.beginPath();
+        ctx.ellipse(2.5, 3.5, 2.2, 1.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+        ctx.restore();
     }
 
     /**

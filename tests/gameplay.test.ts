@@ -615,3 +615,20 @@ test("SP-1: Noodle's speech bubble sits on the grass below the characters", () =
     assert.ok(bubble.y > 428, `bubble text at y=${bubble.y} should be below the ground line`);
     assert.ok(bubble.x >= 4, 'bubble stays on screen at the left edge');
 });
+
+test('ND-1: Noodle turns to face the way he trots, without flipping on tiny drifts', () => {
+    const game = loadGame();
+    placeFlora(game, 600, 428);
+    game.run('noodle.x = 100; noodle.facing = "left";');
+    game.step(20);
+    assert.equal(game.run('noodle.facing'), 'right', 'trotting right toward Flora');
+
+    placeFlora(game, 100, 428);
+    game.step(20);
+    assert.equal(game.run('noodle.facing'), 'left', 'trotting back left');
+
+    // Settled next to Flora: tiny movements keep his last direction.
+    game.step(300);
+    assert.ok(Math.abs(game.run<number>('noodle.vx')) < 0.3);
+    assert.equal(game.run('noodle.facing'), 'left');
+});

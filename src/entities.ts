@@ -373,6 +373,9 @@ export class Noodle {
     public barkTimer: number = 0;
     public speechBubble: string = "";
     public sniffing: boolean = false;
+    /** How far Noodle moved last tick; drives trotting and which way he faces. */
+    public vx: number = 0;
+    public facing: Direction = 'right';
 
     public update(
         playerX: number,
@@ -382,6 +385,7 @@ export class Noodle {
         playSound: (type: SoundType) => void
     ): void {
         if (gamePaused) return;
+        const prevX = this.x;
 
         const boneMound = digMounds.find(m => m.hasBone);
         if (!boneFound && boneMound && Math.abs((playerX + 16) - boneMound.x) < 95) {
@@ -407,38 +411,157 @@ export class Noodle {
         }
 
         if (this.barkTimer > 0) this.barkTimer--;
+
+        this.vx = this.x - prevX;
+        // A little dead zone so tiny drifts don't make him flip back and forth.
+        if (this.vx > 0.3) this.facing = 'right';
+        else if (this.vx < -0.3) this.facing = 'left';
     }
 
     public draw(ctx: CanvasRenderingContext2D): void {
-        const bounceY = this.sniffing ? Math.abs(Math.sin(Date.now() * 0.02)) * -4 : 0;
-        const drawY = this.y + bounceY;
+        const now = Date.now();
+        const trotting = Math.abs(this.vx) > 0.4;
+        const step = trotting ? Math.sin(now * 0.022) : 0;
+        // Sniffing: nose down to the ground with an excited little hop.
+        const hop = this.sniffing ? Math.abs(Math.sin(now * 0.02)) * -3 : trotting ? Math.abs(step) * -1.5 : 0;
+        const headDip = this.sniffing ? 5 : 0;
 
-        // Golden Doodle body & legs (grounded at y = 428)
-        ctx.fillStyle = "#C49102";
-        ctx.fillRect(this.x + 2, this.y + 18, 4, 4);
-        ctx.fillRect(this.x + 18, this.y + 18, 4, 4);
+        const fur = "#F2C46D";
+        const furDark = "#D9A441";
+        const furLight = "#FBE3B0";
 
-        ctx.fillStyle = "#E1B12C";
-        ctx.fillRect(this.x, drawY, 24, 18);
-        ctx.fillRect(this.x + 14, drawY - 10, 14, 14); // Fluffy Head
+        ctx.save();
+        // Origin on the ground under his middle, facing right; mirror for left.
+        ctx.translate(this.x + 12, this.y + 22);
+        if (this.facing === 'left') ctx.scale(-1, 1);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-        // Snout & Ears
-        ctx.fillStyle = "#C49102";
-        ctx.fillRect(this.x + 12, drawY - 6, 4, 8); // Ear
-
-        // Eyes
-        ctx.fillStyle = "#000";
-        ctx.fillRect(this.x + 22, drawY - 6, 2, 3);
-
-        // Fluffy Wagging tail (wags faster when sniffing a bone!)
-        const wagSpeed = this.sniffing ? 0.05 : 0.02;
-        ctx.strokeStyle = "#E1B12C";
-        ctx.lineWidth = 5;
+        // Soft shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
         ctx.beginPath();
-        ctx.moveTo(this.x, drawY + 6);
-        ctx.lineTo(this.x - 10, drawY + (Math.sin(Date.now() * wagSpeed) * 8));
+        ctx.ellipse(0, 0, 14, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.translate(0, hop);
+
+        // Legs: far pair darker, trotting in opposite phase to the near pair
+        const legs: [number, number, string][] = [
+            [-8, -step, furDark],
+            [6, step, furDark],
+            [-5, step, fur],
+            [9, -step, fur]
+        ];
+        // Short, chunky legs read as puppy rather than deer.
+        ctx.lineWidth = 5;
+        for (const [lx, swing, color] of legs) {
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(lx, -7);
+            ctx.lineTo(lx + swing * 2, -2.5 - hop);
+            ctx.stroke();
+        }
+
+        // Fluffy tail wags faster when he smells the bone
+        const wag = Math.sin(now * (this.sniffing ? 0.05 : 0.018)) * 0.5;
+        ctx.save();
+        ctx.translate(-13, -13);
+        ctx.rotate(-0.6 + wag);
+        ctx.fillStyle = fur;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.arc(-i * 3.5, -i * 2.5, 3.6 - i * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // Body: a soft oval with doodle curls along the top
+        ctx.fillStyle = fur;
+        ctx.beginPath();
+        ctx.ellipse(0, -11.5, 14, 7.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let i = -10; i <= 6; i += 4) {
+            ctx.beginPath();
+            ctx.arc(i, -17.5, 3.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // Fluffy chest patch under the chin
+        ctx.fillStyle = furLight;
+        ctx.beginPath();
+        ctx.ellipse(9, -10, 4, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head (dips toward the ground while sniffing)
+        ctx.save();
+        ctx.translate(12, -20.5 + headDip);
+        if (this.sniffing) ctx.rotate(0.35);
+
+        // Pink collar where head meets body
+        ctx.strokeStyle = "#FF6B8B";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(-2, 4, 6, 0.6, 2.2);
+        ctx.stroke();
+        ctx.fillStyle = "#FDCB6E";
+        ctx.beginPath();
+        ctx.arc(-3.5, 10, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = fur;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Curly topknot
+        for (const [cx, cy, r] of [[-4, -7, 3.6], [0.5, -8.5, 3.8], [4.5, -6.5, 3.2]] as const) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Floppy ear, swinging a little as he moves
+        ctx.fillStyle = furDark;
+        ctx.beginPath();
+        ctx.ellipse(-4.5, 2.5, 3.6, 6.2, 0.25 + step * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Snout and nose
+        ctx.fillStyle = furLight;
+        ctx.beginPath();
+        ctx.ellipse(7, 3, 5, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#2D3436";
+        ctx.beginPath();
+        ctx.ellipse(11, 1.8, 2, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#2D3436";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(8.5, 4.5, 1.8, 0.3, Math.PI - 0.3);
         ctx.stroke();
 
+        // Eye with a sparkle (closes happily while sniffing), plus blush
+        ctx.fillStyle = "#2D3436";
+        ctx.beginPath();
+        if (this.sniffing) {
+            ctx.strokeStyle = "#2D3436";
+            ctx.lineWidth = 1.2;
+            ctx.arc(3.5, -1, 1.8, Math.PI + 0.3, -0.3);
+            ctx.stroke();
+        } else {
+            ctx.ellipse(3.5, -1.5, 1.6, 2.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#FFFFFF";
+            ctx.beginPath();
+            ctx.arc(4, -2.2, 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(255, 118, 117, 0.5)";
+        ctx.beginPath();
+        ctx.ellipse(2.5, 3.5, 2.2, 1.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+        ctx.restore();
     }
 
     /**

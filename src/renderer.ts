@@ -1,45 +1,73 @@
 import { MUSHROOM_HEIGHT, MUSHROOM_WIDTH, RAINBOW_COLORS } from './levels.ts';
 import type { DigMound, Platform, Point, Species, Sprout } from './types.ts';
 
+/** A smiling sun in the characters' style: soft rays that turn and breathe, and eyes that blink. */
 export function drawSun(ctx: CanvasRenderingContext2D): void {
-    const time = Date.now() * 0.002;
+    const now = Date.now();
+    const cx = 700;
+    const cy = 75;
+
+    // Rounded rays, alternating long and short, slowly turning; each one pulses on its own beat
     ctx.save();
-    ctx.translate(700, 75);
-    ctx.rotate(time * 0.15);
-    ctx.fillStyle = "#FDCB6E";
-    for (let i = 0; i < 8; i++) {
-        ctx.rotate(Math.PI / 4);
-        ctx.fillRect(-4, -48, 8, 14);
+    ctx.translate(cx, cy);
+    ctx.rotate(now * 0.00025);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 12; i++) {
+        const long = i % 2 === 0;
+        const pulse = Math.sin(now * 0.003 + i * 0.9) * 2.5;
+        const outer = (long ? 50 : 45) + pulse;
+        ctx.strokeStyle = long ? "#FDCB6E" : "#FFE08A";
+        ctx.lineWidth = long ? 6 : 4.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -40);
+        ctx.lineTo(0, -outer);
+        ctx.stroke();
+        ctx.rotate(Math.PI / 6);
     }
     ctx.restore();
 
+    // Face: a soft glow ring keeps it visible on the pale yellow Pet Paradise sky
+    ctx.fillStyle = "#FDCB6E";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = "#FFEAA7";
     ctx.beginPath();
-    ctx.arc(700, 75, 34, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 32, 0, Math.PI * 2);
     ctx.fill();
-    // Outline keeps the sun visible on the pale yellow Pet Paradise sky.
-    ctx.strokeStyle = "#FDCB6E";
-    ctx.lineWidth = 4;
-    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+    ctx.beginPath();
+    ctx.ellipse(cx - 12, cy - 16, 8, 4.5, -0.5, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Cute Sun Smiling Face
+    // Eyes with sparkles; blinks every few seconds, out of step with Flora
+    const blinking = (now + 1700) % 4300 < 140;
     ctx.fillStyle = "#2D3436";
-    ctx.beginPath();
-    ctx.arc(690, 72, 3, 0, Math.PI * 2);
-    ctx.arc(710, 72, 3, 0, Math.PI * 2);
-    ctx.fill();
+    for (const ex of [cx - 10, cx + 10]) {
+        ctx.beginPath();
+        if (blinking) ctx.ellipse(ex, cy - 2, 3.2, 0.9, 0, 0, Math.PI * 2);
+        else ctx.ellipse(ex, cy - 2, 2.8, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    if (!blinking) {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(cx - 9, cy - 3.5, 1.1, 0, Math.PI * 2);
+        ctx.arc(cx + 11, cy - 3.5, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-    ctx.strokeStyle = "#D63031";
+    // Smile and rosy cheeks
+    ctx.strokeStyle = "#C0392B";
     ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(700, 78, 8, 0.1, Math.PI - 0.1);
+    ctx.arc(cx, cy + 5, 6, 0.25, Math.PI - 0.25);
     ctx.stroke();
-
-    // Rosy cheeks
-    ctx.fillStyle = "#FF7675";
+    ctx.fillStyle = "rgba(255, 118, 117, 0.55)";
     ctx.beginPath();
-    ctx.arc(685, 78, 4, 0, Math.PI * 2);
-    ctx.arc(715, 78, 4, 0, Math.PI * 2);
+    ctx.ellipse(cx - 18, cy + 6, 4.5, 2.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 18, cy + 6, 4.5, 2.8, 0, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -158,13 +186,7 @@ export function drawTreeAndGround(
     boneFound: boolean,
     boneX: number
 ): void {
-    // Background Tree
-    ctx.fillStyle = "#795548";
-    ctx.fillRect(treeX - 10, 330, 20, 100);
-    ctx.fillStyle = "#2E7D32";
-    ctx.beginPath();
-    ctx.arc(treeX, 310, 40, 0, Math.PI * 2);
-    ctx.fill();
+    drawTree(ctx, treeX);
 
     // Ground
     ctx.fillStyle = "#00B894";
@@ -258,17 +280,171 @@ export function drawSprouts(
     }
 }
 
-export function drawDoghouse(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = "#FF7675";
-    ctx.fillRect(670, 350, 75, 78);
-    ctx.fillStyle = "#D63031";
+function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.beginPath();
-    ctx.moveTo(660, 350);
-    ctx.lineTo(707, 310);
-    ctx.lineTo(755, 350);
+    ctx.moveTo(x, y + size * 0.35);
+    ctx.bezierCurveTo(x - size, y - size * 0.4, x - size * 0.4, y - size, x, y - size * 0.35);
+    ctx.bezierCurveTo(x + size * 0.4, y - size, x + size, y - size * 0.4, x, y + size * 0.35);
     ctx.fill();
-    ctx.fillStyle = "#2D3436";
-    ctx.fillRect(690, 385, 35, 43);
+}
+
+/** Puffy round canopy on a soft tapered trunk, swaying gently, dotted with blossoms. */
+export function drawTree(ctx: CanvasRenderingContext2D, treeX: number): void {
+    const now = Date.now();
+    ctx.save();
+    ctx.translate(treeX, 0);
+
+    // Trunk: tapers up from a little root flare; the base hides under the grass
+    ctx.fillStyle = "#A1887F";
+    ctx.beginPath();
+    ctx.moveTo(-7, 322);
+    ctx.quadraticCurveTo(-8, 395, -15, 432);
+    ctx.lineTo(15, 432);
+    ctx.quadraticCurveTo(8, 395, 7, 322);
+    ctx.closePath();
+    ctx.fill();
+    // Shade down one side, and a little knothole
+    ctx.fillStyle = "#8D6E63";
+    ctx.beginPath();
+    ctx.moveTo(2, 322);
+    ctx.quadraticCurveTo(3, 395, 8, 432);
+    ctx.lineTo(15, 432);
+    ctx.quadraticCurveTo(8, 395, 7, 322);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#6D4C41";
+    ctx.beginPath();
+    ctx.ellipse(-2, 382, 3, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Canopy sways a touch around the top of the trunk
+    ctx.translate(0, 330);
+    ctx.rotate(Math.sin(now * 0.0012 + treeX) * 0.025);
+    ctx.translate(0, -330);
+
+    const puffs: readonly [number, number, number][] = [
+        [-27, 314, 22], [27, 314, 22], [-15, 292, 24], [15, 290, 25], [0, 276, 22], [0, 312, 28]
+    ];
+    // Darker underside first, then the main green, then soft highlights
+    ctx.fillStyle = "#3FA866";
+    for (const [px, py, r] of puffs) {
+        ctx.beginPath();
+        ctx.arc(px, py + 5, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = "#55C57A";
+    for (const [px, py, r] of puffs) {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    for (const [px, py, r] of [[-18, 284, 9], [6, 268, 7], [-32, 306, 6]] as const) {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Tiny pink blossoms
+    for (const [bx, by] of [[-22, 300], [18, 280], [28, 318], [-4, 322], [4, 288]] as const) {
+        ctx.fillStyle = "#FFB8D0";
+        for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(bx + Math.cos(a) * 2.6, by + Math.sin(a) * 2.6, 2.1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "#FFEAA7";
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+/** Noodle's house: soft pink walls, a scalloped rounded roof, an arched door and a bone sign. */
+export function drawDoghouse(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+
+    // Walls with faint planks
+    ctx.fillStyle = "#FF9AA2";
+    ctx.beginPath();
+    ctx.roundRect(670, 346, 75, 84, [6, 6, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    for (let py = 360; py < 428; py += 14) ctx.fillRect(672, py, 71, 2);
+
+    // Roof: a rounded peak with rows of scalloped shingles
+    ctx.beginPath();
+    ctx.moveTo(654, 356);
+    ctx.quadraticCurveTo(690, 322, 703, 309);
+    ctx.quadraticCurveTo(707.5, 304, 712, 309);
+    ctx.quadraticCurveTo(725, 322, 761, 356);
+    ctx.closePath();
+    ctx.fillStyle = "#E17055";
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = "#EE8A6E";
+    for (let row = 0; row < 4; row++) {
+        const sy = 322 + row * 10;
+        for (let sx = 650 + (row % 2) * 6; sx < 765; sx += 12) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5.5, 0, Math.PI);
+            ctx.fill();
+        }
+    }
+    ctx.restore();
+    // Rounded eave along the bottom of the roof
+    ctx.fillStyle = "#C8553D";
+    ctx.beginPath();
+    ctx.roundRect(652, 352, 111, 8, 4);
+    ctx.fill();
+
+    // Heart on the gable
+    ctx.fillStyle = "#FFFFFF";
+    drawHeart(ctx, 707.5, 330, 6);
+
+    // Bone sign over the door
+    ctx.fillStyle = "#FDCB6E";
+    ctx.beginPath();
+    ctx.roundRect(694, 365, 27, 13, 5);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(701, 370, 13, 3);
+    for (const [bx, by] of [[700.5, 369.5], [700.5, 373.5], [714.5, 369.5], [714.5, 373.5]] as const) {
+        ctx.beginPath();
+        ctx.arc(bx, by, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Arched door with a cream trim
+    ctx.beginPath();
+    ctx.moveTo(690, 430);
+    ctx.lineTo(690, 402);
+    ctx.arc(707.5, 402, 17.5, Math.PI, 0);
+    ctx.lineTo(725, 430);
+    ctx.closePath();
+    ctx.fillStyle = "#4A3B47";
+    ctx.fill();
+    ctx.strokeStyle = "#FFE0D6";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Food bowl beside the house
+    ctx.fillStyle = "#C8A27A";
+    ctx.beginPath();
+    ctx.ellipse(756, 424, 7, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#74B9FF";
+    ctx.beginPath();
+    ctx.moveTo(747, 423);
+    ctx.lineTo(765, 423);
+    ctx.quadraticCurveTo(764, 430, 756, 430);
+    ctx.quadraticCurveTo(748, 430, 747, 423);
+    ctx.fill();
+
+    ctx.restore();
 }
 
 export function drawKey(ctx: CanvasRenderingContext2D, keyX: number, keyY: number): void {
