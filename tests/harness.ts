@@ -34,6 +34,10 @@ export interface Game {
     drawnTextAt(): { text: string; x: number; y: number }[];
     /** Clicks a button element by id. */
     click(id: string): void;
+    /** The level-select cards, in order (after the level list has been opened). */
+    levelCards(): { innerText: string; disabled: boolean; classes: Set<string>; click(): void }[];
+    /** Presses and releases a key that isn't a game control (e.g. Escape). */
+    key(code: string): void;
     dialog: DialogMock;
     elements: Record<string, Record<string, unknown>>;
     text(id: string): string;
@@ -50,11 +54,18 @@ export interface LoadOptions {
 /** A fake DOM element that records listeners and supports click(). */
 function makeElement(props: Record<string, unknown> = {}): Record<string, unknown> {
     const listeners: Record<string, (event?: unknown) => void> = {};
+    const classes = new Set<string>();
     return {
         innerText: '',
         hidden: false,
+        disabled: false,
         style: {},
-        classList: { add() {}, remove() {} },
+        classes,
+        classList: {
+            add: (c: string) => void classes.add(c),
+            remove: (c: string) => void classes.delete(c)
+        },
+        setAttribute() {},
         addEventListener(evt: string, fn: (event?: unknown) => void) {
             listeners[evt] = fn;
         },
@@ -135,7 +146,22 @@ export function loadGame(options: LoadOptions = {}): Game {
             replaceChildren(this: { items: string[] }, ...children: { innerText: string }[]) {
                 this.items = children.map(c => c.innerText);
             }
-        })
+        }),
+        'pause-btn': makeElement(),
+        'pause-screen': makeElement({ hidden: true }),
+        'resume-btn': makeElement(),
+        'pause-restart-btn': makeElement(),
+        'pause-levels-btn': makeElement(),
+        'pause-menu-btn': makeElement(),
+        'levels-btn': makeElement(),
+        'level-select': makeElement({ hidden: true }),
+        'level-grid': makeElement({
+            children: [] as Record<string, unknown>[],
+            replaceChildren(this: { children: unknown[] }, ...children: unknown[]) {
+                this.children = children;
+            }
+        }),
+        'levels-back-btn': makeElement()
     };
 
     const localStorage = {
@@ -158,6 +184,8 @@ export function loadGame(options: LoadOptions = {}): Game {
         document: {
             documentElement: { clientWidth: 0, clientHeight: 0 },
             body: makeElement(),
+            hidden: false,
+            addEventListener() {},
             createElement: () => makeElement(),
             getElementById: (id: string) => elements[id],
             querySelectorAll: (selector: string) => (selector === '[data-key]' ? touchButtons : [])
@@ -187,6 +215,11 @@ export function loadGame(options: LoadOptions = {}): Game {
         click,
         storage,
         drawnText: () => frameText.map(t => t.text),
+        levelCards: () => elements['level-grid'].children as ReturnType<Game['levelCards']>,
+        key(code) {
+            key('keydown', code);
+            key('keyup', code);
+        },
         drawnTextAt: () => [...frameText],
         step(ticks = 1) {
             for (let i = 0; i < ticks; i++) run('update(); render();');

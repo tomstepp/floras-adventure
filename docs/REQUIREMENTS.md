@@ -29,7 +29,7 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | CT-4 | Dig: ↓, only while standing on the ground (not a platform). |
 | CT-5 | Restart level: the ↺ Restart button in the HUD. Resets the current level's sprouts, bone, key and Flora's position. Ignored during the level-clear celebration and the victory dialog. |
 | CT-6 | Arrow keys and Space don't scroll the page during play. Letter keys do nothing. |
-| CT-7 | If the window loses focus, all held keys are released (Flora stops moving). |
+| CT-7 | If the window loses focus, all held keys are released and the game pauses (see PS-2). |
 | CT-8 | A jump fires when ↑ is pressed, not while it is held: holding ↑ doesn't keep bouncing. |
 | CT-9 | Releasing ↑ early cuts the jump short (a small hop); holding it gives the full jump height. |
 | CT-10 | Coyote time: a jump still works for 6 ticks (~0.1 s) after walking off a ledge. |
@@ -42,17 +42,30 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 |----|-------------|
 | ST-1 | The game opens on a start screen over the first level. Nothing moves until the player picks a button; keys held on the start screen don't carry into play. |
 | ST-2 | It shows how to play as four pictures in order — water flowers → dig for the bone → grab the key → rescue a pet — each with its key (desktop) or button icon (touch), so non-readers can follow it. |
-| ST-3 | With no save it offers **▶ Play**. With a save it offers **▶ Continue — Level N** (focused) and **🌱 New game**. |
+| ST-3 | With nothing to continue it offers **▶ Play**. With a save it offers **▶ Continue — Level N** (focused) and **🌱 New game**. **🗺 Levels** is always there and opens the level list. |
 | ST-4 | On-screen touch buttons are hidden while the start screen is up. |
 
 ## 2b. Saving
 
 | ID | Requirement |
 |----|-------------|
-| SV-1 | After each level is beaten, the next level number is saved in the browser (localStorage). Continue resumes there with all earlier pets already in the parade. |
-| SV-2 | New game forgets the save and starts at level 1. |
-| SV-3 | Winning the whole game clears the save. |
+| SV-1 | Progress is saved in the browser (localStorage): the level to Continue from, and the furthest level reached. Starting or picking a level, or beating one, updates it. Continue resumes there with all earlier pets already in the parade. |
+| SV-2 | New game starts at level 1 and removes Continue, but levels already reached stay unlocked. |
+| SV-3 | Winning the whole game removes Continue and unlocks every level. |
 | SV-4 | A missing, broken or out-of-range save is ignored, and blocked storage (e.g. private mode) never breaks the game — progress just isn't kept. |
+| SV-5 | Older saves that only stored a level still work: Continue goes there and levels up to it are unlocked. |
+
+## 2c. Pause and level select
+
+| ID | Requirement |
+|----|-------------|
+| PS-1 | A **⏸ Pause** button in the top bar, or Esc on desktop, pauses the game; Esc or **▶ Resume** continues. Nothing moves while paused. |
+| PS-2 | Switching away from the window or tab (blur, or the page being hidden) pauses the game automatically. |
+| PS-3 | The pause menu offers Resume, **↺ Restart level**, **🗺 Choose a level** and **🏠 Main menu**. Keys pressed while a menu is open never carry into play, and touch buttons are hidden while any menu is up. |
+| PS-4 | Main menu goes to the start screen, where Continue returns to the level that was left. |
+| LS-1 | The level list shows all levels as cards: number, pet emoji and name. Levels up to the furthest one reached can be picked; later ones show 🔒 and can't be started. Beaten levels are ticked ✔, and when opened from the pause menu the current level is highlighted and focused. |
+| LS-2 | Picking a level starts it, with the pets of every earlier level already in the parade, and makes it the Continue point. Picking a level counts as a tap, so it can switch music on like Play. |
+| LS-3 | ← Back (or Esc) returns to wherever the list was opened from: the start screen or the pause menu. |
 
 ## 3. Level flow
 

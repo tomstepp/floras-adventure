@@ -495,23 +495,39 @@ test('SV-1: beating a level saves progress; reloading offers Continue', () => {
     assert.equal(reloaded.text('level-display'), 'Level 3: Rainbow Hills');
 });
 
-test('SV-2: New game starts over and forgets the save', () => {
+test('SV-2: New game starts over at level 1 but keeps unlocked levels', () => {
     const storage = new Map<string, string>();
-    clearLevel(loadGame({ storage }));
+    const first = loadGame({ storage });
+    clearLevel(first);
+    clearLevel(first);
     const reloaded = loadGame({ storage, atStartScreen: true });
     reloaded.click('play-btn');
     assert.equal(reloaded.run('currentLevel'), 0);
     assert.equal(reloaded.run('rescuedFriends.length'), 0);
-    assert.equal(storage.size, 0);
+    const saved = JSON.parse(storage.get('floras-adventure-save-v1')!);
+    assert.deepEqual(saved, { level: null, unlocked: 2 }, 'nothing to continue, levels 1–3 still open');
+    assert.equal(loadGame({ storage, atStartScreen: true }).elements['continue-btn'].hidden, true);
 });
 
-test('SV-3: winning the game clears the save', () => {
+test('SV-3: winning the game removes Continue and unlocks every level', () => {
     const storage = new Map<string, string>();
     const game = loadGame({ storage });
     for (let lvl = 0; lvl < LEVELS.length; lvl++) clearLevel(game);
     assert.equal(game.dialog.open, true);
-    assert.equal(storage.size, 0);
-    assert.equal(loadGame({ storage, atStartScreen: true }).elements['continue-btn'].hidden, true);
+    const saved = JSON.parse(storage.get('floras-adventure-save-v1')!);
+    assert.deepEqual(saved, { level: null, unlocked: LEVELS.length - 1 });
+    const reloaded = loadGame({ storage, atStartScreen: true });
+    assert.equal(reloaded.elements['continue-btn'].hidden, true);
+    reloaded.click('levels-btn');
+    assert.ok(reloaded.levelCards().every(c => !c.disabled), 'every level can be picked');
+});
+
+test('SV-5: an older save with only a level still works, and unlocks up to it', () => {
+    const storage = new Map([['floras-adventure-save-v1', '{"level":3}']]);
+    const game = loadGame({ storage, atStartScreen: true });
+    assert.match(game.text('continue-btn'), /Level 4/);
+    game.click('levels-btn');
+    assert.deepEqual(game.levelCards().map(c => c.disabled), [false, false, false, false, true, true, true, true, true, true]);
 });
 
 test('SV-4: a broken or out-of-range save is ignored', () => {
@@ -745,4 +761,116 @@ test('LV-7: the victory dialog lists every rescued pet', () => {
     assert.equal(items.length, LEVELS.length);
     assert.ok(items[0].includes('🐱') && items[9].includes('🦄'));
     assert.match(game.text('victory-text'), /all 10 magical pets/);
+});
+
+test('PS-1: the Pause button and Esc pause and resume the game', () => {
+    const game = loadGame();
+    placeFlora(game, 100, 428);
+    game.click('pause-btn');
+    assert.equal(game.run('screen'), 'paused');
+    assert.equal(game.elements['pause-screen'].hidden, false);
+    game.press('ArrowRight');
+    game.step(20);
+    assert.equal(game.run('flora.x'), 100, 'nothing moves while paused');
+    game.release('ArrowRight');
+
+    game.key('Escape');
+    assert.equal(game.run('screen'), 'playing', 'Esc resumes');
+    assert.equal(game.elements['pause-screen'].hidden, true);
+    game.key('Escape');
+    assert.equal(game.run('screen'), 'paused', 'Esc pauses');
+    game.click('resume-btn');
+    assert.equal(game.run('screen'), 'playing');
+});
+
+test('PS-2: switching away from the window pauses the game', () => {
+    const game = loadGame();
+    game.fireWindowEvent('blur');
+    assert.equal(game.run('screen'), 'paused');
+    game.fireWindowEvent('blur');
+    assert.equal(game.run('screen'), 'paused', 'stays paused, no toggling');
+});
+
+test('PS-3: keys pressed in a menu never leak into play', () => {
+    const game = loadGame();
+    placeFlora(game, 100, 428);
+    game.click('pause-btn');
+    game.press('ArrowUp');
+    game.press('ArrowRight');
+    game.click('resume-btn');
+    game.step(5);
+    assert.equal(game.run('flora.x'), 100);
+    assert.equal(game.run('flora.y'), 380, 'no jump from a key pressed while paused');
+});
+
+test('PS-4: the pause menu can restart the level or go to the main menu', () => {
+    const storage = new Map<string, string>();
+    const game = loadGame({ storage });
+    clearLevel(game);
+    bloomAll(game);
+    game.click('pause-btn');
+    game.click('pause-restart-btn');
+    assert.equal(game.run('screen'), 'playing');
+    assert.equal(game.run('sprouts.some(s => s.bloomed)'), false, 'level restarted');
+
+    game.click('pause-btn');
+    game.click('pause-menu-btn');
+    assert.equal(game.run('screen'), 'start');
+    assert.equal(game.elements['start-screen'].hidden, false);
+    assert.equal(game.elements['pause-screen'].hidden, true);
+    assert.match(game.text('continue-btn'), /Level 2/, 'Continue returns to the level you left');
+});
+
+test('LS-1: the level list unlocks levels as you reach them', () => {
+    const game = loadGame({ atStartScreen: true });
+    game.click('levels-btn');
+    assert.equal(game.run('screen'), 'levels');
+    const cards = game.levelCards();
+    assert.equal(cards.length, LEVELS.length);
+    assert.equal(cards[0].disabled, false, 'level 1 is always open');
+    assert.ok(cards.slice(1).every(c => c.disabled && c.innerText.includes('🔒')), 'the rest are locked');
+
+    game.click('levels-back-btn');
+    assert.equal(game.run('screen'), 'start');
+    game.click('play-btn');
+    clearLevel(game);
+    clearLevel(game);
+    game.click('pause-btn');
+    game.click('pause-levels-btn');
+    const after = game.levelCards();
+    assert.deepEqual(after.slice(0, 4).map(c => c.disabled), [false, false, false, true]);
+    assert.ok(after[0].classes.has('beaten') && after[0].innerText.includes('✔'), 'beaten levels are ticked');
+    assert.ok(after[2].classes.has('current'), 'the level being played is marked');
+    assert.ok(after[1].innerText.includes('🐶'), 'unlocked levels show their pet');
+});
+
+test('LS-2: picking a level starts it with the earlier pets in the parade', () => {
+    const storage = new Map([['floras-adventure-save-v1', JSON.stringify({ level: null, unlocked: 9 })]]);
+    const game = loadGame({ storage, atStartScreen: true });
+    game.click('levels-btn');
+    game.levelCards()[7].click();
+    assert.equal(game.run('screen'), 'playing');
+    assert.equal(game.run('currentLevel'), 7);
+    assert.equal(game.run('rescuedFriends.length'), 7);
+    assert.equal(game.text('level-display'), 'Level 8: Cloud Canyon');
+    assert.equal(game.elements['level-select'].hidden, true);
+    assert.equal(JSON.parse(storage.get('floras-adventure-save-v1')!).level, 7, 'Continue now points here');
+});
+
+test('LS-3: locked levels cannot be started', () => {
+    const game = loadGame({ atStartScreen: true });
+    game.click('levels-btn');
+    game.levelCards()[5].click();
+    assert.equal(game.run('screen'), 'levels');
+});
+
+test('LS-4: Back and Esc return from the level list to where it was opened', () => {
+    const game = loadGame();
+    game.click('pause-btn');
+    game.click('pause-levels-btn');
+    game.key('Escape');
+    assert.equal(game.run('screen'), 'paused', 'back to the pause menu');
+    game.click('pause-levels-btn');
+    game.click('levels-back-btn');
+    assert.equal(game.run('screen'), 'paused');
 });

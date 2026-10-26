@@ -129,6 +129,16 @@
             gap: 8px;
         }
 
+        /* Round icon-only buttons keep the top bar from overflowing. */
+        .btn.icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 16px;
+            line-height: 36px;
+        }
+
         .btn:hover {
             background: #FF8E8E;
             transform: translateY(-2px);
@@ -201,7 +211,8 @@
             }
         }
 
-        #start-screen {
+        #start-screen,
+        .menu-overlay {
             position: absolute;
             inset: 0;
             z-index: 40;
@@ -215,11 +226,13 @@
             text-align: center;
         }
 
-        #start-screen[hidden] {
+        #start-screen[hidden],
+        .menu-overlay[hidden] {
             display: none;
         }
 
-        #start-screen h1 {
+        #start-screen h1,
+        .menu-overlay h2 {
             font-size: 40px;
             color: #FF6B8B;
             text-shadow: 0 3px 0 #FFD1DC;
@@ -306,7 +319,86 @@
             display: none;
         }
 
-        body.on-start .touch-controls {
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 260px;
+        }
+
+        .menu-buttons .btn {
+            font-size: 20px;
+            padding: 12px 24px;
+            border-radius: 28px;
+        }
+
+        .btn.secondary {
+            background: #74B9FF;
+            box-shadow: 0 4px 0 #4A90D9;
+        }
+
+        .btn.quiet {
+            background: #fff;
+            color: #636e72;
+            box-shadow: 0 4px 0 #dfe6e9;
+            border: 2px solid #dfe6e9;
+        }
+
+        #level-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 128px);
+            gap: 12px;
+        }
+
+        .level-card {
+            white-space: pre-line;
+            height: 112px;
+            padding: 8px 6px;
+            border: 3px solid #FFB6C1;
+            border-radius: 18px;
+            background: #fff;
+            color: #2d3436;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: bold;
+            line-height: 1.35;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #FFD1DC;
+            transition: transform 0.15s;
+        }
+
+        /* First line is the level number, second the pet: make them big. */
+        .level-card::first-line {
+            font-size: 22px;
+            color: #FF6B8B;
+        }
+
+        .level-card:hover:not(:disabled),
+        .level-card:focus-visible {
+            transform: translateY(-3px);
+            outline: 3px solid #74B9FF;
+            outline-offset: 2px;
+        }
+
+        .level-card.beaten {
+            background: #F0FFF4;
+            border-color: #55E6C1;
+            box-shadow: 0 4px 0 #B8F5D8;
+        }
+
+        .level-card.current {
+            border-color: #74B9FF;
+        }
+
+        .level-card.locked {
+            background: #f1f2f6;
+            border-color: #dfe6e9;
+            box-shadow: none;
+            color: #b2bec3;
+            cursor: not-allowed;
+        }
+
+        body.menu-open .touch-controls {
             display: none !important;
         }
 
@@ -374,7 +466,7 @@
     <script defer src="dist/game.js"></script>
 </head>
 
-<body class="on-start">
+<body class="menu-open">
 
     <div id="game-stage">
         <main id="game-container">
@@ -382,7 +474,8 @@
                 <div class="hud-card" id="level-display">Level 1: Blooming Meadow</div>
                 <div class="hud-card" id="status-display">Flowers: 0/3 | Bone: ❌ | Key: ❌</div>
                 <div class="hud-buttons">
-                    <button type="button" class="btn" id="restart-btn" aria-label="Restart level">↺ Restart</button>
+                    <button type="button" class="btn icon" id="pause-btn" aria-label="Pause" title="Pause (Esc)">⏸</button>
+                    <button type="button" class="btn icon" id="restart-btn" aria-label="Restart level" title="Restart level">↺</button>
                     <button type="button" class="btn" id="music-btn">🎵 Music: OFF</button>
                 </div>
             </div>
@@ -402,7 +495,22 @@
                 <div class="start-buttons">
                     <button type="button" class="btn secondary" id="continue-btn" hidden>▶ Continue</button>
                     <button type="button" class="btn" id="play-btn">▶ Play</button>
+                    <button type="button" class="btn quiet" id="levels-btn">🗺 Levels</button>
                 </div>
+            </section>
+            <section id="pause-screen" class="menu-overlay" hidden aria-labelledby="pause-title">
+                <h2 id="pause-title">⏸ Paused</h2>
+                <div class="menu-buttons">
+                    <button type="button" class="btn" id="resume-btn">▶ Resume</button>
+                    <button type="button" class="btn secondary" id="pause-restart-btn">↺ Restart level</button>
+                    <button type="button" class="btn secondary" id="pause-levels-btn">🗺 Choose a level</button>
+                    <button type="button" class="btn quiet" id="pause-menu-btn">🏠 Main menu</button>
+                </div>
+            </section>
+            <section id="level-select" class="menu-overlay" hidden aria-labelledby="levels-title">
+                <h2 id="levels-title">🗺 Choose a level</h2>
+                <div id="level-grid"></div>
+                <button type="button" class="btn quiet" id="levels-back-btn">← Back</button>
             </section>
             <canvas id="gameCanvas" width="800" height="500"></canvas>
             <div class="controls-hint">← → Move | ↑ Jump | Space: Water 💦 | ↓ Dig 🦴</div>

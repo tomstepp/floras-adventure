@@ -18,7 +18,8 @@ import {
 } from './levels.ts';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, fitScale, STAGE_HEIGHT, STAGE_WIDTH } from './layout.ts';
 import { ParticleSystem } from './particles.ts';
-import { clearSave, getStorage, loadSave, writeSave } from './save.ts';
+import { getStorage, loadSave, writeSave } from './save.ts';
+import type { SaveData } from './save.ts';
 import {
     drawBee,
     drawBushes,
@@ -52,15 +53,29 @@ const startScreen = document.getElementById('start-screen') as HTMLElement;
 const playBtn = document.getElementById('play-btn') as HTMLButtonElement;
 const continueBtn = document.getElementById('continue-btn') as HTMLButtonElement;
 const rescuedList = document.getElementById('rescued-list') as HTMLElement;
+const pauseBtn = document.getElementById('pause-btn') as HTMLButtonElement;
+const pauseScreen = document.getElementById('pause-screen') as HTMLElement;
+const resumeBtn = document.getElementById('resume-btn') as HTMLButtonElement;
+const pauseRestartBtn = document.getElementById('pause-restart-btn') as HTMLButtonElement;
+const pauseLevelsBtn = document.getElementById('pause-levels-btn') as HTMLButtonElement;
+const pauseMenuBtn = document.getElementById('pause-menu-btn') as HTMLButtonElement;
+const levelsBtn = document.getElementById('levels-btn') as HTMLButtonElement;
+const levelSelect = document.getElementById('level-select') as HTMLElement;
+const levelGrid = document.getElementById('level-grid') as HTMLElement;
+const levelsBackBtn = document.getElementById('levels-back-btn') as HTMLButtonElement;
 const victoryText = document.getElementById('victory-text') as HTMLElement;
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
 const butterflies = new ButterflySwarm();
 const storage = getStorage();
+/** Continue point and furthest level reached, kept in memory and mirrored to storage. */
+let progress: SaveData = loadSave(storage, LEVELS.length);
 
-type Screen = 'start' | 'playing' | 'victory';
+type Screen = 'start' | 'playing' | 'paused' | 'levels' | 'victory';
 let screen: Screen = 'start';
+/** Where the level list's Back button goes. */
+let levelsReturnTo: 'start' | 'paused' = 'start';
 let currentLevel: number = 0;
 let levelClearTimer: number = 0;
 /** Ticks since the level started; drives moving platforms and bees. */
@@ -102,13 +117,25 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (GAME_KEYS.includes(e.code) && screen === 'playing') {
         e.preventDefault();
     }
+    if (e.code === 'Escape' && !e.repeat) {
+        if (screen === 'playing') pauseGame();
+        else if (screen === 'paused') resumeGame();
+        else if (screen === 'levels') closeLevelSelect();
+    }
     pressKey(e.code);
 });
 window.addEventListener('keyup', (e: KeyboardEvent) => {
     keys[e.code] = false;
 });
 // Releasing a key while the window is unfocused never fires keyup, which left Flora running forever.
-window.addEventListener('blur', clearKeys);
+window.addEventListener('blur', () => {
+    clearKeys();
+    // Switching apps or tabs shouldn't leave the game running unattended.
+    if (screen === 'playing') pauseGame();
+});
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && screen === 'playing') pauseGame();
+});
 
 // On-screen buttons hold down the same key codes the keyboard does while a finger is on them.
 for (const btn of document.querySelectorAll<HTMLElement>('[data-key]')) {
@@ -144,30 +171,102 @@ restartBtn.addEventListener('click', () => {
     if (screen === 'playing' && levelClearTimer === 0) restartLevel();
 });
 
+function saveProgress(level: number | null): void {
+    progress = { level, unlocked: Math.max(progress.unlocked, level ?? 0) };
+    writeSave(storage, progress);
+}
+
+/** Drops held and just-pressed keys, so menu key presses never leak into play. */
+function dropInput(): void {
+    clearKeys();
+    for (const code of Object.keys(pressed)) pressed[code] = false;
+}
+
+/** Shows exactly one menu overlay (or none), and hides touch controls while any is up. */
+function showOverlay(overlay: HTMLElement | null): void {
+    for (const el of [startScreen, pauseScreen, levelSelect]) el.hidden = el !== overlay;
+    if (overlay) document.body.classList.add('menu-open');
+    else document.body.classList.remove('menu-open');
+}
+
 /** Starts play at `level`, with every earlier pet already in the parade. */
 export function startGame(level: number): void {
     currentLevel = level;
     rescuedFriends = LEVELS.slice(0, level).map((l, i) => ({ species: l.species, x: 20 - (i + 1) * 28, y: 416 }));
-    if (level === 0) clearSave(storage);
+    // Continue picks up from whichever level you're on; level 1 is just "New game".
+    saveProgress(level > 0 ? level : null);
     noodle.x = 20;
     restartLevel();
-    // Keys used on the start screen (Enter/Space on a button) must not leak into play.
-    clearKeys();
-    for (const code of Object.keys(pressed)) pressed[code] = false;
+    dropInput();
     screen = 'playing';
-    startScreen.hidden = true;
-    document.body.classList.remove('on-start');
+    showOverlay(null);
 }
 
 export function showStartScreen(): void {
     screen = 'start';
-    const save = loadSave(storage, LEVELS.length);
-    continueBtn.hidden = !save;
-    if (save) continueBtn.innerText = `▶ Continue — Level ${save.level + 1}`;
-    playBtn.innerText = save ? '🌱 New game' : '▶ Play';
-    startScreen.hidden = false;
-    document.body.classList.add('on-start');
-    (save ? continueBtn : playBtn).focus();
+    const canContinue = progress.level !== null;
+    continueBtn.hidden = !canContinue;
+    if (progress.level !== null) continueBtn.innerText = `▶ Continue — Level ${progress.level + 1}`;
+    playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
+    showOverlay(startScreen);
+    (canContinue ? continueBtn : playBtn).focus();
+}
+
+export function pauseGame(): void {
+    if (screen !== 'playing') return;
+    screen = 'paused';
+    dropInput();
+    showOverlay(pauseScreen);
+    resumeBtn.focus();
+}
+
+export function resumeGame(): void {
+    if (screen !== 'paused') return;
+    dropInput();
+    screen = 'playing';
+    showOverlay(null);
+}
+
+/** The level list: every level up to the furthest one reached can be picked. */
+export function openLevelSelect(from: 'start' | 'paused'): void {
+    levelsReturnTo = from;
+    screen = 'levels';
+    levelGrid.replaceChildren(
+        ...LEVELS.map((level, i) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'level-card';
+            const locked = i > progress.unlocked;
+            const beaten = i < progress.unlocked;
+            btn.disabled = locked;
+            if (locked) btn.classList.add('locked');
+            if (beaten) btn.classList.add('beaten');
+            if (i === currentLevel && from === 'paused') btn.classList.add('current');
+            btn.innerText = `${i + 1}\n${locked ? '🔒' : PET_EMOJI[level.species]}\n${level.name}${beaten ? ' ✔' : ''}`;
+            btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
+            btn.addEventListener('click', () => {
+                if (locked) return;
+                // Picking a level is a tap, so it can switch music on like Play does.
+                audio.setEnabled(true, i, musicBtn);
+                startGame(i);
+            });
+            return btn;
+        })
+    );
+    showOverlay(levelSelect);
+    const focusIndex = from === 'paused' ? currentLevel : progress.unlocked;
+    (levelGrid.children[focusIndex] as HTMLElement | undefined)?.focus();
+}
+
+export function closeLevelSelect(): void {
+    if (screen !== 'levels') return;
+    if (levelsReturnTo === 'paused') {
+        screen = 'paused';
+        showOverlay(pauseScreen);
+        pauseLevelsBtn.focus();
+    } else {
+        showStartScreen();
+    }
 }
 
 // The Play tap is the user gesture browsers require before audio can start, so music comes on here.
@@ -176,10 +275,24 @@ playBtn.addEventListener('click', () => {
     startGame(0);
 });
 continueBtn.addEventListener('click', () => {
-    const save = loadSave(storage, LEVELS.length);
-    audio.setEnabled(true, save?.level ?? 0, musicBtn);
-    startGame(save?.level ?? 0);
+    const level = progress.level ?? 0;
+    audio.setEnabled(true, level, musicBtn);
+    startGame(level);
 });
+levelsBtn.addEventListener('click', () => openLevelSelect('start'));
+
+pauseBtn.addEventListener('click', () => {
+    pauseBtn.blur();
+    pauseGame();
+});
+resumeBtn.addEventListener('click', resumeGame);
+pauseRestartBtn.addEventListener('click', () => {
+    restartLevel();
+    resumeGame();
+});
+pauseLevelsBtn.addEventListener('click', () => openLevelSelect('paused'));
+pauseMenuBtn.addEventListener('click', () => showStartScreen());
+levelsBackBtn.addEventListener('click', closeLevelSelect);
 
 victoryDialog.addEventListener('close', () => {
     startGame(0);
@@ -401,12 +514,14 @@ function updateLevelClear(): void {
 
     if (currentLevel === LEVELS.length - 1) {
         screen = 'victory';
-        clearSave(storage);
+        // Nothing left to continue, but every level stays open in the level list.
+        progress = { level: null, unlocked: LEVELS.length - 1 };
+        writeSave(storage, progress);
         updateStatus();
         victoryDialog.showModal();
     } else {
         currentLevel++;
-        writeSave(storage, { level: currentLevel });
+        saveProgress(currentLevel);
         restartLevel();
     }
 }
