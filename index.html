@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Flora's Magical Adventure</title>
     <style>
         * {
@@ -22,13 +22,27 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            min-height: 100dvh;
             overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        #game-stage {
+            position: relative;
+            width: 808px;
+            height: 508px;
         }
 
         #game-container {
-            position: relative;
-            width: 800px;
-            height: 500px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: top left;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            /* border-box: 800x500 canvas + 4px border */
+            width: 808px;
+            height: 508px;
             background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
             border-radius: 16px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
@@ -110,6 +124,11 @@
             box-shadow: 0 4px 0 #C74B4B;
         }
 
+        .hud-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
         .btn:hover {
             background: #FF8E8E;
             transform: translateY(-2px);
@@ -120,6 +139,68 @@
             box-shadow: none;
         }
 
+        /* Lives outside the scaled game box so buttons stay finger-sized on small screens. */
+        .touch-controls {
+            display: none;
+            position: fixed;
+            left: max(16px, env(safe-area-inset-left));
+            right: max(16px, env(safe-area-inset-right));
+            bottom: max(16px, env(safe-area-inset-bottom));
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .touch-group {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .touch-btn {
+            width: clamp(48px, 15vmin, 72px);
+            height: clamp(48px, 15vmin, 72px);
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.9);
+            background: rgba(45, 52, 54, 0.55);
+            color: #fff;
+            font-size: clamp(22px, 7vmin, 32px);
+            line-height: 1;
+            pointer-events: auto;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .touch-btn.pressed {
+            background: rgba(255, 107, 139, 0.75);
+            transform: scale(0.94);
+        }
+
+        .touch-btn.jump {
+            width: clamp(58px, 18vmin, 86px);
+            height: clamp(58px, 18vmin, 86px);
+            font-size: clamp(26px, 8vmin, 38px);
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .touch-controls {
+                display: flex;
+            }
+
+            .controls-hint {
+                display: none;
+            }
+        }
+
+        /* Landscape phones: stack the action buttons into the margin beside the game. */
+        @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+            .touch-group.actions {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
         #victory-dialog {
             margin: auto;
             border: 4px solid #FFB6C1;
@@ -128,7 +209,7 @@
             background: rgba(255, 255, 255, 0.96);
             color: #2d3436;
             text-align: center;
-            max-width: 440px;
+            max-width: min(440px, calc(100vw - 32px));
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
         }
 
@@ -175,16 +256,33 @@
 
 <body>
 
-    <main id="game-container">
-        <div class="ui-panel">
-            <div class="hud-card" id="level-display">Level 1: Blooming Meadow</div>
-            <div class="hud-card" id="status-display">Flowers: 0/3 | Bone: ❌ | Key: ❌</div>
-            <button type="button" class="btn" id="music-btn">🎵 Music: OFF</button>
+    <div id="game-stage">
+        <main id="game-container">
+            <div class="ui-panel">
+                <div class="hud-card" id="level-display">Level 1: Blooming Meadow</div>
+                <div class="hud-card" id="status-display">Flowers: 0/3 | Bone: ❌ | Key: ❌</div>
+                <div class="hud-buttons">
+                    <button type="button" class="btn" id="restart-btn" aria-label="Restart level">↺ Restart</button>
+                    <button type="button" class="btn" id="music-btn">🎵 Music: OFF</button>
+                </div>
+            </div>
+            <div class="objective" id="objective-display" role="status" aria-live="polite"></div>
+            <canvas id="gameCanvas" width="800" height="500"></canvas>
+            <div class="controls-hint">← → Move | Space: Jump | ↑ Water 💦 | ↓ Dig 🦴</div>
+        </main>
+    </div>
+
+    <div class="touch-controls">
+        <div class="touch-group">
+            <button type="button" class="touch-btn" data-key="ArrowLeft" aria-label="Move left">◀</button>
+            <button type="button" class="touch-btn" data-key="ArrowRight" aria-label="Move right">▶</button>
         </div>
-        <div class="objective" id="objective-display" role="status" aria-live="polite"></div>
-        <canvas id="gameCanvas" width="800" height="500"></canvas>
-        <div class="controls-hint">Arrow Keys / A,D: Move | W / Up / Space: Jump | E: Water 💦 | S / Down / F: Dig 🦴 | R: Restart level</div>
-    </main>
+        <div class="touch-group actions">
+            <button type="button" class="touch-btn" data-key="ArrowDown" aria-label="Dig">🦴</button>
+            <button type="button" class="touch-btn" data-key="ArrowUp" aria-label="Water">💦</button>
+            <button type="button" class="touch-btn jump" data-key="Space" aria-label="Jump">⬆</button>
+        </div>
+    </div>
 
     <dialog id="victory-dialog" closedby="any">
         <h1>🎉 Magical Victory! 🎉</h1>

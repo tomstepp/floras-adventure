@@ -25,7 +25,11 @@ export interface Game {
     /** Drives the requestAnimationFrame loop with a timestamp in ms. */
     frame(now: number): void;
     fireWindowEvent(type: string): void;
+    /** Simulates a finger on an on-screen button, by its data-key code. */
+    touch(code: string, type: 'pointerdown' | 'pointerup' | 'pointercancel'): void;
+    resize(width: number, height: number, devicePixelRatio?: number): void;
     dialog: DialogMock;
+    elements: Record<string, Record<string, unknown>>;
     text(id: string): string;
 }
 
@@ -59,22 +63,56 @@ export function loadGame(): Game {
         }
     );
 
-    const elements: Record<string, unknown> = {
+    const buttonListeners: Record<string, Record<string, (event: unknown) => void>> = {};
+    const restartListeners: Record<string, () => void> = {};
+    const touchButtons = ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Space'].map(code => {
+        buttonListeners[code] = {};
+        return {
+            dataset: { key: code },
+            classList: { add() {}, remove() {} },
+            setPointerCapture() {},
+            addEventListener(evt: string, fn: (event: unknown) => void) {
+                buttonListeners[code][evt] = fn;
+            }
+        };
+    });
+
+    const elements: Record<string, Record<string, unknown>> = {
+        'game-stage': { style: {} },
+        'game-container': { style: {} },
         gameCanvas: { width: 800, height: 500, getContext: () => ctx },
         'music-btn': { innerText: '🎵 Music: OFF', addEventListener() {}, blur() {} },
+        'restart-btn': {
+            addEventListener(evt: string, fn: () => void) {
+                restartListeners[evt] = fn;
+            },
+            blur() {},
+            click() {
+                restartListeners.click?.();
+            }
+        },
         'victory-dialog': dialog,
         'level-display': { innerText: '' },
         'status-display': { innerText: '' },
         'objective-display': { innerText: '' }
     };
 
+    const fakeWindow = {
+        innerWidth: 1280,
+        innerHeight: 800,
+        devicePixelRatio: 1,
+        addEventListener(evt: string, fn: (event?: unknown) => void) {
+            windowListeners[evt] = fn;
+        }
+    };
+
     const sandbox = {
-        document: { getElementById: (id: string) => elements[id] },
-        window: {
-            addEventListener(evt: string, fn: (event?: unknown) => void) {
-                windowListeners[evt] = fn;
-            }
+        document: {
+            documentElement: { clientWidth: 0, clientHeight: 0 },
+            getElementById: (id: string) => elements[id],
+            querySelectorAll: (selector: string) => (selector === '[data-key]' ? touchButtons : [])
         },
+        window: fakeWindow,
         requestAnimationFrame: (cb: (now: number) => void) => {
             pendingFrame = cb;
         },
@@ -111,8 +149,16 @@ export function loadGame(): Game {
         fireWindowEvent(type) {
             windowListeners[type]?.();
         },
+        touch(code, type) {
+            buttonListeners[code][type]({ pointerId: 1, preventDefault() {} });
+        },
+        resize(width, height, devicePixelRatio = 1) {
+            Object.assign(fakeWindow, { innerWidth: width, innerHeight: height, devicePixelRatio });
+            windowListeners.resize?.();
+        },
         dialog,
-        text: id => (elements[id] as { innerText: string }).innerText
+        elements,
+        text: id => elements[id].innerText as string
     };
 }
 
@@ -122,6 +168,7 @@ export function placeFlora(game: Game, x: number, feetY: number): void {
         flora.x = ${x}; flora.y = ${feetY} - flora.height; flora.vx = 0; flora.vy = 0;
         flora.grounded = true; flora.facing = 'right';
         flora.waterTimer = 0; flora.isWatering = false; flora.digTimer = 0; flora.isDigging = false;
+        flora.coyoteTimer = 6; flora.jumpBufferTimer = 0; flora.jumpRising = false;
     `);
 }
 
@@ -129,14 +176,14 @@ export function bloomAll(game: Game): void {
     const sprouts = game.run<{ x: number; y: number }[]>('sprouts.map(s => ({ x: s.x, y: s.y }))');
     for (const s of sprouts) {
         placeFlora(game, s.x - 20, s.y);
-        game.tap('KeyE');
+        game.tap('ArrowUp');
     }
 }
 
 export function digBone(game: Game): void {
     const boneX = game.run<number>('digMounds.find(m => m.hasBone).x');
     placeFlora(game, boneX - 16, 428);
-    game.tap('KeyS');
+    game.tap('ArrowDown');
 }
 
 export function collectKey(game: Game): void {

@@ -14,18 +14,26 @@ Requirement IDs (e.g. `LV-3`) are referenced from the tests in `tests/`.
 | PL-3 | The playfield is an 800×500 canvas. Ground surface is at y = 428. |
 | PL-4 | The simulation runs at a fixed 60 ticks per second, independent of display refresh rate (60 Hz and 120 Hz screens play at the same speed). After a long pause (e.g. backgrounded tab) the game must not fast-forward more than 250 ms. |
 | PL-5 | Music/sound effects use Tone.js and are **off by default**; the game is fully playable if Tone.js fails to load. |
+| PL-6 | The game box scales to fit the window (16 px gutter, keeping its 8:5 shape, at most 1.5×) and re-fits on resize/rotation. The canvas renders at the device's real pixel density so it stays sharp. |
+| PL-7 | On touch devices (no hover, coarse pointer) on-screen buttons appear: ◀ ▶ bottom-left; dig 🦴, water 💦 and a larger jump ⬆ bottom-right. A button acts as held while a finger is on it, and is released when the finger lifts or the touch is cancelled. The keyboard hint is hidden there. |
 
 ## 2. Controls
 
+Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons that press the same controls.
+
 | ID | Requirement |
 |----|-------------|
-| CT-1 | Move: ←/→ or A/D. |
-| CT-2 | Jump: ↑, W or Space, only while standing on ground or a platform. |
-| CT-3 | Water: E. Blooms any unbloomed sprout within 48 px of the watering can, at roughly Flora's foot height. |
-| CT-4 | Dig: ↓, S or F, only while standing on the ground (not a platform). |
-| CT-5 | Restart level: R. Resets the current level's sprouts, bone, key and Flora's position. Ignored during the level-clear celebration and the victory dialog. |
-| CT-6 | Arrow keys and Space don't scroll the page during play. |
+| CT-1 | Move: ← / →. |
+| CT-2 | Jump: Space. ↑ does **not** jump. |
+| CT-3 | Water: ↑. Blooms any unbloomed sprout within 48 px of the watering can, at roughly Flora's foot height. |
+| CT-4 | Dig: ↓, only while standing on the ground (not a platform). |
+| CT-5 | Restart level: the ↺ Restart button in the HUD. Resets the current level's sprouts, bone, key and Flora's position. Ignored during the level-clear celebration and the victory dialog. |
+| CT-6 | Arrow keys and Space don't scroll the page during play. Letter keys do nothing. |
 | CT-7 | If the window loses focus, all held keys are released (Flora stops moving). |
+| CT-8 | A jump fires when Space is pressed, not while it is held: holding Space doesn't keep bouncing. |
+| CT-9 | Releasing Space early cuts the jump short (a small hop); holding it gives the full jump height. |
+| CT-10 | Coyote time: a jump still works for 6 ticks (~0.1 s) after walking off a ledge. |
+| CT-11 | Jump buffer: a jump pressed up to 6 ticks before landing fires on landing. |
 
 ## 3. Level flow
 
@@ -40,6 +48,7 @@ Each level is completed in this order:
 | LV-5 | **Enter the doghouse**: walking right past x = 685 while holding the key starts a 75-tick celebration that names the rescued pet. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
 | LV-6 | After the celebration the pet joins the parade following Noodle, and the next level starts with Flora back at the left side. |
 | LV-7 | After level 5 the victory dialog opens and the game pauses. Closing it (button, Esc, or clicking outside) restarts from level 1 with an empty parade. |
+| LV-8 | The rainbow is hidden during play. When the level is beaten it sweeps across the sky from left to right (~2/3 s) during the celebration, disappears when the next level starts, and stays fully drawn behind the final victory dialog. |
 
 ## 4. HUD
 
@@ -65,6 +74,5 @@ These are checked automatically against `src/levels.ts` so new levels can't be u
 
 ## 6. Out of scope (ideas for later)
 
-- Touch / on-screen controls for tablets.
 - Saving progress between sessions.
 - Hazards, enemies or a timer — the game is intentionally stress-free.

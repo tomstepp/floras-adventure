@@ -7,9 +7,28 @@ export const DOGHOUSE_X: number = 707;
 /** Flora's left edge must pass this x (with the key) to enter the doghouse. */
 export const DOGHOUSE_ENTRY_X: number = 685;
 export const LEVEL_CLEAR_FRAMES: number = 75;
+/** Ticks the victory rainbow takes to sweep across the sky. */
+export const RAINBOW_SWEEP_FRAMES: number = 40;
 export const DIG_RANGE: number = 48;
-/** Highest jump in px: v^2 / 2g with jump velocity 10.2 and gravity 0.45. */
-export const MAX_JUMP_HEIGHT: number = (10.2 * 10.2) / (2 * 0.45);
+export const GRAVITY: number = 0.45;
+export const JUMP_VY: number = -10.2;
+/** Releasing jump early caps upward speed here, giving a short hop. */
+export const JUMP_CUT_VY: number = -4;
+/** Grace ticks to still jump after walking off a ledge. */
+export const COYOTE_TICKS: number = 6;
+/** Grace ticks a jump pressed just before landing is remembered. */
+export const JUMP_BUFFER_TICKS: number = 6;
+/** Highest jump in px (jump held): v^2 / 2g. */
+export const MAX_JUMP_HEIGHT: number = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
+
+/** KeyboardEvent.code for each action. Touch buttons press these same codes. */
+export const CONTROLS = {
+    left: 'ArrowLeft',
+    right: 'ArrowRight',
+    jump: 'Space',
+    water: 'ArrowUp',
+    dig: 'ArrowDown'
+} as const;
 
 export const FLOWER_COLORS: readonly string[] = [
     "#FF7675",

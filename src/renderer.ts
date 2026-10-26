@@ -39,12 +39,13 @@ export function drawSun(ctx: CanvasRenderingContext2D): void {
     ctx.fill();
 }
 
-export function drawRainbow(ctx: CanvasRenderingContext2D): void {
+/** Draws the rainbow arc from the left, `progress` (0–1) of the way across. */
+export function drawRainbow(ctx: CanvasRenderingContext2D, progress: number = 1): void {
     ctx.lineWidth = 6;
     for (let i = 0; i < RAINBOW_COLORS.length; i++) {
         ctx.strokeStyle = RAINBOW_COLORS[i];
         ctx.beginPath();
-        ctx.arc(400, 430, 260 - (i * 6), Math.PI, 0, false);
+        ctx.arc(400, 430, 260 - (i * 6), Math.PI, Math.PI + Math.PI * progress, false);
         ctx.stroke();
     }
 }

@@ -1,3 +1,11 @@
+import {
+    COYOTE_TICKS,
+    CONTROLS,
+    GRAVITY,
+    JUMP_BUFFER_TICKS,
+    JUMP_CUT_VY,
+    JUMP_VY
+} from './levels.ts';
 import type { DigMound, Direction, Platform, SoundType } from './types.ts';
 
 export class Player {
@@ -13,6 +21,12 @@ export class Player {
     public waterTimer: number = 0;
     public isDigging: boolean = false;
     public digTimer: number = 0;
+    /** Ticks left in which a jump still works after walking off a ledge. */
+    public coyoteTimer: number = COYOTE_TICKS;
+    /** Ticks left in which an early jump press will fire on landing. */
+    public jumpBufferTimer: number = 0;
+    /** True while rising from a jump that letting go of Space may still cut short. */
+    public jumpRising: boolean = false;
 
     public reset(): void {
         this.x = 50;
@@ -20,10 +34,14 @@ export class Player {
         this.vx = 0;
         this.vy = 0;
         this.grounded = true;
+        this.coyoteTimer = COYOTE_TICKS;
+        this.jumpBufferTimer = 0;
+        this.jumpRising = false;
     }
 
     public update(
         keys: Readonly<Record<string, boolean>>,
+        pressed: Readonly<Record<string, boolean>>,
         platforms: readonly Platform[],
         canvasWidth: number,
         disabled: boolean,
@@ -33,30 +51,40 @@ export class Player {
     ): void {
         if (disabled) return;
 
-        if (keys['ArrowRight'] || keys['KeyD']) {
+        if (keys[CONTROLS.right]) {
             this.vx = 3.5;
             this.facing = 'right';
-        } else if (keys['ArrowLeft'] || keys['KeyA']) {
+        } else if (keys[CONTROLS.left]) {
             this.vx = -3.5;
             this.facing = 'left';
         } else {
             this.vx = 0;
         }
 
-        if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && this.grounded) {
-            this.vy = -10.2;
+        // Jumps fire on a press (latched even if released within the same tick), not while held,
+        // so the buffer can remember a press made just before landing.
+        if (pressed[CONTROLS.jump]) this.jumpBufferTimer = JUMP_BUFFER_TICKS;
+
+        if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0) {
+            this.vy = JUMP_VY;
             this.grounded = false;
+            this.jumpRising = true;
+            this.jumpBufferTimer = 0;
+            this.coyoteTimer = 0;
             playSound('jump');
         }
 
-        if (keys['KeyE'] && !this.isWatering) {
+        if (this.jumpRising && !keys[CONTROLS.jump] && this.vy < JUMP_CUT_VY) this.vy = JUMP_CUT_VY;
+        if (this.vy >= 0) this.jumpRising = false;
+
+        if (keys[CONTROLS.water] && !this.isWatering) {
             this.isWatering = true;
             this.waterTimer = 18;
             playSound('water');
             onWater();
         }
 
-        if (keys['KeyS'] || keys['ArrowDown'] || keys['KeyF']) {
+        if (keys[CONTROLS.dig]) {
             if (!this.isDigging && this.grounded) {
                 this.isDigging = true;
                 this.digTimer = 15;
@@ -72,7 +100,7 @@ export class Player {
         else this.isDigging = false;
 
         const prevBottom = this.y + this.height;
-        this.vy += 0.45; // Gravity
+        this.vy += GRAVITY;
         this.x += this.vx;
         this.y += this.vy;
         this.grounded = false;
@@ -103,6 +131,9 @@ export class Player {
 
         if (this.x < 0) this.x = 0;
         if (this.x > canvasWidth - this.width) this.x = canvasWidth - this.width;
+
+        this.coyoteTimer = this.grounded ? COYOTE_TICKS : Math.max(0, this.coyoteTimer - 1);
+        if (this.jumpBufferTimer > 0) this.jumpBufferTimer--;
     }
 
     public draw(ctx: CanvasRenderingContext2D): void {

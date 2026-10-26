@@ -9,6 +9,7 @@ const distDir = path.join(rootDir, 'dist');
 const moduleOrder = [
     'types.ts',
     'levels.ts',
+    'layout.ts',
     'audio.ts',
     'particles.ts',
     'renderer.ts',

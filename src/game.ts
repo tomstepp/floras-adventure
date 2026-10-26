@@ -1,6 +1,7 @@
 import { AudioController } from './audio.ts';
 import { Noodle, Player } from './entities.ts';
 import {
+    CONTROLS,
     DIG_RANGE,
     DOGHOUSE_ENTRY_X,
     DOGHOUSE_X,
@@ -8,8 +9,10 @@ import {
     GROUND_Y,
     LEVEL_CLEAR_FRAMES,
     LEVELS,
+    RAINBOW_SWEEP_FRAMES,
     TICK_MS
 } from './levels.ts';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, fitScale, STAGE_HEIGHT, STAGE_WIDTH } from './layout.ts';
 import { ParticleSystem } from './particles.ts';
 import {
     drawCelebrationBanner,
@@ -24,9 +27,12 @@ import {
 } from './renderer.ts';
 import type { DigMound, RescuedFriend, Sprout } from './types.ts';
 
+const stage = document.getElementById('game-stage') as HTMLElement;
+const container = document.getElementById('game-container') as HTMLElement;
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 const musicBtn = document.getElementById('music-btn') as HTMLButtonElement;
+const restartBtn = document.getElementById('restart-btn') as HTMLButtonElement;
 const victoryDialog = document.getElementById('victory-dialog') as HTMLDialogElement;
 const levelDisplay = document.getElementById('level-display') as HTMLElement;
 const statusDisplay = document.getElementById('status-display') as HTMLElement;
@@ -51,19 +57,25 @@ let keyX: number = 530;
 let keyY: number = 315;
 
 const keys: Record<string, boolean> = {};
+/** Keys that went down since the last tick, so a tap shorter than one tick still counts. */
+const pressed: Record<string, boolean> = {};
+
+function pressKey(code: string): void {
+    if (!keys[code]) pressed[code] = true;
+    keys[code] = true;
+}
 
 function clearKeys(): void {
     for (const code of Object.keys(keys)) keys[code] = false;
 }
 
+const GAME_KEYS: readonly string[] = Object.values(CONTROLS);
+
 window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) && !gamePaused) {
+    if (GAME_KEYS.includes(e.code) && !gamePaused) {
         e.preventDefault();
     }
-    if (e.code === 'KeyR' && !e.repeat && !gamePaused && levelClearTimer === 0) {
-        restartLevel();
-    }
-    keys[e.code] = true;
+    pressKey(e.code);
 });
 window.addEventListener('keyup', (e: KeyboardEvent) => {
     keys[e.code] = false;
@@ -71,8 +83,38 @@ window.addEventListener('keyup', (e: KeyboardEvent) => {
 // Releasing a key while the window is unfocused never fires keyup, which left Flora running forever.
 window.addEventListener('blur', clearKeys);
 
+// On-screen buttons hold down the same key codes the keyboard does while a finger is on them.
+for (const btn of document.querySelectorAll<HTMLElement>('[data-key]')) {
+    const code = btn.dataset.key as string;
+    const release = (): void => {
+        keys[code] = false;
+        btn.classList.remove('pressed');
+    };
+    btn.addEventListener('pointerdown', (e: PointerEvent) => {
+        e.preventDefault();
+        pressKey(code);
+        btn.classList.add('pressed');
+        try {
+            // Keeps the button held if the finger slides off it slightly.
+            btn.setPointerCapture(e.pointerId);
+        } catch {
+            // Unknown pointer id (e.g. synthetic events); the press still counts.
+        }
+    });
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('lostpointercapture', release);
+    btn.addEventListener('contextmenu', (e: Event) => e.preventDefault());
+}
+
 musicBtn.addEventListener('click', () => {
     audio.toggle(currentLevel, musicBtn);
+});
+
+restartBtn.addEventListener('click', () => {
+    // Blur so a later Space press jumps instead of clicking Restart again.
+    restartBtn.blur();
+    if (!gamePaused && levelClearTimer === 0) restartLevel();
 });
 
 victoryDialog.addEventListener('close', () => {
@@ -91,9 +133,16 @@ export function allBloomed(): boolean {
 export function objectiveText(): string {
     if (levelClearTimer > 0) return `🎉 You rescued ${LEVELS[currentLevel].pet}!`;
     if (keyCollected) return '🏠 Bring the key to the doghouse!';
-    if (!allBloomed()) return '💦 Water every sprout with E';
+    if (!allBloomed()) return '💦 Water every sprout';
     if (!boneFound) return "🦴 Follow Noodle's nose and dig for the bone";
     return '🔑 Grab the shiny key!';
+}
+
+/** How much of the victory rainbow to draw: 0 while playing, sweeping to 1 once a level is beaten. */
+export function rainbowProgress(): number {
+    if (gamePaused) return 1; // final victory: keep the full rainbow behind the dialog
+    if (levelClearTimer <= 0) return 0;
+    return Math.min(1, (LEVEL_CLEAR_FRAMES - levelClearTimer + 1) / RAINBOW_SWEEP_FRAMES);
 }
 
 export function updateStatus(): void {
@@ -246,6 +295,11 @@ function updateParade(): void {
 
 /** Advances the simulation by exactly one fixed tick (1/60 s). */
 export function update(): void {
+    tick();
+    for (const code of Object.keys(pressed)) pressed[code] = false;
+}
+
+function tick(): void {
     if (gamePaused) return;
 
     updateKey();
@@ -253,8 +307,9 @@ export function update(): void {
 
     flora.update(
         keys,
+        pressed,
         LEVELS[currentLevel].platforms,
-        canvas.width,
+        CANVAS_WIDTH,
         levelClearTimer > 0,
         type => audio.playSound(type),
         checkWatering,
@@ -269,12 +324,14 @@ export function update(): void {
 
 export function render(): void {
     const level = LEVELS[currentLevel];
+    ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
     ctx.fillStyle = level.bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    drawRainbow(ctx);
+    const rainbow = rainbowProgress();
+    if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
-    drawTreeAndGround(ctx, canvas.width, level.treeX, digMounds, boneFound, boneX);
+    drawTreeAndGround(ctx, CANVAS_WIDTH, level.treeX, digMounds, boneFound, boneX);
     drawPlatforms(ctx, level.platforms);
     drawSprouts(ctx, sprouts, allBloomed());
     drawDoghouse(ctx);
@@ -292,6 +349,25 @@ export function render(): void {
 
     if (levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
 }
+
+// Scale the whole game box to fit the window, and size the canvas backing store to match
+// the real pixel count so it stays crisp on phones and retina screens.
+let pixelScale: number = 1;
+
+export function fitToScreen(): void {
+    // clientWidth/Height ignore mobile zoom-out; innerWidth grows when content overflows the screen.
+    const root = document.documentElement;
+    const scale = fitScale(root.clientWidth || window.innerWidth, root.clientHeight || window.innerHeight);
+    stage.style.width = `${Math.floor(STAGE_WIDTH * scale)}px`;
+    stage.style.height = `${Math.floor(STAGE_HEIGHT * scale)}px`;
+    container.style.transform = `scale(${scale})`;
+
+    pixelScale = scale * (window.devicePixelRatio || 1);
+    canvas.width = Math.round(CANVAS_WIDTH * pixelScale);
+    canvas.height = Math.round(CANVAS_HEIGHT * pixelScale);
+}
+
+window.addEventListener('resize', fitToScreen);
 
 // Run the simulation at a fixed 60 ticks/s regardless of monitor refresh rate,
 // so 120 Hz displays don't play at double speed.
@@ -315,5 +391,6 @@ function frame(now: number): void {
     requestAnimationFrame(frame);
 }
 
+fitToScreen();
 initLevel();
 requestAnimationFrame(frame);

@@ -9,9 +9,28 @@ const DOGHOUSE_X         = 707;
 /** Flora's left edge must pass this x (with the key) to enter the doghouse. */
 const DOGHOUSE_ENTRY_X         = 685;
 const LEVEL_CLEAR_FRAMES         = 75;
+/** Ticks the victory rainbow takes to sweep across the sky. */
+const RAINBOW_SWEEP_FRAMES         = 40;
 const DIG_RANGE         = 48;
-/** Highest jump in px: v^2 / 2g with jump velocity 10.2 and gravity 0.45. */
-const MAX_JUMP_HEIGHT         = (10.2 * 10.2) / (2 * 0.45);
+const GRAVITY         = 0.45;
+const JUMP_VY         = -10.2;
+/** Releasing jump early caps upward speed here, giving a short hop. */
+const JUMP_CUT_VY         = -4;
+/** Grace ticks to still jump after walking off a ledge. */
+const COYOTE_TICKS         = 6;
+/** Grace ticks a jump pressed just before landing is remembered. */
+const JUMP_BUFFER_TICKS         = 6;
+/** Highest jump in px (jump held): v^2 / 2g. */
+const MAX_JUMP_HEIGHT         = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
+
+/** KeyboardEvent.code for each action. Touch buttons press these same codes. */
+const CONTROLS = {
+    left: 'ArrowLeft',
+    right: 'ArrowRight',
+    jump: 'Space',
+    water: 'ArrowUp',
+    dig: 'ArrowDown'
+}         ;
 
 const FLOWER_COLORS                    = [
     "#FF7675",
@@ -148,6 +167,27 @@ const LEVELS                         = [
         keyPos: { x: 520, y: 175 }
     }
 ];
+
+// --- src/layout.ts ---
+/** The game's logical playfield size; all drawing and physics use these units. */
+const CANVAS_WIDTH         = 800;
+const CANVAS_HEIGHT         = 500;
+/** The framed game box: canvas plus a 4px border on each side. */
+const STAGE_WIDTH         = CANVAS_WIDTH + 8;
+const STAGE_HEIGHT         = CANVAS_HEIGHT + 8;
+
+/**
+ * Largest scale at which the game box fits the viewport with a gutter on every side.
+ * Capped so huge monitors don't get a comically oversized (and blurry-HUD) game.
+ */
+function fitScale(viewportWidth        , viewportHeight        , gutter         = 16, maxScale         = 1.5)         {
+    const scale = Math.min(
+        (viewportWidth - gutter * 2) / STAGE_WIDTH,
+        (viewportHeight - gutter * 2) / STAGE_HEIGHT,
+        maxScale
+    );
+    return Math.max(0.1, scale);
+}
 
 // --- src/audio.ts ---
 class AudioController {
@@ -321,12 +361,13 @@ function drawSun(ctx                          )       {
     ctx.fill();
 }
 
-function drawRainbow(ctx                          )       {
+/** Draws the rainbow arc from the left, `progress` (0–1) of the way across. */
+function drawRainbow(ctx                          , progress         = 1)       {
     ctx.lineWidth = 6;
     for (let i = 0; i < RAINBOW_COLORS.length; i++) {
         ctx.strokeStyle = RAINBOW_COLORS[i];
         ctx.beginPath();
-        ctx.arc(400, 430, 260 - (i * 6), Math.PI, 0, false);
+        ctx.arc(400, 430, 260 - (i * 6), Math.PI, Math.PI + Math.PI * progress, false);
         ctx.stroke();
     }
 }
@@ -525,6 +566,12 @@ class Player {
            waterTimer         = 0;
            isDigging          = false;
            digTimer         = 0;
+    /** Ticks left in which a jump still works after walking off a ledge. */
+           coyoteTimer         = COYOTE_TICKS;
+    /** Ticks left in which an early jump press will fire on landing. */
+           jumpBufferTimer         = 0;
+    /** True while rising from a jump that letting go of Space may still cut short. */
+           jumpRising          = false;
 
            reset()       {
         this.x = 50;
@@ -532,10 +579,14 @@ class Player {
         this.vx = 0;
         this.vy = 0;
         this.grounded = true;
+        this.coyoteTimer = COYOTE_TICKS;
+        this.jumpBufferTimer = 0;
+        this.jumpRising = false;
     }
 
            update(
         keys                                   ,
+        pressed                                   ,
         platforms                     ,
         canvasWidth        ,
         disabled         ,
@@ -545,30 +596,40 @@ class Player {
     )       {
         if (disabled) return;
 
-        if (keys['ArrowRight'] || keys['KeyD']) {
+        if (keys[CONTROLS.right]) {
             this.vx = 3.5;
             this.facing = 'right';
-        } else if (keys['ArrowLeft'] || keys['KeyA']) {
+        } else if (keys[CONTROLS.left]) {
             this.vx = -3.5;
             this.facing = 'left';
         } else {
             this.vx = 0;
         }
 
-        if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && this.grounded) {
-            this.vy = -10.2;
+        // Jumps fire on a press (latched even if released within the same tick), not while held,
+        // so the buffer can remember a press made just before landing.
+        if (pressed[CONTROLS.jump]) this.jumpBufferTimer = JUMP_BUFFER_TICKS;
+
+        if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0) {
+            this.vy = JUMP_VY;
             this.grounded = false;
+            this.jumpRising = true;
+            this.jumpBufferTimer = 0;
+            this.coyoteTimer = 0;
             playSound('jump');
         }
 
-        if (keys['KeyE'] && !this.isWatering) {
+        if (this.jumpRising && !keys[CONTROLS.jump] && this.vy < JUMP_CUT_VY) this.vy = JUMP_CUT_VY;
+        if (this.vy >= 0) this.jumpRising = false;
+
+        if (keys[CONTROLS.water] && !this.isWatering) {
             this.isWatering = true;
             this.waterTimer = 18;
             playSound('water');
             onWater();
         }
 
-        if (keys['KeyS'] || keys['ArrowDown'] || keys['KeyF']) {
+        if (keys[CONTROLS.dig]) {
             if (!this.isDigging && this.grounded) {
                 this.isDigging = true;
                 this.digTimer = 15;
@@ -584,7 +645,7 @@ class Player {
         else this.isDigging = false;
 
         const prevBottom = this.y + this.height;
-        this.vy += 0.45; // Gravity
+        this.vy += GRAVITY;
         this.x += this.vx;
         this.y += this.vy;
         this.grounded = false;
@@ -615,6 +676,9 @@ class Player {
 
         if (this.x < 0) this.x = 0;
         if (this.x > canvasWidth - this.width) this.x = canvasWidth - this.width;
+
+        this.coyoteTimer = this.grounded ? COYOTE_TICKS : Math.max(0, this.coyoteTimer - 1);
+        if (this.jumpBufferTimer > 0) this.jumpBufferTimer--;
     }
 
            draw(ctx                          )       {
@@ -753,9 +817,12 @@ class Noodle {
 }
 
 // --- src/game.ts ---
+const stage = document.getElementById('game-stage')               ;
+const container = document.getElementById('game-container')               ;
 const canvas = document.getElementById('gameCanvas')                     ;
 const ctx = canvas.getContext('2d')                            ;
 const musicBtn = document.getElementById('music-btn')                     ;
+const restartBtn = document.getElementById('restart-btn')                     ;
 const victoryDialog = document.getElementById('victory-dialog')                     ;
 const levelDisplay = document.getElementById('level-display')               ;
 const statusDisplay = document.getElementById('status-display')               ;
@@ -780,19 +847,25 @@ let keyX         = 530;
 let keyY         = 315;
 
 const keys                          = {};
+/** Keys that went down since the last tick, so a tap shorter than one tick still counts. */
+const pressed                          = {};
+
+function pressKey(code        )       {
+    if (!keys[code]) pressed[code] = true;
+    keys[code] = true;
+}
 
 function clearKeys()       {
     for (const code of Object.keys(keys)) keys[code] = false;
 }
 
+const GAME_KEYS                    = Object.values(CONTROLS);
+
 window.addEventListener('keydown', (e               ) => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) && !gamePaused) {
+    if (GAME_KEYS.includes(e.code) && !gamePaused) {
         e.preventDefault();
     }
-    if (e.code === 'KeyR' && !e.repeat && !gamePaused && levelClearTimer === 0) {
-        restartLevel();
-    }
-    keys[e.code] = true;
+    pressKey(e.code);
 });
 window.addEventListener('keyup', (e               ) => {
     keys[e.code] = false;
@@ -800,8 +873,38 @@ window.addEventListener('keyup', (e               ) => {
 // Releasing a key while the window is unfocused never fires keyup, which left Flora running forever.
 window.addEventListener('blur', clearKeys);
 
+// On-screen buttons hold down the same key codes the keyboard does while a finger is on them.
+for (const btn of document.querySelectorAll             ('[data-key]')) {
+    const code = btn.dataset.key          ;
+    const release = ()       => {
+        keys[code] = false;
+        btn.classList.remove('pressed');
+    };
+    btn.addEventListener('pointerdown', (e              ) => {
+        e.preventDefault();
+        pressKey(code);
+        btn.classList.add('pressed');
+        try {
+            // Keeps the button held if the finger slides off it slightly.
+            btn.setPointerCapture(e.pointerId);
+        } catch {
+            // Unknown pointer id (e.g. synthetic events); the press still counts.
+        }
+    });
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('lostpointercapture', release);
+    btn.addEventListener('contextmenu', (e       ) => e.preventDefault());
+}
+
 musicBtn.addEventListener('click', () => {
     audio.toggle(currentLevel, musicBtn);
+});
+
+restartBtn.addEventListener('click', () => {
+    // Blur so a later Space press jumps instead of clicking Restart again.
+    restartBtn.blur();
+    if (!gamePaused && levelClearTimer === 0) restartLevel();
 });
 
 victoryDialog.addEventListener('close', () => {
@@ -820,9 +923,16 @@ function allBloomed()          {
 function objectiveText()         {
     if (levelClearTimer > 0) return `🎉 You rescued ${LEVELS[currentLevel].pet}!`;
     if (keyCollected) return '🏠 Bring the key to the doghouse!';
-    if (!allBloomed()) return '💦 Water every sprout with E';
+    if (!allBloomed()) return '💦 Water every sprout';
     if (!boneFound) return "🦴 Follow Noodle's nose and dig for the bone";
     return '🔑 Grab the shiny key!';
+}
+
+/** How much of the victory rainbow to draw: 0 while playing, sweeping to 1 once a level is beaten. */
+function rainbowProgress()         {
+    if (gamePaused) return 1; // final victory: keep the full rainbow behind the dialog
+    if (levelClearTimer <= 0) return 0;
+    return Math.min(1, (LEVEL_CLEAR_FRAMES - levelClearTimer + 1) / RAINBOW_SWEEP_FRAMES);
 }
 
 function updateStatus()       {
@@ -975,6 +1085,11 @@ function updateParade()       {
 
 /** Advances the simulation by exactly one fixed tick (1/60 s). */
 function update()       {
+    tick();
+    for (const code of Object.keys(pressed)) pressed[code] = false;
+}
+
+function tick()       {
     if (gamePaused) return;
 
     updateKey();
@@ -982,8 +1097,9 @@ function update()       {
 
     flora.update(
         keys,
+        pressed,
         LEVELS[currentLevel].platforms,
-        canvas.width,
+        CANVAS_WIDTH,
         levelClearTimer > 0,
         type => audio.playSound(type),
         checkWatering,
@@ -998,12 +1114,14 @@ function update()       {
 
 function render()       {
     const level = LEVELS[currentLevel];
+    ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
     ctx.fillStyle = level.bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    drawRainbow(ctx);
+    const rainbow = rainbowProgress();
+    if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
-    drawTreeAndGround(ctx, canvas.width, level.treeX, digMounds, boneFound, boneX);
+    drawTreeAndGround(ctx, CANVAS_WIDTH, level.treeX, digMounds, boneFound, boneX);
     drawPlatforms(ctx, level.platforms);
     drawSprouts(ctx, sprouts, allBloomed());
     drawDoghouse(ctx);
@@ -1021,6 +1139,25 @@ function render()       {
 
     if (levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
 }
+
+// Scale the whole game box to fit the window, and size the canvas backing store to match
+// the real pixel count so it stays crisp on phones and retina screens.
+let pixelScale         = 1;
+
+function fitToScreen()       {
+    // clientWidth/Height ignore mobile zoom-out; innerWidth grows when content overflows the screen.
+    const root = document.documentElement;
+    const scale = fitScale(root.clientWidth || window.innerWidth, root.clientHeight || window.innerHeight);
+    stage.style.width = `${Math.floor(STAGE_WIDTH * scale)}px`;
+    stage.style.height = `${Math.floor(STAGE_HEIGHT * scale)}px`;
+    container.style.transform = `scale(${scale})`;
+
+    pixelScale = scale * (window.devicePixelRatio || 1);
+    canvas.width = Math.round(CANVAS_WIDTH * pixelScale);
+    canvas.height = Math.round(CANVAS_HEIGHT * pixelScale);
+}
+
+window.addEventListener('resize', fitToScreen);
 
 // Run the simulation at a fixed 60 ticks/s regardless of monitor refresh rate,
 // so 120 Hz displays don't play at double speed.
@@ -1044,5 +1181,6 @@ function frame(now        )       {
     requestAnimationFrame(frame);
 }
 
+fitToScreen();
 initLevel();
 requestAnimationFrame(frame);
