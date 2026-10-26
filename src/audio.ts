@@ -60,16 +60,45 @@ export class AudioController {
         Tone.Transport.start();
     }
 
+    /** Last start time used on each instrument (by instrument). */
+    private lastStart = new Map<object, number>();
+
+    /**
+     * A start time strictly after the previous note on `instrument`. Tone.js throws if a synth
+     * is started twice at the same moment, which happens when two sounds land in the same tick
+     * (a bee bump and a jump) or while the audio clock is suspended.
+     */
+    private nextTime(instrument: object): number {
+        const now = typeof Tone === 'undefined' ? 0 : Tone.now();
+        const time = Math.max(now, (this.lastStart.get(instrument) ?? -1) + 0.01);
+        this.lastStart.set(instrument, time);
+        return time;
+    }
+
     public playSound(type: SoundType): void {
         if (!this.enabled) return;
-        if (type === 'jump') this.synth?.triggerAttackRelease("G4", "8n");
-        if (type === 'water') this.noiseSynth?.triggerAttackRelease("16n");
-        if (type === 'dig') this.synth?.triggerAttackRelease("A2", "16n");
-        if (type === 'bloom') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5"], "8n");
-        if (type === 'bark') this.synth?.triggerAttackRelease("E3", "16n");
-        if (type === 'key') this.polySynth?.triggerAttackRelease(["G5", "C6", "E6"], "4n");
-        if (type === 'bump') this.synth?.triggerAttackRelease("D3", "16n");
-        if (type === 'bounce') this.synth?.triggerAttackRelease("C5", "16n");
-        if (type === 'victory') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n");
+        const notes: Partial<Record<SoundType, [ToneSynthLike | null, string | readonly string[], string]>> = {
+            jump: [this.synth, "G4", "8n"],
+            dig: [this.synth, "A2", "16n"],
+            bloom: [this.polySynth, ["C5", "E5", "G5"], "8n"],
+            bark: [this.synth, "E3", "16n"],
+            key: [this.polySynth, ["G5", "C6", "E6"], "4n"],
+            bump: [this.synth, "D3", "16n"],
+            bounce: [this.synth, "C5", "16n"],
+            victory: [this.polySynth, ["C5", "E5", "G5", "C6"], "2n"]
+        };
+        // Sound is decoration: a failure here must never stop the game.
+        try {
+            if (type === 'water') {
+                if (this.noiseSynth) this.noiseSynth.triggerAttackRelease("16n", this.nextTime(this.noiseSynth));
+                return;
+            }
+            const entry = notes[type];
+            if (!entry || !entry[0]) return;
+            const [instrument, note, duration] = entry;
+            instrument.triggerAttackRelease(note, duration, this.nextTime(instrument));
+        } catch (err) {
+            console.warn(`Sound "${type}" failed`, err);
+        }
     }
 }

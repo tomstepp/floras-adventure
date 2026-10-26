@@ -440,6 +440,15 @@ export class Noodle {
     /** How far Noodle moved last tick; drives trotting and which way he faces. */
     public vx: number = 0;
     public facing: Direction = 'right';
+    /** Lines waiting their turn in the speech bubble, with how long each shows. */
+    private speechQueue: [string, number][] = [];
+
+    /** Says `text` for `ticks` right away; whatever he was saying waits its turn after. */
+    public sayFirst(text: string, ticks: number): void {
+        if (this.barkTimer > 0) this.speechQueue.unshift([this.speechBubble, this.barkTimer]);
+        this.speechBubble = text;
+        this.barkTimer = ticks;
+    }
 
     public update(
         playerX: number,
@@ -475,6 +484,9 @@ export class Noodle {
         }
 
         if (this.barkTimer > 0) this.barkTimer--;
+        if (this.barkTimer <= 0 && this.speechQueue.length > 0) {
+            [this.speechBubble, this.barkTimer] = this.speechQueue.shift() as [string, number];
+        }
 
         this.vx = this.x - prevX;
         // A little dead zone so tiny drifts don't make him flip back and forth.

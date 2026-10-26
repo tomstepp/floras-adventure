@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Flora's Magical Adventure</title>
+    <!-- Inline flower icon, so browsers don't request a missing /favicon.ico (a harmless 404). -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E">
     <style>
         * {
             box-sizing: border-box;
@@ -367,10 +369,10 @@
             transition: transform 0.15s;
         }
 
-        /* First line is the level number, second the pet: make them big. */
+        /* First line is the pet (or a lock): make it big. */
         .level-card::first-line {
-            font-size: 22px;
-            color: #FF6B8B;
+            font-size: 34px;
+            line-height: 1.3;
         }
 
         .level-card:hover:not(:disabled),
@@ -396,6 +398,92 @@
             box-shadow: none;
             color: #b2bec3;
             cursor: not-allowed;
+        }
+
+        .start-extras {
+            display: flex;
+            gap: 12px;
+            margin-top: -6px;
+        }
+
+        .start-extras .btn {
+            font-size: 16px;
+            padding: 8px 20px;
+        }
+
+        .start-extras .btn[hidden] {
+            display: none;
+        }
+
+        .roster-count {
+            font-weight: bold;
+            color: #636e72;
+            margin-top: -8px;
+        }
+
+        .roster-hint {
+            min-height: 1.3em;
+            color: #E17055;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: -6px;
+        }
+
+        #roster-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 128px);
+            gap: 12px;
+        }
+
+        .roster-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            /* Grows when a long name wraps, so the status line never touches the edge. */
+            min-height: 118px;
+            padding: 6px 4px 8px;
+            border: 3px solid #dfe6e9;
+            border-radius: 18px;
+            background: #fff;
+            color: #636e72;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1.3;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #dfe6e9;
+            transition: transform 0.15s;
+        }
+
+        .roster-card canvas {
+            width: 80px;
+            height: 64px;
+        }
+
+        .roster-card span {
+            white-space: pre-line;
+        }
+
+        .roster-card.following {
+            border-color: #FF8FAB;
+            background: #FFF0F3;
+            color: #2d3436;
+            box-shadow: 0 4px 0 #FFD1DC;
+        }
+
+        .roster-card.locked {
+            background: #f1f2f6;
+            color: #b2bec3;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .roster-card:hover:not(:disabled),
+        .roster-card:focus-visible {
+            transform: translateY(-3px);
+            outline: 3px solid #74B9FF;
+            outline-offset: 2px;
         }
 
         body.menu-open .touch-controls {
@@ -495,7 +583,10 @@
                 <div class="start-buttons">
                     <button type="button" class="btn secondary" id="continue-btn" hidden>▶ Continue</button>
                     <button type="button" class="btn" id="play-btn">▶ Play</button>
+                </div>
+                <div class="start-extras">
                     <button type="button" class="btn quiet" id="levels-btn">🗺 Levels</button>
+                    <button type="button" class="btn quiet" id="pets-btn" hidden>🐾 My pets</button>
                 </div>
             </section>
             <section id="pause-screen" class="menu-overlay" hidden aria-labelledby="pause-title">
@@ -504,6 +595,7 @@
                     <button type="button" class="btn" id="resume-btn">▶ Resume</button>
                     <button type="button" class="btn secondary" id="pause-restart-btn">↺ Restart level</button>
                     <button type="button" class="btn secondary" id="pause-levels-btn">🗺 Choose a level</button>
+                    <button type="button" class="btn secondary" id="pause-pets-btn">🐾 My pets</button>
                     <button type="button" class="btn quiet" id="pause-menu-btn">🏠 Main menu</button>
                 </div>
             </section>
@@ -511,6 +603,13 @@
                 <h2 id="levels-title">🗺 Choose a level</h2>
                 <div id="level-grid"></div>
                 <button type="button" class="btn quiet" id="levels-back-btn">← Back</button>
+            </section>
+            <section id="roster-screen" class="menu-overlay" hidden aria-labelledby="roster-title">
+                <h2 id="roster-title">🐾 My pets</h2>
+                <p id="roster-count" class="roster-count"></p>
+                <div id="roster-grid"></div>
+                <p id="roster-hint" class="roster-hint" role="status" aria-live="polite"></p>
+                <button type="button" class="btn quiet" id="roster-back-btn">← Back</button>
             </section>
             <canvas id="gameCanvas" width="800" height="500"></canvas>
             <div class="controls-hint">← → Move | ↑ Jump | Space: Water 💦 | ↓ Dig 🦴</div>

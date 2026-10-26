@@ -1,5 +1,6 @@
 import { AudioController } from './audio.ts';
 import { ButterflySwarm } from './butterflies.ts';
+import { SkyVisitors } from './skyfriends.ts';
 import { Noodle, Player } from './entities.ts';
 import {
     CONTROLS,
@@ -18,7 +19,8 @@ import {
 } from './levels.ts';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, fitScale, STAGE_HEIGHT, STAGE_WIDTH } from './layout.ts';
 import { ParticleSystem } from './particles.ts';
-import { getStorage, loadSave, writeSave } from './save.ts';
+import { addRescue, getStorage, loadSave, MAX_FOLLOWERS, toggleFollower, writeSave } from './save.ts';
+import { drawPetSprite } from './pets.ts';
 import type { SaveData } from './save.ts';
 import {
     drawBee,
@@ -37,7 +39,7 @@ import {
     drawTreeAndGround,
     PET_EMOJI
 } from './renderer.ts';
-import type { DigMound, Platform, Point, RescuedFriend, Sprout } from './types.ts';
+import type { DigMound, Platform, Point, RescuedFriend, Species, Sprout } from './types.ts';
 
 const stage = document.getElementById('game-stage') as HTMLElement;
 const container = document.getElementById('game-container') as HTMLElement;
@@ -63,19 +65,27 @@ const levelsBtn = document.getElementById('levels-btn') as HTMLButtonElement;
 const levelSelect = document.getElementById('level-select') as HTMLElement;
 const levelGrid = document.getElementById('level-grid') as HTMLElement;
 const levelsBackBtn = document.getElementById('levels-back-btn') as HTMLButtonElement;
+const petsBtn = document.getElementById('pets-btn') as HTMLButtonElement;
+const pausePetsBtn = document.getElementById('pause-pets-btn') as HTMLButtonElement;
+const rosterScreen = document.getElementById('roster-screen') as HTMLElement;
+const rosterGrid = document.getElementById('roster-grid') as HTMLElement;
+const rosterCount = document.getElementById('roster-count') as HTMLElement;
+const rosterHint = document.getElementById('roster-hint') as HTMLElement;
+const rosterBackBtn = document.getElementById('roster-back-btn') as HTMLButtonElement;
 const victoryText = document.getElementById('victory-text') as HTMLElement;
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
 const butterflies = new ButterflySwarm();
+const skyVisitors = new SkyVisitors();
 const storage = getStorage();
-/** Continue point and furthest level reached, kept in memory and mirrored to storage. */
-let progress: SaveData = loadSave(storage, LEVELS.length);
+/** Continue point, unlocked levels, roster and followers; kept in memory and mirrored to storage. */
+let progress: SaveData = loadSave(storage, LEVELS.map(l => l.species));
 
-type Screen = 'start' | 'playing' | 'paused' | 'levels' | 'victory';
+type Screen = 'start' | 'playing' | 'paused' | 'levels' | 'roster' | 'victory';
 let screen: Screen = 'start';
-/** Where the level list's Back button goes. */
-let levelsReturnTo: 'start' | 'paused' = 'start';
+/** Where the level list's or roster's Back button goes. */
+let menuReturnTo: 'start' | 'paused' = 'start';
 let currentLevel: number = 0;
 let levelClearTimer: number = 0;
 /** Ticks since the level started; drives moving platforms and bees. */
@@ -121,6 +131,7 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
         if (screen === 'playing') pauseGame();
         else if (screen === 'paused') resumeGame();
         else if (screen === 'levels') closeLevelSelect();
+        else if (screen === 'roster') closeRoster();
     }
     pressKey(e.code);
 });
@@ -172,9 +183,27 @@ restartBtn.addEventListener('click', () => {
 });
 
 function saveProgress(level: number | null): void {
-    progress = { level, unlocked: Math.max(progress.unlocked, level ?? 0) };
+    progress = { ...progress, level, unlocked: Math.max(progress.unlocked, level ?? 0) };
     writeSave(storage, progress);
 }
+
+/**
+ * Makes the parade match the followers: pets already walking keep their spot, new ones
+ * join at the back, and ones that went to rest leave.
+ */
+function syncParade(): void {
+    const kept = rescuedFriends.filter(p => progress.followers.includes(p.species));
+    for (const species of progress.followers) {
+        if (kept.some(p => p.species === species)) continue;
+        const behind = kept.length === 0 ? noodle.x : kept[kept.length - 1].x;
+        kept.push({ species, x: behind - PARADE_GAP, y: 416 });
+    }
+    // Keep the parade in follow order (longest-following nearest Noodle).
+    kept.sort((a, b) => progress.followers.indexOf(a.species) - progress.followers.indexOf(b.species));
+    rescuedFriends = kept;
+}
+
+const petName = (species: Species): string => LEVELS.find(l => l.species === species)?.pet ?? species;
 
 /** Drops held and just-pressed keys, so menu key presses never leak into play. */
 function dropInput(): void {
@@ -184,15 +213,15 @@ function dropInput(): void {
 
 /** Shows exactly one menu overlay (or none), and hides touch controls while any is up. */
 function showOverlay(overlay: HTMLElement | null): void {
-    for (const el of [startScreen, pauseScreen, levelSelect]) el.hidden = el !== overlay;
+    for (const el of [startScreen, pauseScreen, levelSelect, rosterScreen]) el.hidden = el !== overlay;
     if (overlay) document.body.classList.add('menu-open');
     else document.body.classList.remove('menu-open');
 }
 
-/** Starts play at `level`, with every earlier pet already in the parade. */
+/** Starts play at `level`, with the chosen followers in the parade. */
 export function startGame(level: number): void {
     currentLevel = level;
-    rescuedFriends = LEVELS.slice(0, level).map((l, i) => ({ species: l.species, x: 20 - (i + 1) * 28, y: 416 }));
+    rescuedFriends = progress.followers.map((species, i) => ({ species, x: 20 - (i + 1) * PARADE_GAP, y: 416 }));
     // Continue picks up from whichever level you're on; level 1 is just "New game".
     saveProgress(level > 0 ? level : null);
     noodle.x = 20;
@@ -208,6 +237,7 @@ export function showStartScreen(): void {
     continueBtn.hidden = !canContinue;
     if (progress.level !== null) continueBtn.innerText = `▶ Continue — Level ${progress.level + 1}`;
     playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
+    petsBtn.hidden = progress.roster.length === 0;
     showOverlay(startScreen);
     (canContinue ? continueBtn : playBtn).focus();
 }
@@ -229,7 +259,7 @@ export function resumeGame(): void {
 
 /** The level list: every level up to the furthest one reached can be picked. */
 export function openLevelSelect(from: 'start' | 'paused'): void {
-    levelsReturnTo = from;
+    menuReturnTo = from;
     screen = 'levels';
     levelGrid.replaceChildren(
         ...LEVELS.map((level, i) => {
@@ -242,7 +272,8 @@ export function openLevelSelect(from: 'start' | 'paused'): void {
             if (locked) btn.classList.add('locked');
             if (beaten) btn.classList.add('beaten');
             if (i === currentLevel && from === 'paused') btn.classList.add('current');
-            btn.innerText = `${i + 1}\n${locked ? '🔒' : PET_EMOJI[level.species]}\n${level.name}${beaten ? ' ✔' : ''}`;
+            // First line (the pet, or a lock) is drawn big by CSS; then "number. name".
+            btn.innerText = `${locked ? '🔒' : PET_EMOJI[level.species]}\n${i + 1}. ${level.name}${beaten ? ' ✔' : ''}`;
             btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
             btn.addEventListener('click', () => {
                 if (locked) return;
@@ -260,13 +291,88 @@ export function openLevelSelect(from: 'start' | 'paused'): void {
 
 export function closeLevelSelect(): void {
     if (screen !== 'levels') return;
-    if (levelsReturnTo === 'paused') {
+    returnFromMenu(pauseLevelsBtn);
+}
+
+function returnFromMenu(focusInPause: HTMLElement): void {
+    if (menuReturnTo === 'paused') {
         screen = 'paused';
         showOverlay(pauseScreen);
-        pauseLevelsBtn.focus();
+        focusInPause.focus();
     } else {
         showStartScreen();
     }
+}
+
+/** Draws a pet onto a roster card's little canvas; pets not yet rescued are a mystery silhouette. */
+function drawRosterPet(card: HTMLCanvasElement, species: Species, rescued: boolean): void {
+    const dpr = window.devicePixelRatio || 1;
+    card.width = Math.round(80 * dpr);
+    card.height = Math.round(64 * dpr);
+    const g = card.getContext('2d');
+    if (!g) return;
+    g.scale(dpr * 1.6, dpr * 1.6);
+    drawPetSprite(g, species, 23, 37, false, 0);
+    if (!rescued) {
+        g.globalCompositeOperation = 'source-in';
+        g.fillStyle = 'rgba(99, 110, 114, 0.35)';
+        g.fillRect(0, 0, 80, 64);
+    }
+}
+
+/** The roster: every pet rescued so far. Tap one to let it follow or rest (3 can follow). */
+export function openRoster(from: 'start' | 'paused'): void {
+    menuReturnTo = from;
+    screen = 'roster';
+    rosterHint.innerText = '';
+    renderRoster();
+    showOverlay(rosterScreen);
+    (rosterGrid.children[0] as HTMLElement | undefined)?.focus();
+}
+
+function renderRoster(): void {
+    rosterCount.innerText = `🐾 Following: ${progress.followers.length} / ${MAX_FOLLOWERS}`;
+    rosterGrid.replaceChildren(
+        ...LEVELS.map((level, i) => {
+            const species = level.species;
+            const rescued = progress.roster.includes(species);
+            const following = progress.followers.includes(species);
+            const state = !rescued ? 'locked' : following ? 'following' : 'resting';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `roster-card ${state}`;
+            btn.dataset.state = state;
+            btn.dataset.species = species;
+            btn.disabled = !rescued;
+            const pic = document.createElement('canvas');
+            drawRosterPet(pic, species, rescued);
+            const label = document.createElement('span');
+            label.innerText = rescued
+                ? `${level.pet}\n${following ? '🐾 Following' : '💤 Resting'}`
+                : `???\nRescue in level ${i + 1}`;
+            btn.append(pic, label);
+            btn.setAttribute('aria-label', rescued ? `${level.pet}, ${following ? 'following' : 'resting'}` : `Not rescued yet, level ${i + 1}`);
+            btn.setAttribute('aria-pressed', String(following));
+            btn.addEventListener('click', () => {
+                if (!rescued) return;
+                if (!toggleFollower(progress, species)) {
+                    rosterHint.innerText = `Only ${MAX_FOLLOWERS} pets can follow at once — tap one to let it rest first.`;
+                    return;
+                }
+                rosterHint.innerText = '';
+                writeSave(storage, progress);
+                syncParade();
+                renderRoster();
+                (rosterGrid.children[i] as HTMLElement | undefined)?.focus();
+            });
+            return btn;
+        })
+    );
+}
+
+export function closeRoster(): void {
+    if (screen !== 'roster') return;
+    returnFromMenu(pausePetsBtn);
 }
 
 // The Play tap is the user gesture browsers require before audio can start, so music comes on here.
@@ -293,6 +399,9 @@ pauseRestartBtn.addEventListener('click', () => {
 pauseLevelsBtn.addEventListener('click', () => openLevelSelect('paused'));
 pauseMenuBtn.addEventListener('click', () => showStartScreen());
 levelsBackBtn.addEventListener('click', closeLevelSelect);
+petsBtn.addEventListener('click', () => openRoster('start'));
+pausePetsBtn.addEventListener('click', () => openRoster('paused'));
+rosterBackBtn.addEventListener('click', closeRoster);
 
 victoryDialog.addEventListener('close', () => {
     startGame(0);
@@ -506,16 +615,17 @@ function updateLevelClear(): void {
     levelClearTimer--;
     if (levelClearTimer > 0) return;
 
-    rescuedFriends.push({
-        species: LEVELS[currentLevel].species,
-        x: noodle.x - (rescuedFriends.length + 1) * 28,
-        y: 416
-    });
+    // The rescued pet joins the roster and the parade; a full parade sends its longest follower home.
+    const { bumped } = addRescue(progress, LEVELS[currentLevel].species);
+    const leaving = rescuedFriends.find(p => p.species === bumped);
+    if (leaving) particleSystem.spawn(leaving.x, 405, '#FF7675', 8, 'heart');
+    syncParade();
+    const goodbye = bumped ? `${petName(bumped)} went home to rest 🏡` : null;
 
     if (currentLevel === LEVELS.length - 1) {
         screen = 'victory';
         // Nothing left to continue, but every level stays open in the level list.
-        progress = { level: null, unlocked: LEVELS.length - 1 };
+        progress = { ...progress, level: null, unlocked: LEVELS.length - 1 };
         writeSave(storage, progress);
         updateStatus();
         victoryDialog.showModal();
@@ -524,6 +634,8 @@ function updateLevelClear(): void {
         saveProgress(currentLevel);
         restartLevel();
     }
+    // Shown before the new level's tip, which waits its turn.
+    if (goodbye) noodle.sayFirst(goodbye, 150);
 }
 
 /** Positions of the level's moving platforms at tick `t`: an eased glide out and back. */
@@ -550,10 +662,18 @@ function updateMovingPlatforms(): void {
     movingPlatforms = next;
 }
 
+/** Gap between pets in the parade; the drawn pets are about 30px wide. */
+const PARADE_GAP = 32;
+
 function updateParade(): void {
     rescuedFriends.forEach((pet, idx) => {
         const leaderX = idx === 0 ? noodle.x : rescuedFriends[idx - 1].x;
-        pet.x += (leaderX - 28 - pet.x) * 0.08;
+        const vx = (leaderX - PARADE_GAP - pet.x) * 0.08;
+        pet.x += vx;
+        pet.vx = vx;
+        // Same dead zone as Noodle, so settled pets don't flip back and forth.
+        if (vx > 0.3) pet.facingLeft = false;
+        else if (vx < -0.3) pet.facingLeft = true;
     });
 }
 
@@ -561,6 +681,7 @@ function updateParade(): void {
 export function update(): void {
     // Butterflies keep fluttering on every screen, including behind the start screen.
     butterflies.update();
+    skyVisitors.update();
     tick();
     for (const code of Object.keys(pressed)) pressed[code] = false;
 }
@@ -604,6 +725,7 @@ export function render(): void {
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
+    skyVisitors.draw(ctx);
     butterflies.draw(ctx);
 
     const houseX = doghouseX(level);
@@ -618,12 +740,13 @@ export function render(): void {
     drawDoghouse(ctx, houseX);
 
     if (keyCollected) {
-        drawRescuedPet(ctx, level.species, houseX, 416);
+        // Waiting in the doorway, looking out toward Flora.
+        drawRescuedPet(ctx, level.species, houseX, 416, true, 0);
     } else if (allBloomed() && boneFound) {
         drawKey(ctx, keyX, keyY);
     }
 
-    for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416);
+    for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0);
     flora.draw(ctx);
     noodle.draw(ctx);
     for (const bee of bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
@@ -676,6 +799,16 @@ let lastFrameTime: number | null = null;
 let tickAccumulator: number = 0;
 
 function frame(now: number): void {
+    // Book the next frame first, so an error below can never stop the game loop for good.
+    requestAnimationFrame(frame);
+    try {
+        advance(now);
+    } catch (err) {
+        console.error('Frame failed; the game keeps running', err);
+    }
+}
+
+function advance(now: number): void {
     if (lastFrameTime !== null) {
         // Cap catch-up after a backgrounded tab so the game doesn't fast-forward.
         tickAccumulator += Math.min(now - lastFrameTime, 250);
@@ -685,11 +818,10 @@ function frame(now: number): void {
     lastFrameTime = now;
 
     while (tickAccumulator >= TICK_MS) {
-        update();
         tickAccumulator -= TICK_MS;
+        update();
     }
     render();
-    requestAnimationFrame(frame);
 }
 
 /** The victory dialog lists every pet, so it grows with the level list. */

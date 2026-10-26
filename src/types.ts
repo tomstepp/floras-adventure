@@ -61,6 +61,9 @@ export interface RescuedFriend {
     species: Species;
     x: number;
     y: number;
+    /** How far it moved last tick; drives its walk and which way it faces. */
+    vx?: number;
+    facingLeft?: boolean;
 }
 
 export interface Particle {
@@ -116,6 +119,8 @@ export interface ToneLoopLike {
 
 export interface ToneStatic {
     start(): Promise<void>;
+    /** Current audio-clock time in seconds. */
+    now(): number;
     Synth: new (options?: Record<string, unknown>) => ToneSynthLike;
     PolySynth: new (voice: unknown) => ToneSynthLike;
     NoiseSynth: new (options?: Record<string, unknown>) => ToneNoiseSynthLike;

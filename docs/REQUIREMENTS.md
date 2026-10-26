@@ -16,6 +16,8 @@ Requirement IDs (e.g. `LV-3`) are referenced from the tests in `tests/`.
 | PL-5 | Music/sound effects use Tone.js. Browsers only allow audio after a click or tap, so music switches **on** when the player taps Play/Continue on the start screen; the 🎵 button turns it off/on. The game is fully playable if Tone.js fails to load. |
 | PL-6 | The game box scales to fit the window (16 px gutter, keeping its 8:5 shape, at most 1.5×) and re-fits on resize/rotation. The canvas renders at the device's real pixel density so it stays sharp. |
 | PL-7 | On touch devices (no hover, coarse pointer) on-screen buttons appear: ◀ ▶ bottom-left; dig 🦴, water 💦 and a larger jump ⬆ bottom-right. A button acts as held while a finger is on it, and is released when the finger lifts or the touch is cancelled. The keyboard hint is hidden there. |
+| AU-1 | Sounds never crash the game. Each instrument's notes are scheduled strictly after its previous one (Tone.js throws if a synth is started twice at the same moment, e.g. a bee bump in the same tick as a jump, or while the audio clock is suspended), and any sound error is caught and logged. |
+| AU-2 | An error inside one frame is logged but never stops the game loop: the next frame is always scheduled first. |
 
 ## 2. Controls
 
@@ -42,15 +44,15 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 |----|-------------|
 | ST-1 | The game opens on a start screen over the first level. Nothing moves until the player picks a button; keys held on the start screen don't carry into play. |
 | ST-2 | It shows how to play as four pictures in order — water flowers → dig for the bone → grab the key → rescue a pet — each with its key (desktop) or button icon (touch), so non-readers can follow it. |
-| ST-3 | With nothing to continue it offers **▶ Play**. With a save it offers **▶ Continue — Level N** (focused) and **🌱 New game**. **🗺 Levels** is always there and opens the level list. |
+| ST-3 | With nothing to continue it offers **▶ Play**. With a save it offers **▶ Continue — Level N** (focused) and **🌱 New game**. Below them, **🗺 Levels** is always there, and **🐾 My pets** once at least one pet has been rescued. |
 | ST-4 | On-screen touch buttons are hidden while the start screen is up. |
 
 ## 2b. Saving
 
 | ID | Requirement |
 |----|-------------|
-| SV-1 | Progress is saved in the browser (localStorage): the level to Continue from, and the furthest level reached. Starting or picking a level, or beating one, updates it. Continue resumes there with all earlier pets already in the parade. |
-| SV-2 | New game starts at level 1 and removes Continue, but levels already reached stay unlocked. |
+| SV-1 | Progress is saved in the browser (localStorage): the level to Continue from, the furthest level reached, the roster of rescued pets and which of them follow. Starting or picking a level, beating one, or changing followers updates it. |
+| SV-2 | New game starts at level 1 and removes Continue, but unlocked levels, the roster and the chosen followers are kept. |
 | SV-3 | Winning the whole game removes Continue and unlocks every level. |
 | SV-4 | A missing, broken or out-of-range save is ignored, and blocked storage (e.g. private mode) never breaks the game — progress just isn't kept. |
 | SV-5 | Older saves that only stored a level still work: Continue goes there and levels up to it are unlocked. |
@@ -61,11 +63,19 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 |----|-------------|
 | PS-1 | A **⏸ Pause** button in the top bar, or Esc on desktop, pauses the game; Esc or **▶ Resume** continues. Nothing moves while paused. |
 | PS-2 | Switching away from the window or tab (blur, or the page being hidden) pauses the game automatically. |
-| PS-3 | The pause menu offers Resume, **↺ Restart level**, **🗺 Choose a level** and **🏠 Main menu**. Keys pressed while a menu is open never carry into play, and touch buttons are hidden while any menu is up. |
+| PS-3 | The pause menu offers Resume, **↺ Restart level**, **🗺 Choose a level**, **🐾 My pets** and **🏠 Main menu**. Keys pressed while a menu is open never carry into play, and touch buttons are hidden while any menu is up. |
 | PS-4 | Main menu goes to the start screen, where Continue returns to the level that was left. |
 | LS-1 | The level list shows all levels as cards: number, pet emoji and name. Levels up to the furthest one reached can be picked; later ones show 🔒 and can't be started. Beaten levels are ticked ✔, and when opened from the pause menu the current level is highlighted and focused. |
-| LS-2 | Picking a level starts it, with the pets of every earlier level already in the parade, and makes it the Continue point. Picking a level counts as a tap, so it can switch music on like Play. |
-| LS-3 | ← Back (or Esc) returns to wherever the list was opened from: the start screen or the pause menu. |
+| LS-2 | Picking a level starts it with your chosen followers in the parade, and makes it the Continue point. Picking a level counts as a tap, so it can switch music on like Play. |
+| LS-3 | ← Back (or Esc) returns to wherever the list was opened from: the start screen or the pause menu. The same goes for My pets. |
+
+## 2d. Pet roster
+
+| ID | Requirement |
+|----|-------------|
+| RS-1 | Every rescued pet joins the **roster** for good. At most **3** follow in the parade. A newly rescued pet starts following at the back; if 3 already follow, the one that has followed longest goes home to rest (a puff of hearts, and Noodle says "<name> went home to rest 🏡" before the next level's tip). Rescuing a pet already in the roster changes nothing. |
+| RS-2 | **🐾 My pets** (from the start screen or pause menu) shows a card for every pet, drawn in the game's style: rescued ones are marked 🐾 Following or 💤 Resting, unrescued ones are a grey silhouette with "Rescue in level N" and can't be picked. Tapping a rescued pet makes it rest or follow; with 3 already following it explains to rest one first. Zero followers is allowed. Changes are saved and, from the pause menu, the parade updates straight away. A counter shows "Following: n / 3". |
+| RS-3 | Saves from before the roster get one built from the beaten levels, with the 3 newest following. Unknown or repeated pets in a save are dropped, and only rostered pets can follow. |
 
 ## 3. Level flow
 
@@ -78,7 +88,7 @@ Each level is completed in this order:
 | LV-3 | When Flora is within 95 px of the bone mound, Noodle runs to it and barks "🦴 Dig here!". |
 | LV-4 | **Collect the key**: the key appears only once all sprouts are bloomed **and** the bone is found. Touching it collects it. |
 | LV-5 | **Enter the doghouse**: the doghouse always stands at the far right of the level. Walking right past it (level width − 115) **on the ground** while holding the key starts a 75-tick celebration that names the rescued pet. Falling past the door from above doesn't count until Flora lands. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
-| LV-6 | After the celebration the pet joins the parade following Noodle, and the next level starts with Flora back at the left side. |
+| LV-6 | After the celebration the pet joins the roster and the parade (see RS-1), and the next level starts with Flora back at the left side. |
 | LV-7 | After the last level the victory dialog opens and the game pauses. It lists every rescued pet with its emoji, generated from the level list. Closing it (button, Esc, or clicking outside) starts a new game at level 1 with an empty parade. |
 | LV-8 | The rainbow is hidden during play. When the level is beaten it sweeps across the sky from left to right (~2/3 s) during the celebration, disappears when the next level starts, and stays fully drawn behind the final victory dialog. |
 
@@ -111,7 +121,11 @@ Each level after the first adds one new idea; the last level mixes them all.
 
 | ID | Requirement |
 |----|-------------|
-| PT-1 | Rescued pets are drawn as fully opaque emojis (🐱 🐶 🐹 🐢 🐰) that hop gently, each on its own rhythm, with a small heart and a shadow. |
+| PT-1 | Rescued pets are drawn as sprites in the same soft, rounded style as Flora and Noodle (not emoji): each of the 10 species has its own look (kitty, puppy, hamster, turtle, bunny, duckling, piglet, fox, panda, unicorn), with a sparkly eye and blush. They trot while moving, bob gently while waiting, each on its own rhythm, with a small heart and a shadow. The level list and victory dialog still use the pets' emoji. |
+| PT-2 | Every species has a drawing (a missing one is a compile error). |
+| PT-3 | Parade pets turn to face the way they walk (with the same dead zone as Noodle), spaced 32 px apart; the pet waiting in the doorway faces out toward Flora. |
+| FW-1 | Flowers match the characters' style. A sprout is two plump leaves around a sleepy little bud. A bloomed flower has five round petals with soft highlights around a yellow centre with a happy face, on a curved stem with a leaf, swaying gently (dancing once the whole garden blooms). Big flowers grow as a teardrop bud in green sepals with 💧 per splash still needed, and bloom as a sunflower with a smiling brown centre. |
+| SK-1 | Occasionally a kite, a little airplane or a bunch of balloons drifts across the sky behind everything, each with a tiny happy face. Only one is up at a time; the first comes a few seconds in, then there's a 6–14 s pause after each leaves. They take turns from a shuffled bag, so all three appear and none repeats twice in a row. They stay in the sky band (balloons fade out before the HUD) and never affect gameplay. |
 | BF-1 | A few (3–5) butterflies flutter across the sky as decoration, wrapping around the screen edges. They stay between the HUD and the ground (y 110–330), never affect gameplay, and keep moving behind the start screen. |
 | ND-1 | Noodle matches Flora's style: a rounded golden-doodle with a curly coat and topknot, a floppy ear, a sparkly eye, a blush and a pink collar. Short legs trot while he moves, his tail wags (faster when he smells the bone), and he dips his nose and hops while sniffing. He faces the way he's moving, ignoring tiny drifts. His position and following behaviour are unchanged. |
 | SC-1 | The tree and doghouse use the same soft, rounded, outline-free style as the characters. Tree: a tapered trunk with a knothole and a puffy canopy of overlapping circles with highlights and pink blossoms, swaying gently. Doghouse: pink planked walls, a rounded scalloped roof with a heart, a bone sign, an arched door with trim, and a food bowl. Both keep their old footprint, so the door, entry point and the pet's spot are unchanged. |

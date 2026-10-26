@@ -1,4 +1,5 @@
 import { BEE_RADIUS, GROUND_Y, MUSHROOM_HEIGHT, MUSHROOM_WIDTH, RAINBOW_COLORS } from './levels.ts';
+import { drawPetSprite } from './pets.ts';
 import type { Bush, DigMound, Platform, Point, Species, Sprout } from './types.ts';
 
 /** A smiling sun in the characters' style: soft rays that turn and breathe, and eyes that blink. */
@@ -271,36 +272,34 @@ export const PET_EMOJI: Readonly<Record<Species, string>> = {
     unicorn: "🦄"
 };
 
-/** A rescued pet: its emoji hopping gently, sitting on `y`, with a little heart above. */
+/**
+ * A rescued pet standing on the grass (its feet at `y + 12`), drawn in the characters' style,
+ * with a soft shadow and a little heart. It trots while moving and hops gently while waiting.
+ */
 export function drawRescuedPet(
     ctx: CanvasRenderingContext2D,
     species: Species,
     x: number,
-    y: number
+    y: number,
+    facingLeft: boolean = false,
+    vx: number = 0
 ): void {
-    // Each species hops on its own rhythm so the parade doesn't bob in lockstep.
+    const now = Date.now();
+    // Each species bobs on its own rhythm so the parade doesn't move in lockstep.
     const phase = Object.keys(PET_EMOJI).indexOf(species) * 1.3;
-    const hop = Math.abs(Math.sin(Date.now() * 0.006 + phase)) * 4;
+    const moving = Math.abs(vx) > 0.4;
+    const step = moving ? Math.sin(now * 0.022 + phase) : 0;
+    const hop = moving ? Math.abs(step) * 1.5 : Math.abs(Math.sin(now * 0.004 + phase)) * 2.5;
+    const groundY = y + 12;
 
     ctx.save();
-    ctx.translate(x, y + 12 - hop);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-
-    // Soft shadow on the grass stays put while the pet hops.
-    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
     ctx.beginPath();
-    ctx.ellipse(0, hop, 10 - hop / 2, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
     ctx.fill();
-
-    // Browsers tint emoji with the fill's alpha, so draw them fully opaque after the shadow.
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "#000";
-    ctx.font = "26px sans-serif";
-    ctx.fillText(PET_EMOJI[species], 0, 2);
-    ctx.font = "10px sans-serif";
-    ctx.fillText("💖", 9, -20);
-
+    drawPetSprite(ctx, species, x, groundY - hop, facingLeft, step);
+    ctx.fillStyle = "#FF7A93";
+    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - hop, 4);
     ctx.restore();
 }
 
@@ -341,67 +340,158 @@ export function drawTreeAndGround(
     }
 }
 
+/** A tiny happy face for flower centres: dot eyes, a smile and a blush. */
+function drawFlowerFace(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+    const e = r * 0.18;
+    ctx.fillStyle = "#2D3436";
+    ctx.beginPath();
+    ctx.arc(x - r * 0.35, y - r * 0.12, e, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.35, y - r * 0.12, e, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.6)";
+    ctx.beginPath();
+    ctx.ellipse(x - r * 0.62, y + r * 0.3, r * 0.2, r * 0.13, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + r * 0.62, y + r * 0.3, r * 0.2, r * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#2D3436";
+    ctx.lineWidth = Math.max(0.8, r * 0.12);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y + r * 0.12, r * 0.28, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+}
+
+/** A curved stem from the ground up to (x + lean, topY), with one leaf. */
+function drawStem(ctx: CanvasRenderingContext2D, x: number, groundY: number, topY: number, lean: number, width: number): void {
+    ctx.strokeStyle = "#3FA866";
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, groundY);
+    ctx.quadraticCurveTo(x - 3 + lean * 0.3, (groundY + topY) / 2, x + lean, topY);
+    ctx.stroke();
+    ctx.fillStyle = "#55C57A";
+    ctx.beginPath();
+    ctx.ellipse(x + 5, groundY - (groundY - topY) * 0.35, 5.5, 2.6, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+}
+
 export function drawSprouts(
     ctx: CanvasRenderingContext2D,
     sprouts: readonly Sprout[],
     allBloomed: boolean
 ): void {
+    const now = Date.now();
     for (const s of sprouts) {
         const isBig = s.waterNeeded > 1;
         if (s.bloomed) {
-            const danceY = allBloomed ? Math.sin(Date.now() * 0.01 + s.danceOffset) * 6 : 0;
-            const headY = s.y - (isBig ? 36 : 24) + danceY;
-            const petal = isBig ? 19 : 13;
+            // Every flower dances once the whole garden has bloomed; otherwise a gentle sway.
+            const dance = allBloomed ? Math.sin(now * 0.01 + s.danceOffset) : Math.sin(now * 0.002 + s.danceOffset) * 0.25;
+            const headY = s.y - (isBig ? 36 : 24) + (allBloomed ? dance * 5 : 0);
+            const lean = dance * 3;
+            const hx = s.x + lean;
+            drawStem(ctx, s.x, s.y, headY, lean, isBig ? 4.5 : 3.5);
 
-            // Stem grounded at s.y
-            ctx.strokeStyle = "#27AE60";
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(s.x, s.y);
-            ctx.lineTo(s.x, headY);
-            ctx.stroke();
-
-            // Flower Petals & Center
-            ctx.fillStyle = s.color;
-            ctx.beginPath();
-            ctx.arc(s.x, headY, petal, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = isBig ? "#6D4C41" : "#FFF";
-            ctx.beginPath();
-            ctx.arc(s.x, headY, isBig ? 8 : 5, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.save();
+            ctx.translate(hx, headY);
+            ctx.rotate(dance * 0.12);
+            if (isBig) {
+                // Sunflower: a ring of long petals around a big brown smiling centre
+                for (let i = 0; i < 12; i++) {
+                    const a = (i / 12) * Math.PI * 2;
+                    ctx.fillStyle = i % 2 ? s.color : "#F7B731";
+                    ctx.beginPath();
+                    ctx.ellipse(Math.cos(a) * 12, Math.sin(a) * 12, 7, 3.6, a, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = "#8D5B3A";
+                ctx.beginPath();
+                ctx.arc(0, 0, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+                ctx.beginPath();
+                ctx.arc(-3, -3, 4, 0, Math.PI * 2);
+                ctx.fill();
+                drawFlowerFace(ctx, 0, 0.5, 8);
+            } else {
+                // Five round petals, each with a soft highlight, around a sunny smiling centre
+                for (let i = 0; i < 5; i++) {
+                    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+                    const px = Math.cos(a) * 7.5;
+                    const py = Math.sin(a) * 7.5;
+                    ctx.fillStyle = s.color;
+                    ctx.beginPath();
+                    ctx.arc(px, py, 6.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+                    ctx.beginPath();
+                    ctx.arc(px - 1.5, py - 1.5, 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = "#FFEAA7";
+                ctx.beginPath();
+                ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+                drawFlowerFace(ctx, 0, 0.3, 5.5);
+            }
+            ctx.restore();
         } else if (isBig) {
             // Big bud: grows taller with each splash, and shows how many splashes it still wants.
             const growth = s.water / s.waterNeeded;
             const budY = s.y - 16 - growth * 14;
-            ctx.strokeStyle = "#27AE60";
-            ctx.lineWidth = 5;
+            drawStem(ctx, s.x, s.y, budY, 0, 4.5);
+            ctx.fillStyle = "#55C57A";
+            ctx.beginPath();
+            ctx.ellipse(s.x - 8, s.y - 9, 8, 4, -0.4, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 8, s.y - 9, 8, 4, 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            // Teardrop bud peeking out of green sepals
+            const bw = 6 + growth * 4;
+            const bh = 9 + growth * 5;
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.moveTo(s.x, budY - bh - 3);
+            ctx.quadraticCurveTo(s.x + bw + 2, budY - bh * 0.4, s.x, budY + 1);
+            ctx.quadraticCurveTo(s.x - bw - 2, budY - bh * 0.4, s.x, budY - bh - 3);
+            ctx.fill();
+            ctx.fillStyle = "#3FA866";
+            ctx.beginPath();
+            ctx.ellipse(s.x - 4, budY - 2, 4, 2.4, 0.6, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 4, budY - 2, 4, 2.4, -0.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = "#000";
+            ctx.font = "11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - bh - 8);
+            ctx.textAlign = "start";
+        } else {
+            // Sprout: two plump leaves around a sleepy little bud, waiting for water
+            const sway = Math.sin(now * 0.003 + s.danceOffset) * 1.2;
+            ctx.strokeStyle = "#3FA866";
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(s.x, s.y);
-            ctx.lineTo(s.x, budY);
+            ctx.quadraticCurveTo(s.x, s.y - 7, s.x + sway, s.y - 12);
             ctx.stroke();
             ctx.fillStyle = "#55EFC4";
             ctx.beginPath();
-            ctx.ellipse(s.x - 8, s.y - 10, 8, 4, -0.4, 0, Math.PI * 2);
-            ctx.ellipse(s.x + 8, s.y - 10, 8, 4, 0.4, 0, Math.PI * 2);
+            ctx.ellipse(s.x - 5.5 + sway * 0.5, s.y - 9, 5.5, 3, -0.5, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 5.5 + sway * 0.5, s.y - 9, 5.5, 3, 0.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = s.color;
             ctx.beginPath();
-            ctx.ellipse(s.x, budY - 4, 7 + growth * 4, 10 + growth * 4, 0, 0, Math.PI * 2);
+            ctx.ellipse(s.x + sway, s.y - 14, 3.2, 3.8, 0, 0, Math.PI * 2);
             ctx.fill();
-            ctx.font = "11px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - 20);
-            ctx.textAlign = "start";
-        } else {
-            // Unbloomed sprout rooted at s.y
-            ctx.fillStyle = "#27AE60";
-            ctx.fillRect(s.x - 2, s.y - 12, 4, 12);
-            ctx.fillStyle = "#55EFC4";
+            // Closed sleepy eyes on the bud
+            ctx.strokeStyle = "rgba(45, 52, 54, 0.7)";
+            ctx.lineWidth = 0.7;
             ctx.beginPath();
-            ctx.ellipse(s.x - 5, s.y - 10, 5, 3, -0.4, 0, Math.PI * 2);
-            ctx.ellipse(s.x + 5, s.y - 10, 5, 3, 0.4, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.arc(s.x + sway - 1.2, s.y - 14.2, 0.8, 0.2, Math.PI - 0.2);
+            ctx.moveTo(s.x + sway + 2, s.y - 14.2);
+            ctx.arc(s.x + sway + 1.2, s.y - 14.2, 0.8, 0.2, Math.PI - 0.2);
+            ctx.stroke();
         }
     }
 }

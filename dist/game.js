@@ -431,15 +431,21 @@ function fitScale(viewportWidth        , viewportHeight        , gutter         
 // --- src/save.ts ---
 /** Bump the suffix if the saved shape changes, so old saves are ignored instead of misread. */
 const SAVE_KEY         = 'floras-adventure-save-v1';
+/** How many rescued pets can walk in the parade at once. */
+const MAX_FOLLOWERS         = 3;
 
                            
                                                                                   
                          
                                                                                                 
                      
+                                                                  
+                      
+                                                                                           
+                         
  
 
-const EMPTY_SAVE           = { level: null, unlocked: 0 };
+const EMPTY_SAVE           = { level: null, unlocked: 0, roster: [], followers: [] };
 
 /** localStorage, or null where it's blocked (private mode, disabled site data). */
 function getStorage()                 {
@@ -453,19 +459,39 @@ function getStorage()                 {
 const isIndex = (n         , levelCount        )              =>
     typeof n === 'number' && Number.isInteger(n) && n >= 0 && n < levelCount;
 
-/** Reads the save, repairing what it can; anything unreadable means a fresh start. */
-function loadSave(storage                , levelCount        )           {
+/** Keeps only known, distinct species, in their saved order. */
+function cleanSpecies(list         , known                    )            {
+    if (!Array.isArray(list)) return [];
+    const seen = new Set         ();
+    for (const s of list) if (known.includes(s           )) seen.add(s           );
+    return [...seen];
+}
+
+/**
+ * Reads the save, repairing what it can; anything unreadable means a fresh start.
+ * `levelSpecies` is each level's pet, in level order.
+ */
+function loadSave(storage                , levelSpecies                    )           {
+    const levelCount = levelSpecies.length;
     try {
         const raw = storage?.getItem(SAVE_KEY);
-        if (!raw) return { ...EMPTY_SAVE };
-        const data = JSON.parse(raw)                                           ;
+        if (!raw) return { ...EMPTY_SAVE, roster: [], followers: [] };
+        const data = JSON.parse(raw)                                                                                  ;
         // Continue only makes sense past level 1 (level 1 is just "New game").
         const level = isIndex(data.level, levelCount) && data.level >= 1 ? data.level : null;
         // Older saves only had `level`; treat it as the furthest level reached.
         const unlocked = Math.max(isIndex(data.unlocked, levelCount) ? data.unlocked : 0, level ?? 0);
-        return { level, unlocked };
+        // Saves from before the roster: every level before the furthest one was beaten.
+        const roster = Array.isArray(data.roster)
+            ? cleanSpecies(data.roster, levelSpecies)
+            : levelSpecies.slice(0, unlocked);
+        const followers = (Array.isArray(data.followers)
+            ? cleanSpecies(data.followers, levelSpecies)
+            : roster.slice(-MAX_FOLLOWERS)
+        ).filter(s => roster.includes(s)).slice(0, MAX_FOLLOWERS);
+        return { level, unlocked, roster, followers };
     } catch {
-        return { ...EMPTY_SAVE };
+        return { ...EMPTY_SAVE, roster: [], followers: [] };
     }
 }
 
@@ -475,6 +501,32 @@ function writeSave(storage                , data          )       {
     } catch {
         // Storage full or blocked: progress just isn't kept.
     }
+}
+
+/**
+ * Adds a newly rescued pet: it joins the roster and starts following. If the parade is full,
+ * the pet that has followed longest goes home to rest (returned, so it can wave goodbye).
+ * Rescuing a pet that's already in the roster changes nothing.
+ */
+function addRescue(data          , species         )                                             {
+    if (data.roster.includes(species)) return { bumped: null, isNew: false };
+    data.roster.push(species);
+    data.followers.push(species);
+    const bumped = data.followers.length > MAX_FOLLOWERS ? (data.followers.shift()           ) : null;
+    return { bumped, isNew: true };
+}
+
+/** Lets a rostered pet follow or rest. Returns false if the parade is already full. */
+function toggleFollower(data          , species         )          {
+    if (!data.roster.includes(species)) return false;
+    const i = data.followers.indexOf(species);
+    if (i >= 0) {
+        data.followers.splice(i, 1);
+        return true;
+    }
+    if (data.followers.length >= MAX_FOLLOWERS) return false;
+    data.followers.push(species);
+    return true;
 }
 
 // --- src/audio.ts ---
@@ -535,17 +587,46 @@ class AudioController {
         Tone.Transport.start();
     }
 
+    /** Last start time used on each instrument (by instrument). */
+            lastStart = new Map                ();
+
+    /**
+     * A start time strictly after the previous note on `instrument`. Tone.js throws if a synth
+     * is started twice at the same moment, which happens when two sounds land in the same tick
+     * (a bee bump and a jump) or while the audio clock is suspended.
+     */
+            nextTime(instrument        )         {
+        const now = typeof Tone === 'undefined' ? 0 : Tone.now();
+        const time = Math.max(now, (this.lastStart.get(instrument) ?? -1) + 0.01);
+        this.lastStart.set(instrument, time);
+        return time;
+    }
+
            playSound(type           )       {
         if (!this.enabled) return;
-        if (type === 'jump') this.synth?.triggerAttackRelease("G4", "8n");
-        if (type === 'water') this.noiseSynth?.triggerAttackRelease("16n");
-        if (type === 'dig') this.synth?.triggerAttackRelease("A2", "16n");
-        if (type === 'bloom') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5"], "8n");
-        if (type === 'bark') this.synth?.triggerAttackRelease("E3", "16n");
-        if (type === 'key') this.polySynth?.triggerAttackRelease(["G5", "C6", "E6"], "4n");
-        if (type === 'bump') this.synth?.triggerAttackRelease("D3", "16n");
-        if (type === 'bounce') this.synth?.triggerAttackRelease("C5", "16n");
-        if (type === 'victory') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n");
+        const notes                                                                                         = {
+            jump: [this.synth, "G4", "8n"],
+            dig: [this.synth, "A2", "16n"],
+            bloom: [this.polySynth, ["C5", "E5", "G5"], "8n"],
+            bark: [this.synth, "E3", "16n"],
+            key: [this.polySynth, ["G5", "C6", "E6"], "4n"],
+            bump: [this.synth, "D3", "16n"],
+            bounce: [this.synth, "C5", "16n"],
+            victory: [this.polySynth, ["C5", "E5", "G5", "C6"], "2n"]
+        };
+        // Sound is decoration: a failure here must never stop the game.
+        try {
+            if (type === 'water') {
+                if (this.noiseSynth) this.noiseSynth.triggerAttackRelease("16n", this.nextTime(this.noiseSynth));
+                return;
+            }
+            const entry = notes[type];
+            if (!entry || !entry[0]) return;
+            const [instrument, note, duration] = entry;
+            instrument.triggerAttackRelease(note, duration, this.nextTime(instrument));
+        } catch (err) {
+            console.warn(`Sound "${type}" failed`, err);
+        }
     }
 }
 
@@ -706,6 +787,571 @@ class ButterflySwarm {
             ctx.restore();
         }
     }
+}
+
+// --- src/skyfriends.ts ---
+/*
+ * Occasional sky visitors — a kite, a little airplane, a bunch of balloons — drifting by
+ * behind everything, like the butterflies. Purely decorative: they never touch gameplay.
+ * Only one is in the sky at a time, with a pause between visits, so the sky stays calm.
+ */
+
+                                                           
+
+                             
+                         
+              
+              
+                                                                                       
+                  
+               
+               
+                
+                  
+ 
+
+/** Visitors stay between the HUD and the top of the characters. */
+const SKY_MIN_Y         = 85;
+const SKY_MAX_Y         = 330;
+/** Ticks between one visitor leaving and the next arriving (6–14 s). */
+const SKY_GAP_MIN         = 360;
+const SKY_GAP_MAX         = 840;
+const OFFSCREEN = 90;
+const KINDS                            = ['kite', 'plane', 'balloons'];
+const COLORS                    = ["#FD79A8", "#74B9FF", "#A29BFE", "#55E6C1", "#FDCB6E"];
+
+class SkyVisitors {
+           visitor                    = null;
+    /** Ticks until the next visitor arrives. */
+           cooldown        ;
+            random              ;
+            lastKind                        = null;
+    /** Upcoming kinds: a shuffled bag, so all three take turns before any comes back. */
+            bag                   = [];
+
+    constructor(random               = Math.random) {
+        this.random = random;
+        this.cooldown = 240; // the first one shows up a few seconds in
+    }
+
+            spawn()             {
+        if (this.bag.length === 0) {
+            this.bag = [...KINDS];
+            for (let i = this.bag.length - 1; i > 0; i--) {
+                const j = Math.floor(this.random() * (i + 1));
+                [this.bag[i], this.bag[j]] = [this.bag[j], this.bag[i]];
+            }
+            // Never the same kind twice in a row across bags either.
+            if (this.bag[0] === this.lastKind) this.bag.push(this.bag.shift()                  );
+        }
+        const kind = this.bag.shift()                  ;
+        this.lastKind = kind;
+        const fromLeft = this.random() < 0.5;
+        const dir = fromLeft ? 1 : -1;
+        const color = COLORS[Math.floor(this.random() * COLORS.length)];
+        const startX = fromLeft ? -OFFSCREEN + 10 : CANVAS_WIDTH + OFFSCREEN - 10;
+        if (kind === 'plane') {
+            const baseY = 100 + this.random() * 40;
+            return { kind, x: startX, y: baseY, baseY, vx: dir * 1.1, vy: 0, age: 0, color };
+        }
+        if (kind === 'kite') {
+            const baseY = 150 + this.random() * 60;
+            return { kind, x: startX, y: baseY, baseY, vx: dir * 0.8, vy: 0, age: 0, color };
+        }
+        // Balloons rise from low in the sky and drift sideways as they float off the top.
+        const baseY = SKY_MAX_Y - 20;
+        const x = 120 + this.random() * (CANVAS_WIDTH - 240);
+        return { kind, x, y: baseY, baseY, vx: dir * 0.25, vy: -0.45, age: 0, color };
+    }
+
+           update()       {
+        if (!this.visitor) {
+            if (--this.cooldown <= 0) this.visitor = this.spawn();
+            return;
+        }
+        const v = this.visitor;
+        v.age++;
+        v.x += v.vx;
+        if (v.kind === 'balloons') {
+            v.y += v.vy;
+        } else {
+            // Kites dip and swoop on the breeze; planes bob very gently.
+            const amp = v.kind === 'kite' ? 16 : 3;
+            v.y = v.baseY + Math.sin(v.age * (v.kind === 'kite' ? 0.025 : 0.04)) * amp;
+        }
+        const gone = v.x < -OFFSCREEN || v.x > CANVAS_WIDTH + OFFSCREEN || v.y < SKY_MIN_Y - 10;
+        if (gone) {
+            this.visitor = null;
+            this.cooldown = SKY_GAP_MIN + Math.floor(this.random() * (SKY_GAP_MAX - SKY_GAP_MIN));
+        }
+    }
+
+           draw(ctx                          )       {
+        const v = this.visitor;
+        if (!v) return;
+        ctx.save();
+        // Fade balloons out as they reach the top, instead of slipping under the HUD.
+        if (v.kind === 'balloons') ctx.globalAlpha = Math.max(0, Math.min(1, (v.y - SKY_MIN_Y) / 40));
+        if (v.kind === 'kite') drawKite(ctx, v);
+        else if (v.kind === 'plane') drawPlane(ctx, v);
+        else drawBalloons(ctx, v);
+        ctx.restore();
+    }
+}
+
+function drawKite(ctx                          , v            )       {
+    const tilt = Math.sin(v.age * 0.025 + 1) * 0.25;
+    // String trails down and back toward whoever is flying it, off-screen.
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(v.x, v.y + 14);
+    ctx.quadraticCurveTo(v.x - v.vx * 120, v.y + 120, v.x - v.vx * 260, SKY_MAX_Y + 120);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(v.x, v.y);
+    ctx.rotate(tilt);
+    // Tail of little bows, wiggling
+    ctx.strokeStyle = "#636E72";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, 14);
+    for (let i = 1; i <= 4; i++) ctx.lineTo(Math.sin(v.age * 0.1 + i) * 4, 14 + i * 8);
+    ctx.stroke();
+    for (let i = 1; i <= 4; i++) {
+        const bx = Math.sin(v.age * 0.1 + i) * 4;
+        ctx.fillStyle = i % 2 ? "#FDCB6E" : "#FD79A8";
+        ctx.beginPath();
+        ctx.moveTo(bx, 14 + i * 8);
+        ctx.lineTo(bx - 4, 11 + i * 8);
+        ctx.lineTo(bx - 4, 17 + i * 8);
+        ctx.moveTo(bx, 14 + i * 8);
+        ctx.lineTo(bx + 4, 11 + i * 8);
+        ctx.lineTo(bx + 4, 17 + i * 8);
+        ctx.fill();
+    }
+    // Diamond with rounded-feeling halves and a cute face
+    ctx.fillStyle = v.color;
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.quadraticCurveTo(11, -6, 12, -2);
+    ctx.quadraticCurveTo(6, 8, 0, 14);
+    ctx.quadraticCurveTo(-6, 8, -12, -2);
+    ctx.quadraticCurveTo(-11, -6, 0, -16);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.quadraticCurveTo(-11, -6, -12, -2);
+    ctx.lineTo(0, -2);
+    ctx.closePath();
+    ctx.fill();
+    drawTinyFace(ctx, 0, 0, 5);
+    ctx.restore();
+}
+
+function drawPlane(ctx                          , v            )       {
+    ctx.save();
+    ctx.translate(v.x, v.y);
+    if (v.vx < 0) ctx.scale(-1, 1);
+    // Little puffs trailing behind
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.arc(-22 - i * 9, Math.sin(v.age * 0.08 + i) * 1.5, 4.5 - i, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // Tail fin and back wing
+    ctx.fillStyle = "#E17055";
+    ctx.beginPath();
+    ctx.moveTo(-16, -2);
+    ctx.lineTo(-22, -12);
+    ctx.lineTo(-13, -4);
+    ctx.fill();
+    ctx.fillStyle = "#FAB1A0";
+    ctx.beginPath();
+    ctx.ellipse(-2, -3, 6, 2.5, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Chubby body
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 20, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = v.color;
+    ctx.fillRect(-14, 1, 26, 2.5);
+    // Windows
+    ctx.fillStyle = "#74B9FF";
+    for (const wx of [-8, -3, 2]) {
+        ctx.beginPath();
+        ctx.arc(wx, -2, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // Front wing and nose with a smile
+    ctx.fillStyle = "#E17055";
+    ctx.beginPath();
+    ctx.ellipse(-1, 4, 7, 2.6, 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    drawTinyFace(ctx, 13, -0.5, 4);
+    ctx.restore();
+}
+
+function drawBalloons(ctx                          , v            )       {
+    const bunch                                      = [[-8, -2, "#FD79A8"], [8, -4, "#74B9FF"], [0, -14, v.color]];
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = "rgba(99, 110, 114, 0.8)";
+    for (const [bx, by] of bunch) {
+        const sway = Math.sin(v.age * 0.04 + bx) * 2;
+        ctx.beginPath();
+        ctx.moveTo(v.x + bx + sway, v.y + by + 11);
+        ctx.quadraticCurveTo(v.x + bx * 0.4, v.y + 24, v.x, v.y + 36);
+        ctx.stroke();
+    }
+    for (const [bx, by, color] of bunch) {
+        const sway = Math.sin(v.age * 0.04 + bx) * 2;
+        const cx = v.x + bx + sway;
+        const cy = v.y + by;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 8, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Knot and a shine
+        ctx.beginPath();
+        ctx.moveTo(cx - 2, cy + 11);
+        ctx.lineTo(cx, cy + 9);
+        ctx.lineTo(cx + 2, cy + 11);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+        ctx.beginPath();
+        ctx.ellipse(cx - 3, cy - 4, 2, 3.2, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    drawTinyFace(ctx, v.x + Math.sin(v.age * 0.04) * 2, v.y - 13, 4.5);
+}
+
+/** The same happy face everyone in the game has, scaled down. */
+function drawTinyFace(ctx                          , x        , y        , r        )       {
+    ctx.fillStyle = "#2D3436";
+    ctx.beginPath();
+    ctx.arc(x - r * 0.4, y - r * 0.15, r * 0.17, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.4, y - r * 0.15, r * 0.17, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#2D3436";
+    ctx.lineWidth = 0.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y + r * 0.1, r * 0.3, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.55)";
+    ctx.beginPath();
+    ctx.arc(x - r * 0.7, y + r * 0.25, r * 0.18, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.7, y + r * 0.25, r * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// --- src/pets.ts ---
+/*
+ * The rescued pets, drawn in the same soft, rounded, outline-free style as Flora and Noodle.
+ * Every pet is drawn facing right around an origin on the ground under its middle, about
+ * 26px tall; the caller mirrors it to face left.
+ */
+
+                                    
+
+function ellipse(ctx     , x        , y        , rx        , ry        , color        , rot         = 0)       {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function circle(ctx     , x        , y        , r        , color        )       {
+    ellipse(ctx, x, y, r, r, color);
+}
+
+function triangle(ctx     , points                             , color        )       {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (const [px, py] of points.slice(1)) ctx.lineTo(px, py);
+    ctx.closePath();
+    ctx.fill();
+}
+
+/** The shared face: a sparkly eye, a blush and a tiny smile, looking to the right. */
+function face(ctx     , hx        , hy        , opts                                    = {})       {
+    ellipse(ctx, hx + 2.5, hy - 1, 1.4, 1.9, opts.eye ?? "#2D3436");
+    circle(ctx, hx + 3, hy - 1.7, 0.55, "#FFFFFF");
+    ellipse(ctx, hx + 1, hy + 2.6, 1.9, 1.2, "rgba(255, 118, 117, 0.55)");
+    if (opts.smile !== false) {
+        ctx.strokeStyle = "#2D3436";
+        ctx.lineWidth = 0.9;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(hx + 4.6, hy + 2, 1.3, 0.3, Math.PI - 0.3);
+        ctx.stroke();
+    }
+}
+
+/** Four stubby legs under a body, far pair darker, trotting with `step`. */
+function legs(ctx     , near        , far        , step        , spread         = 6)       {
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 3.5;
+    const pairs                             = [
+        [-spread, -step, far], [spread - 1, step, far], [-spread + 3, step, near], [spread + 2, -step, near]
+    ];
+    for (const [lx, swing, color] of pairs) {
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(lx, -6);
+        ctx.lineTo(lx + swing * 1.5, -1.5);
+        ctx.stroke();
+    }
+}
+
+                                                               
+
+const drawKitty            = (ctx, step, now) => {
+    const fur = "#F6A04D", dark = "#E0812E", light = "#FFE3C2";
+    // Tail curls up behind
+    ctx.strokeStyle = fur;
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-8, -9);
+    ctx.quadraticCurveTo(-15, -12, -13 + Math.sin(now * 0.004) * 2, -21);
+    ctx.stroke();
+    legs(ctx, fur, dark, step);
+    ellipse(ctx, 0, -9, 10, 6.5, fur);
+    ellipse(ctx, 3, -6.5, 5, 3, light);
+    // Stripes
+    for (const sx of [-5, -1]) ellipse(ctx, sx, -14, 1.2, 2.5, dark);
+    // Head, ears with pink insides
+    triangle(ctx, [[3, -21], [4.5, -29], [9, -23]], fur);
+    triangle(ctx, [[10, -23], [14, -29], [15, -20]], fur);
+    triangle(ctx, [[4.3, -22.5], [5, -27], [7.5, -23.5]], "#FFB8C6");
+    triangle(ctx, [[11, -23], [13.6, -27], [14, -21.5]], "#FFB8C6");
+    circle(ctx, 9, -17, 7.5, fur);
+    ellipse(ctx, 12, -14.5, 3.5, 2.6, light);
+    circle(ctx, 14.6, -15.6, 0.9, "#FF7A93");
+    face(ctx, 9, -17);
+    // Whiskers
+    ctx.strokeStyle = "rgba(45, 52, 54, 0.45)";
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(14, -14.5); ctx.lineTo(19, -15.5);
+    ctx.moveTo(14, -13.5); ctx.lineTo(19, -12.5);
+    ctx.stroke();
+};
+
+const drawPuppy            = (ctx, step, now) => {
+    const fur = "#C68B59", dark = "#8D5B3A", light = "#F3D9BF";
+    // Wagging tail
+    ctx.save();
+    ctx.translate(-9, -11);
+    ctx.rotate(-0.8 + Math.sin(now * 0.02) * 0.5);
+    ellipse(ctx, 0, -4, 2, 4.5, fur);
+    ctx.restore();
+    legs(ctx, fur, dark, step);
+    ellipse(ctx, 0, -9, 10, 6.5, fur);
+    ellipse(ctx, -3, -11, 3.5, 3, light);
+    circle(ctx, 9, -17, 7.5, fur);
+    ellipse(ctx, 13, -14, 4, 3, light);
+    ellipse(ctx, 16.5, -15, 1.6, 1.2, "#2D3436");
+    ellipse(ctx, 4.5, -15, 2.8, 5.5, dark, 0.25 + step * 0.1);
+    face(ctx, 9, -18);
+};
+
+const drawHamster            = (ctx, _step, now) => {
+    const fur = "#F5C07A", light = "#FFF3E0";
+    // A round little loaf; feet peek out
+    ellipse(ctx, -5, -1.5, 3, 1.8, "#FFB8C6");
+    ellipse(ctx, 5, -1.5, 3, 1.8, "#FFB8C6");
+    const squish = 1 + Math.sin(now * 0.01) * 0.03;
+    ellipse(ctx, 0, -10, 12 * squish, 10 / squish, fur);
+    ellipse(ctx, 2, -7, 8, 6.5, light);
+    circle(ctx, -4, -19, 3.2, fur);
+    circle(ctx, 5, -19.5, 3.2, fur);
+    circle(ctx, -4, -19, 1.7, "#FFB8C6");
+    circle(ctx, 5, -19.5, 1.7, "#FFB8C6");
+    circle(ctx, 9.8, -11.5, 0.9, "#FF7A93");
+    face(ctx, 5, -12);
+    // Puffy cheeks
+    ellipse(ctx, 8, -8.5, 3, 2.3, "rgba(255, 184, 198, 0.6)");
+};
+
+const drawTurtle            = (ctx, step) => {
+    const skin = "#A8E6A1", shell = "#58B368", shellLight = "#7BCB7F";
+    legs(ctx, skin, "#8CD18A", step * 0.6, 7);
+    // Head poking out the front
+    circle(ctx, 13, -10, 5.5, skin);
+    face(ctx, 13, -10.5);
+    // Domed shell with a soft pattern
+    ctx.fillStyle = shell;
+    ctx.beginPath();
+    ctx.ellipse(0, -5, 12, 11, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#3E9150";
+    ctx.fillRect(-12, -5.5, 24, 2.5);
+    for (const [px, py, r] of [[0, -11, 3.6], [-6.5, -8, 2.6], [6.5, -8, 2.6]]         ) {
+        circle(ctx, px, py, r, shellLight);
+    }
+    // Tiny tail
+    triangle(ctx, [[-12, -5], [-16, -3.5], [-12, -2.5]], skin);
+};
+
+const drawBunny            = (ctx, step) => {
+    const fur = "#F4EEF6", shade = "#DCD2E0", pink = "#FFB8C6";
+    circle(ctx, -10, -10, 3.4, "#FFFFFF");
+    legs(ctx, fur, shade, step);
+    ellipse(ctx, 0, -9, 10, 7, fur);
+    // Long ears, one flopping a little
+    ellipse(ctx, 6, -29, 2.6, 7.5, fur, -0.15);
+    ellipse(ctx, 11, -28, 2.6, 7.5, shade, 0.35);
+    ellipse(ctx, 6, -29, 1.2, 5.2, pink, -0.15);
+    circle(ctx, 9, -17, 7.5, fur);
+    circle(ctx, 15.5, -15.6, 1, pink);
+    face(ctx, 9, -17.5);
+};
+
+const drawDuckling            = (ctx, step) => {
+    const down = "#FFE066", shade = "#F5C842", beak = "#FF9F43";
+    // Little orange feet
+    ellipse(ctx, -2 + step, -1, 3, 1.5, beak);
+    ellipse(ctx, 4 - step, -1, 3, 1.5, beak);
+    ellipse(ctx, -1, -8, 10, 7, down);
+    triangle(ctx, [[-10, -10], [-15, -14], [-10, -6]], down);
+    ellipse(ctx, -2, -8.5, 5, 3.5, shade, -0.3);
+    circle(ctx, 6, -17, 7.5, down);
+    // Fluffy tuft on top
+    ellipse(ctx, 5, -25, 1.5, 3, down, -0.4);
+    ellipse(ctx, 7.5, -25, 1.5, 3, down, 0.3);
+    ellipse(ctx, 13.5, -15.5, 4, 2, beak);
+    face(ctx, 6, -18, { smile: false });
+};
+
+const drawPiglet            = (ctx, step, now) => {
+    const skin = "#FFB3C7", dark = "#F28FAA", snout = "#FF8FAB";
+    // Curly tail
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(-11, -11, 2.4, 0, Math.PI * 1.7 + Math.sin(now * 0.01) * 0.3);
+    ctx.stroke();
+    legs(ctx, skin, dark, step);
+    ellipse(ctx, 0, -9, 10.5, 7, skin);
+    triangle(ctx, [[4, -22], [5, -28], [9, -23.5]], dark);
+    triangle(ctx, [[10, -23.5], [14, -28], [14.5, -21]], dark);
+    circle(ctx, 9, -17, 7.5, skin);
+    ellipse(ctx, 15, -14.5, 3.3, 2.7, snout);
+    ellipse(ctx, 14.2, -14.5, 0.6, 0.9, "#C2577A");
+    ellipse(ctx, 16, -14.5, 0.6, 0.9, "#C2577A");
+    face(ctx, 8, -18, { smile: false });
+};
+
+const drawFox            = (ctx, step, now) => {
+    const fur = "#F0803C", white = "#FFF6EE";
+    // Big bushy tail with a white tip
+    ctx.save();
+    ctx.translate(-9, -9);
+    ctx.rotate(-0.5 + Math.sin(now * 0.006) * 0.15);
+    ellipse(ctx, -5, -3, 7, 4, fur, -0.3);
+    ellipse(ctx, -10.5, -4.5, 3, 2.6, white);
+    ctx.restore();
+    legs(ctx, "#5D4037", "#4E342E", step);
+    ellipse(ctx, 0, -9, 10, 6.5, fur);
+    ellipse(ctx, 4, -7, 5, 3, white);
+    triangle(ctx, [[3, -21], [4, -30], [9, -23]], fur);
+    triangle(ctx, [[10, -23], [14.5, -30], [15, -20]], fur);
+    triangle(ctx, [[3.9, -27.5], [4, -30], [5.8, -27]], "#4E342E");
+    triangle(ctx, [[13, -27.5], [14.5, -30], [14.7, -27]], "#4E342E");
+    circle(ctx, 9, -17, 7.5, fur);
+    // Pointy white muzzle
+    triangle(ctx, [[7, -15], [18, -14.5], [9, -10.5]], white);
+    circle(ctx, 17.8, -14.6, 1.2, "#2D3436");
+    face(ctx, 9, -18, { smile: false });
+};
+
+const drawPanda            = (ctx, step) => {
+    const white = "#FFFFFF", black = "#3B3B3B";
+    legs(ctx, black, "#2A2A2A", step);
+    ellipse(ctx, 0, -9, 10.5, 7.5, white);
+    // Black band over the shoulders
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(0, -9, 10.5, 7.5, 0, 0, Math.PI * 2);
+    ctx.clip();
+    // A soft rounded band over the shoulders, running down into the front legs
+    ellipse(ctx, 4.5, -9, 4, 9, black, 0.25);
+    ctx.restore();
+    circle(ctx, 4, -23, 3, black);
+    circle(ctx, 13.5, -23, 3, black);
+    circle(ctx, 9, -17, 7.8, white);
+    // Eye patch, then the usual sparkly eye on top of it
+    ellipse(ctx, 11.5, -18, 2.6, 3.2, black, -0.4);
+    ellipse(ctx, 11.5, -18, 1.1, 1.5, "#FFFFFF");
+    circle(ctx, 11.9, -18.6, 0.5, "#2D3436");
+    ellipse(ctx, 15.5, -15, 1.4, 1, black);
+    ellipse(ctx, 10, -14.3, 1.9, 1.2, "rgba(255, 118, 117, 0.55)");
+};
+
+const drawUnicorn            = (ctx, step) => {
+    const coat = "#FFF7FB", shade = "#F0DDEA", mane = ["#FD79A8", "#A29BFE", "#74B9FF"];
+    // Rainbow tail
+    mane.forEach((c, i) => ellipse(ctx, -11 - i * 1.5, -9 + i * 2.5, 2.4, 4, c, 0.5));
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 3;
+    const pairs                     = [[-6, -step], [5, step], [-3, step], [8, -step]];
+    for (const [lx, swing] of pairs) {
+        ctx.strokeStyle = shade;
+        ctx.beginPath();
+        ctx.moveTo(lx, -6);
+        ctx.lineTo(lx + swing * 1.5, -1.5);
+        ctx.stroke();
+        circle(ctx, lx + swing * 1.5, -1, 1.6, "#C8A2C8");
+    }
+    ellipse(ctx, 0, -9.5, 10, 6.5, coat);
+    // Neck and head
+    ellipse(ctx, 7, -15, 3.5, 6, coat, 0.4);
+    ellipse(ctx, 11, -19, 6.5, 5.5, coat, 0.2);
+    ellipse(ctx, 15.5, -16.5, 3, 2.6, "#FFE4F0");
+    // Golden horn
+    triangle(ctx, [[10, -24], [12, -34], [13.5, -24.5]], "#FDCB6E");
+    // Rainbow mane down the neck
+    mane.forEach((c, i) => circle(ctx, 6 - i * 1.2, -22 + i * 3.5, 2.6, c));
+    ellipse(ctx, 9.5, -23, 1.6, 3, "#F4EEF6", -0.5);
+    face(ctx, 11, -19.5);
+};
+
+/** Every species has a drawing; the type makes adding a species without one a compile error. */
+const PET_DRAWERS                                       = {
+    kitty: drawKitty,
+    puppy: drawPuppy,
+    hamster: drawHamster,
+    turtle: drawTurtle,
+    bunny: drawBunny,
+    duckling: drawDuckling,
+    piglet: drawPiglet,
+    fox: drawFox,
+    panda: drawPanda,
+    unicorn: drawUnicorn
+};
+
+/** Draws `species` standing on (x, groundY). `step` (-1..1) swings the legs while walking. */
+function drawPetSprite(
+    ctx     ,
+    species         ,
+    x        ,
+    groundY        ,
+    facingLeft         ,
+    step        
+)       {
+    ctx.save();
+    ctx.translate(x, groundY);
+    if (facingLeft) ctx.scale(-1, 1);
+    ctx.lineJoin = 'round';
+    PET_DRAWERS[species](ctx, step, Date.now());
+    ctx.restore();
 }
 
 // --- src/renderer.ts ---
@@ -979,36 +1625,34 @@ const PET_EMOJI                                    = {
     unicorn: "🦄"
 };
 
-/** A rescued pet: its emoji hopping gently, sitting on `y`, with a little heart above. */
+/**
+ * A rescued pet standing on the grass (its feet at `y + 12`), drawn in the characters' style,
+ * with a soft shadow and a little heart. It trots while moving and hops gently while waiting.
+ */
 function drawRescuedPet(
     ctx                          ,
     species         ,
     x        ,
-    y        
+    y        ,
+    facingLeft          = false,
+    vx         = 0
 )       {
-    // Each species hops on its own rhythm so the parade doesn't bob in lockstep.
+    const now = Date.now();
+    // Each species bobs on its own rhythm so the parade doesn't move in lockstep.
     const phase = Object.keys(PET_EMOJI).indexOf(species) * 1.3;
-    const hop = Math.abs(Math.sin(Date.now() * 0.006 + phase)) * 4;
+    const moving = Math.abs(vx) > 0.4;
+    const step = moving ? Math.sin(now * 0.022 + phase) : 0;
+    const hop = moving ? Math.abs(step) * 1.5 : Math.abs(Math.sin(now * 0.004 + phase)) * 2.5;
+    const groundY = y + 12;
 
     ctx.save();
-    ctx.translate(x, y + 12 - hop);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-
-    // Soft shadow on the grass stays put while the pet hops.
-    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
     ctx.beginPath();
-    ctx.ellipse(0, hop, 10 - hop / 2, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
     ctx.fill();
-
-    // Browsers tint emoji with the fill's alpha, so draw them fully opaque after the shadow.
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "#000";
-    ctx.font = "26px sans-serif";
-    ctx.fillText(PET_EMOJI[species], 0, 2);
-    ctx.font = "10px sans-serif";
-    ctx.fillText("💖", 9, -20);
-
+    drawPetSprite(ctx, species, x, groundY - hop, facingLeft, step);
+    ctx.fillStyle = "#FF7A93";
+    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - hop, 4);
     ctx.restore();
 }
 
@@ -1049,67 +1693,158 @@ function drawTreeAndGround(
     }
 }
 
+/** A tiny happy face for flower centres: dot eyes, a smile and a blush. */
+function drawFlowerFace(ctx                          , x        , y        , r        )       {
+    const e = r * 0.18;
+    ctx.fillStyle = "#2D3436";
+    ctx.beginPath();
+    ctx.arc(x - r * 0.35, y - r * 0.12, e, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.35, y - r * 0.12, e, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.6)";
+    ctx.beginPath();
+    ctx.ellipse(x - r * 0.62, y + r * 0.3, r * 0.2, r * 0.13, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + r * 0.62, y + r * 0.3, r * 0.2, r * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#2D3436";
+    ctx.lineWidth = Math.max(0.8, r * 0.12);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y + r * 0.12, r * 0.28, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+}
+
+/** A curved stem from the ground up to (x + lean, topY), with one leaf. */
+function drawStem(ctx                          , x        , groundY        , topY        , lean        , width        )       {
+    ctx.strokeStyle = "#3FA866";
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, groundY);
+    ctx.quadraticCurveTo(x - 3 + lean * 0.3, (groundY + topY) / 2, x + lean, topY);
+    ctx.stroke();
+    ctx.fillStyle = "#55C57A";
+    ctx.beginPath();
+    ctx.ellipse(x + 5, groundY - (groundY - topY) * 0.35, 5.5, 2.6, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+}
+
 function drawSprouts(
     ctx                          ,
     sprouts                   ,
     allBloomed         
 )       {
+    const now = Date.now();
     for (const s of sprouts) {
         const isBig = s.waterNeeded > 1;
         if (s.bloomed) {
-            const danceY = allBloomed ? Math.sin(Date.now() * 0.01 + s.danceOffset) * 6 : 0;
-            const headY = s.y - (isBig ? 36 : 24) + danceY;
-            const petal = isBig ? 19 : 13;
+            // Every flower dances once the whole garden has bloomed; otherwise a gentle sway.
+            const dance = allBloomed ? Math.sin(now * 0.01 + s.danceOffset) : Math.sin(now * 0.002 + s.danceOffset) * 0.25;
+            const headY = s.y - (isBig ? 36 : 24) + (allBloomed ? dance * 5 : 0);
+            const lean = dance * 3;
+            const hx = s.x + lean;
+            drawStem(ctx, s.x, s.y, headY, lean, isBig ? 4.5 : 3.5);
 
-            // Stem grounded at s.y
-            ctx.strokeStyle = "#27AE60";
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(s.x, s.y);
-            ctx.lineTo(s.x, headY);
-            ctx.stroke();
-
-            // Flower Petals & Center
-            ctx.fillStyle = s.color;
-            ctx.beginPath();
-            ctx.arc(s.x, headY, petal, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = isBig ? "#6D4C41" : "#FFF";
-            ctx.beginPath();
-            ctx.arc(s.x, headY, isBig ? 8 : 5, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.save();
+            ctx.translate(hx, headY);
+            ctx.rotate(dance * 0.12);
+            if (isBig) {
+                // Sunflower: a ring of long petals around a big brown smiling centre
+                for (let i = 0; i < 12; i++) {
+                    const a = (i / 12) * Math.PI * 2;
+                    ctx.fillStyle = i % 2 ? s.color : "#F7B731";
+                    ctx.beginPath();
+                    ctx.ellipse(Math.cos(a) * 12, Math.sin(a) * 12, 7, 3.6, a, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = "#8D5B3A";
+                ctx.beginPath();
+                ctx.arc(0, 0, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+                ctx.beginPath();
+                ctx.arc(-3, -3, 4, 0, Math.PI * 2);
+                ctx.fill();
+                drawFlowerFace(ctx, 0, 0.5, 8);
+            } else {
+                // Five round petals, each with a soft highlight, around a sunny smiling centre
+                for (let i = 0; i < 5; i++) {
+                    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+                    const px = Math.cos(a) * 7.5;
+                    const py = Math.sin(a) * 7.5;
+                    ctx.fillStyle = s.color;
+                    ctx.beginPath();
+                    ctx.arc(px, py, 6.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+                    ctx.beginPath();
+                    ctx.arc(px - 1.5, py - 1.5, 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = "#FFEAA7";
+                ctx.beginPath();
+                ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+                drawFlowerFace(ctx, 0, 0.3, 5.5);
+            }
+            ctx.restore();
         } else if (isBig) {
             // Big bud: grows taller with each splash, and shows how many splashes it still wants.
             const growth = s.water / s.waterNeeded;
             const budY = s.y - 16 - growth * 14;
-            ctx.strokeStyle = "#27AE60";
-            ctx.lineWidth = 5;
+            drawStem(ctx, s.x, s.y, budY, 0, 4.5);
+            ctx.fillStyle = "#55C57A";
+            ctx.beginPath();
+            ctx.ellipse(s.x - 8, s.y - 9, 8, 4, -0.4, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 8, s.y - 9, 8, 4, 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            // Teardrop bud peeking out of green sepals
+            const bw = 6 + growth * 4;
+            const bh = 9 + growth * 5;
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.moveTo(s.x, budY - bh - 3);
+            ctx.quadraticCurveTo(s.x + bw + 2, budY - bh * 0.4, s.x, budY + 1);
+            ctx.quadraticCurveTo(s.x - bw - 2, budY - bh * 0.4, s.x, budY - bh - 3);
+            ctx.fill();
+            ctx.fillStyle = "#3FA866";
+            ctx.beginPath();
+            ctx.ellipse(s.x - 4, budY - 2, 4, 2.4, 0.6, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 4, budY - 2, 4, 2.4, -0.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = "#000";
+            ctx.font = "11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - bh - 8);
+            ctx.textAlign = "start";
+        } else {
+            // Sprout: two plump leaves around a sleepy little bud, waiting for water
+            const sway = Math.sin(now * 0.003 + s.danceOffset) * 1.2;
+            ctx.strokeStyle = "#3FA866";
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(s.x, s.y);
-            ctx.lineTo(s.x, budY);
+            ctx.quadraticCurveTo(s.x, s.y - 7, s.x + sway, s.y - 12);
             ctx.stroke();
             ctx.fillStyle = "#55EFC4";
             ctx.beginPath();
-            ctx.ellipse(s.x - 8, s.y - 10, 8, 4, -0.4, 0, Math.PI * 2);
-            ctx.ellipse(s.x + 8, s.y - 10, 8, 4, 0.4, 0, Math.PI * 2);
+            ctx.ellipse(s.x - 5.5 + sway * 0.5, s.y - 9, 5.5, 3, -0.5, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 5.5 + sway * 0.5, s.y - 9, 5.5, 3, 0.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = s.color;
             ctx.beginPath();
-            ctx.ellipse(s.x, budY - 4, 7 + growth * 4, 10 + growth * 4, 0, 0, Math.PI * 2);
+            ctx.ellipse(s.x + sway, s.y - 14, 3.2, 3.8, 0, 0, Math.PI * 2);
             ctx.fill();
-            ctx.font = "11px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - 20);
-            ctx.textAlign = "start";
-        } else {
-            // Unbloomed sprout rooted at s.y
-            ctx.fillStyle = "#27AE60";
-            ctx.fillRect(s.x - 2, s.y - 12, 4, 12);
-            ctx.fillStyle = "#55EFC4";
+            // Closed sleepy eyes on the bud
+            ctx.strokeStyle = "rgba(45, 52, 54, 0.7)";
+            ctx.lineWidth = 0.7;
             ctx.beginPath();
-            ctx.ellipse(s.x - 5, s.y - 10, 5, 3, -0.4, 0, Math.PI * 2);
-            ctx.ellipse(s.x + 5, s.y - 10, 5, 3, 0.4, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.arc(s.x + sway - 1.2, s.y - 14.2, 0.8, 0.2, Math.PI - 0.2);
+            ctx.moveTo(s.x + sway + 2, s.y - 14.2);
+            ctx.arc(s.x + sway + 1.2, s.y - 14.2, 0.8, 0.2, Math.PI - 0.2);
+            ctx.stroke();
         }
     }
 }
@@ -1736,6 +2471,15 @@ class Noodle {
     /** How far Noodle moved last tick; drives trotting and which way he faces. */
            vx         = 0;
            facing            = 'right';
+    /** Lines waiting their turn in the speech bubble, with how long each shows. */
+            speechQueue                     = [];
+
+    /** Says `text` for `ticks` right away; whatever he was saying waits its turn after. */
+           sayFirst(text        , ticks        )       {
+        if (this.barkTimer > 0) this.speechQueue.unshift([this.speechBubble, this.barkTimer]);
+        this.speechBubble = text;
+        this.barkTimer = ticks;
+    }
 
            update(
         playerX        ,
@@ -1771,6 +2515,9 @@ class Noodle {
         }
 
         if (this.barkTimer > 0) this.barkTimer--;
+        if (this.barkTimer <= 0 && this.speechQueue.length > 0) {
+            [this.speechBubble, this.barkTimer] = this.speechQueue.shift()                    ;
+        }
 
         this.vx = this.x - prevX;
         // A little dead zone so tiny drifts don't make him flip back and forth.
@@ -1984,19 +2731,27 @@ const levelsBtn = document.getElementById('levels-btn')                     ;
 const levelSelect = document.getElementById('level-select')               ;
 const levelGrid = document.getElementById('level-grid')               ;
 const levelsBackBtn = document.getElementById('levels-back-btn')                     ;
+const petsBtn = document.getElementById('pets-btn')                     ;
+const pausePetsBtn = document.getElementById('pause-pets-btn')                     ;
+const rosterScreen = document.getElementById('roster-screen')               ;
+const rosterGrid = document.getElementById('roster-grid')               ;
+const rosterCount = document.getElementById('roster-count')               ;
+const rosterHint = document.getElementById('roster-hint')               ;
+const rosterBackBtn = document.getElementById('roster-back-btn')                     ;
 const victoryText = document.getElementById('victory-text')               ;
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
 const butterflies = new ButterflySwarm();
+const skyVisitors = new SkyVisitors();
 const storage = getStorage();
-/** Continue point and furthest level reached, kept in memory and mirrored to storage. */
-let progress           = loadSave(storage, LEVELS.length);
+/** Continue point, unlocked levels, roster and followers; kept in memory and mirrored to storage. */
+let progress           = loadSave(storage, LEVELS.map(l => l.species));
 
-                                                                    
+                                                                               
 let screen         = 'start';
-/** Where the level list's Back button goes. */
-let levelsReturnTo                     = 'start';
+/** Where the level list's or roster's Back button goes. */
+let menuReturnTo                     = 'start';
 let currentLevel         = 0;
 let levelClearTimer         = 0;
 /** Ticks since the level started; drives moving platforms and bees. */
@@ -2042,6 +2797,7 @@ window.addEventListener('keydown', (e               ) => {
         if (screen === 'playing') pauseGame();
         else if (screen === 'paused') resumeGame();
         else if (screen === 'levels') closeLevelSelect();
+        else if (screen === 'roster') closeRoster();
     }
     pressKey(e.code);
 });
@@ -2093,9 +2849,27 @@ restartBtn.addEventListener('click', () => {
 });
 
 function saveProgress(level               )       {
-    progress = { level, unlocked: Math.max(progress.unlocked, level ?? 0) };
+    progress = { ...progress, level, unlocked: Math.max(progress.unlocked, level ?? 0) };
     writeSave(storage, progress);
 }
+
+/**
+ * Makes the parade match the followers: pets already walking keep their spot, new ones
+ * join at the back, and ones that went to rest leave.
+ */
+function syncParade()       {
+    const kept = rescuedFriends.filter(p => progress.followers.includes(p.species));
+    for (const species of progress.followers) {
+        if (kept.some(p => p.species === species)) continue;
+        const behind = kept.length === 0 ? noodle.x : kept[kept.length - 1].x;
+        kept.push({ species, x: behind - PARADE_GAP, y: 416 });
+    }
+    // Keep the parade in follow order (longest-following nearest Noodle).
+    kept.sort((a, b) => progress.followers.indexOf(a.species) - progress.followers.indexOf(b.species));
+    rescuedFriends = kept;
+}
+
+const petName = (species         )         => LEVELS.find(l => l.species === species)?.pet ?? species;
 
 /** Drops held and just-pressed keys, so menu key presses never leak into play. */
 function dropInput()       {
@@ -2105,15 +2879,15 @@ function dropInput()       {
 
 /** Shows exactly one menu overlay (or none), and hides touch controls while any is up. */
 function showOverlay(overlay                    )       {
-    for (const el of [startScreen, pauseScreen, levelSelect]) el.hidden = el !== overlay;
+    for (const el of [startScreen, pauseScreen, levelSelect, rosterScreen]) el.hidden = el !== overlay;
     if (overlay) document.body.classList.add('menu-open');
     else document.body.classList.remove('menu-open');
 }
 
-/** Starts play at `level`, with every earlier pet already in the parade. */
+/** Starts play at `level`, with the chosen followers in the parade. */
 function startGame(level        )       {
     currentLevel = level;
-    rescuedFriends = LEVELS.slice(0, level).map((l, i) => ({ species: l.species, x: 20 - (i + 1) * 28, y: 416 }));
+    rescuedFriends = progress.followers.map((species, i) => ({ species, x: 20 - (i + 1) * PARADE_GAP, y: 416 }));
     // Continue picks up from whichever level you're on; level 1 is just "New game".
     saveProgress(level > 0 ? level : null);
     noodle.x = 20;
@@ -2129,6 +2903,7 @@ function showStartScreen()       {
     continueBtn.hidden = !canContinue;
     if (progress.level !== null) continueBtn.innerText = `▶ Continue — Level ${progress.level + 1}`;
     playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
+    petsBtn.hidden = progress.roster.length === 0;
     showOverlay(startScreen);
     (canContinue ? continueBtn : playBtn).focus();
 }
@@ -2150,7 +2925,7 @@ function resumeGame()       {
 
 /** The level list: every level up to the furthest one reached can be picked. */
 function openLevelSelect(from                    )       {
-    levelsReturnTo = from;
+    menuReturnTo = from;
     screen = 'levels';
     levelGrid.replaceChildren(
         ...LEVELS.map((level, i) => {
@@ -2163,7 +2938,8 @@ function openLevelSelect(from                    )       {
             if (locked) btn.classList.add('locked');
             if (beaten) btn.classList.add('beaten');
             if (i === currentLevel && from === 'paused') btn.classList.add('current');
-            btn.innerText = `${i + 1}\n${locked ? '🔒' : PET_EMOJI[level.species]}\n${level.name}${beaten ? ' ✔' : ''}`;
+            // First line (the pet, or a lock) is drawn big by CSS; then "number. name".
+            btn.innerText = `${locked ? '🔒' : PET_EMOJI[level.species]}\n${i + 1}. ${level.name}${beaten ? ' ✔' : ''}`;
             btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
             btn.addEventListener('click', () => {
                 if (locked) return;
@@ -2181,13 +2957,88 @@ function openLevelSelect(from                    )       {
 
 function closeLevelSelect()       {
     if (screen !== 'levels') return;
-    if (levelsReturnTo === 'paused') {
+    returnFromMenu(pauseLevelsBtn);
+}
+
+function returnFromMenu(focusInPause             )       {
+    if (menuReturnTo === 'paused') {
         screen = 'paused';
         showOverlay(pauseScreen);
-        pauseLevelsBtn.focus();
+        focusInPause.focus();
     } else {
         showStartScreen();
     }
+}
+
+/** Draws a pet onto a roster card's little canvas; pets not yet rescued are a mystery silhouette. */
+function drawRosterPet(card                   , species         , rescued         )       {
+    const dpr = window.devicePixelRatio || 1;
+    card.width = Math.round(80 * dpr);
+    card.height = Math.round(64 * dpr);
+    const g = card.getContext('2d');
+    if (!g) return;
+    g.scale(dpr * 1.6, dpr * 1.6);
+    drawPetSprite(g, species, 23, 37, false, 0);
+    if (!rescued) {
+        g.globalCompositeOperation = 'source-in';
+        g.fillStyle = 'rgba(99, 110, 114, 0.35)';
+        g.fillRect(0, 0, 80, 64);
+    }
+}
+
+/** The roster: every pet rescued so far. Tap one to let it follow or rest (3 can follow). */
+function openRoster(from                    )       {
+    menuReturnTo = from;
+    screen = 'roster';
+    rosterHint.innerText = '';
+    renderRoster();
+    showOverlay(rosterScreen);
+    (rosterGrid.children[0]                           )?.focus();
+}
+
+function renderRoster()       {
+    rosterCount.innerText = `🐾 Following: ${progress.followers.length} / ${MAX_FOLLOWERS}`;
+    rosterGrid.replaceChildren(
+        ...LEVELS.map((level, i) => {
+            const species = level.species;
+            const rescued = progress.roster.includes(species);
+            const following = progress.followers.includes(species);
+            const state = !rescued ? 'locked' : following ? 'following' : 'resting';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `roster-card ${state}`;
+            btn.dataset.state = state;
+            btn.dataset.species = species;
+            btn.disabled = !rescued;
+            const pic = document.createElement('canvas');
+            drawRosterPet(pic, species, rescued);
+            const label = document.createElement('span');
+            label.innerText = rescued
+                ? `${level.pet}\n${following ? '🐾 Following' : '💤 Resting'}`
+                : `???\nRescue in level ${i + 1}`;
+            btn.append(pic, label);
+            btn.setAttribute('aria-label', rescued ? `${level.pet}, ${following ? 'following' : 'resting'}` : `Not rescued yet, level ${i + 1}`);
+            btn.setAttribute('aria-pressed', String(following));
+            btn.addEventListener('click', () => {
+                if (!rescued) return;
+                if (!toggleFollower(progress, species)) {
+                    rosterHint.innerText = `Only ${MAX_FOLLOWERS} pets can follow at once — tap one to let it rest first.`;
+                    return;
+                }
+                rosterHint.innerText = '';
+                writeSave(storage, progress);
+                syncParade();
+                renderRoster();
+                (rosterGrid.children[i]                           )?.focus();
+            });
+            return btn;
+        })
+    );
+}
+
+function closeRoster()       {
+    if (screen !== 'roster') return;
+    returnFromMenu(pausePetsBtn);
 }
 
 // The Play tap is the user gesture browsers require before audio can start, so music comes on here.
@@ -2214,6 +3065,9 @@ pauseRestartBtn.addEventListener('click', () => {
 pauseLevelsBtn.addEventListener('click', () => openLevelSelect('paused'));
 pauseMenuBtn.addEventListener('click', () => showStartScreen());
 levelsBackBtn.addEventListener('click', closeLevelSelect);
+petsBtn.addEventListener('click', () => openRoster('start'));
+pausePetsBtn.addEventListener('click', () => openRoster('paused'));
+rosterBackBtn.addEventListener('click', closeRoster);
 
 victoryDialog.addEventListener('close', () => {
     startGame(0);
@@ -2427,16 +3281,17 @@ function updateLevelClear()       {
     levelClearTimer--;
     if (levelClearTimer > 0) return;
 
-    rescuedFriends.push({
-        species: LEVELS[currentLevel].species,
-        x: noodle.x - (rescuedFriends.length + 1) * 28,
-        y: 416
-    });
+    // The rescued pet joins the roster and the parade; a full parade sends its longest follower home.
+    const { bumped } = addRescue(progress, LEVELS[currentLevel].species);
+    const leaving = rescuedFriends.find(p => p.species === bumped);
+    if (leaving) particleSystem.spawn(leaving.x, 405, '#FF7675', 8, 'heart');
+    syncParade();
+    const goodbye = bumped ? `${petName(bumped)} went home to rest 🏡` : null;
 
     if (currentLevel === LEVELS.length - 1) {
         screen = 'victory';
         // Nothing left to continue, but every level stays open in the level list.
-        progress = { level: null, unlocked: LEVELS.length - 1 };
+        progress = { ...progress, level: null, unlocked: LEVELS.length - 1 };
         writeSave(storage, progress);
         updateStatus();
         victoryDialog.showModal();
@@ -2445,6 +3300,8 @@ function updateLevelClear()       {
         saveProgress(currentLevel);
         restartLevel();
     }
+    // Shown before the new level's tip, which waits its turn.
+    if (goodbye) noodle.sayFirst(goodbye, 150);
 }
 
 /** Positions of the level's moving platforms at tick `t`: an eased glide out and back. */
@@ -2471,10 +3328,18 @@ function updateMovingPlatforms()       {
     movingPlatforms = next;
 }
 
+/** Gap between pets in the parade; the drawn pets are about 30px wide. */
+const PARADE_GAP = 32;
+
 function updateParade()       {
     rescuedFriends.forEach((pet, idx) => {
         const leaderX = idx === 0 ? noodle.x : rescuedFriends[idx - 1].x;
-        pet.x += (leaderX - 28 - pet.x) * 0.08;
+        const vx = (leaderX - PARADE_GAP - pet.x) * 0.08;
+        pet.x += vx;
+        pet.vx = vx;
+        // Same dead zone as Noodle, so settled pets don't flip back and forth.
+        if (vx > 0.3) pet.facingLeft = false;
+        else if (vx < -0.3) pet.facingLeft = true;
     });
 }
 
@@ -2482,6 +3347,7 @@ function updateParade()       {
 function update()       {
     // Butterflies keep fluttering on every screen, including behind the start screen.
     butterflies.update();
+    skyVisitors.update();
     tick();
     for (const code of Object.keys(pressed)) pressed[code] = false;
 }
@@ -2525,6 +3391,7 @@ function render()       {
     const rainbow = rainbowProgress();
     if (rainbow > 0) drawRainbow(ctx, rainbow);
     drawSun(ctx);
+    skyVisitors.draw(ctx);
     butterflies.draw(ctx);
 
     const houseX = doghouseX(level);
@@ -2539,12 +3406,13 @@ function render()       {
     drawDoghouse(ctx, houseX);
 
     if (keyCollected) {
-        drawRescuedPet(ctx, level.species, houseX, 416);
+        // Waiting in the doorway, looking out toward Flora.
+        drawRescuedPet(ctx, level.species, houseX, 416, true, 0);
     } else if (allBloomed() && boneFound) {
         drawKey(ctx, keyX, keyY);
     }
 
-    for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416);
+    for (const pet of rescuedFriends) drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0);
     flora.draw(ctx);
     noodle.draw(ctx);
     for (const bee of bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
@@ -2597,6 +3465,16 @@ let lastFrameTime                = null;
 let tickAccumulator         = 0;
 
 function frame(now        )       {
+    // Book the next frame first, so an error below can never stop the game loop for good.
+    requestAnimationFrame(frame);
+    try {
+        advance(now);
+    } catch (err) {
+        console.error('Frame failed; the game keeps running', err);
+    }
+}
+
+function advance(now        )       {
     if (lastFrameTime !== null) {
         // Cap catch-up after a backgrounded tab so the game doesn't fast-forward.
         tickAccumulator += Math.min(now - lastFrameTime, 250);
@@ -2606,11 +3484,10 @@ function frame(now        )       {
     lastFrameTime = now;
 
     while (tickAccumulator >= TICK_MS) {
-        update();
         tickAccumulator -= TICK_MS;
+        update();
     }
     render();
-    requestAnimationFrame(frame);
 }
 
 /** The victory dialog lists every pet, so it grows with the level list. */

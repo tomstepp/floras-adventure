@@ -14,6 +14,8 @@ const moduleOrder = [
     'audio.ts',
     'particles.ts',
     'butterflies.ts',
+    'skyfriends.ts',
+    'pets.ts',
     'renderer.ts',
     'entities.ts',
     'game.ts'

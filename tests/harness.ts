@@ -34,10 +34,16 @@ export interface Game {
     drawnTextAt(): { text: string; x: number; y: number }[];
     /** Clicks a button element by id. */
     click(id: string): void;
+    /** The roster cards, in level order (after My pets has been opened). */
+    rosterCards(): { dataset: { state: string; species: string }; disabled: boolean; click(): void }[];
     /** The level-select cards, in order (after the level list has been opened). */
     levelCards(): { innerText: string; disabled: boolean; classes: Set<string>; click(): void }[];
     /** Presses and releases a key that isn't a game control (e.g. Escape). */
     key(code: string): void;
+    /** True if the game has asked for another animation frame. */
+    hasPendingFrame(): boolean;
+    /** console.error / console.warn calls the game made. */
+    consoleErrors: string[];
     dialog: DialogMock;
     elements: Record<string, Record<string, unknown>>;
     text(id: string): string;
@@ -49,6 +55,39 @@ export interface LoadOptions {
     storage?: Map<string, string>;
     /** Stay on the start screen instead of pressing Play. */
     atStartScreen?: boolean;
+    /** Provide a fake Tone.js (as strict as the real one), so Play switches sound on. */
+    withAudio?: boolean;
+}
+
+/**
+ * A stand-in for Tone.js that, like the real library, throws when an instrument is started
+ * at or before its previous start time. Its clock is stuck at 0, like a suspended audio context.
+ */
+function makeFakeTone(): unknown {
+    class Instrument {
+        private last = -Infinity;
+        public volume = { value: 0 };
+        public toDestination(): this {
+            return this;
+        }
+        public triggerAttackRelease(...args: unknown[]): void {
+            const time = args.find((a, i) => i > 0 && typeof a === 'number') as number | undefined;
+            const t = time ?? 0;
+            if (t <= this.last) throw new Error('Start time must be strictly greater than previous start time');
+            this.last = t;
+        }
+    }
+    return {
+        start: async () => {},
+        now: () => 0,
+        Synth: Instrument,
+        PolySynth: Instrument,
+        NoiseSynth: Instrument,
+        Loop: class {
+            start() {}
+        },
+        Transport: { bpm: { value: 0 }, start() {}, stop() {}, cancel() {} }
+    };
 }
 
 /** A fake DOM element that records listeners and supports click(). */
@@ -66,6 +105,11 @@ function makeElement(props: Record<string, unknown> = {}): Record<string, unknow
             remove: (c: string) => void classes.delete(c)
         },
         setAttribute() {},
+        dataset: {} as Record<string, string>,
+        children: [] as unknown[],
+        append(this: { children: unknown[] }, ...kids: unknown[]) {
+            this.children.push(...kids);
+        },
         addEventListener(evt: string, fn: (event?: unknown) => void) {
             listeners[evt] = fn;
         },
@@ -82,6 +126,7 @@ function makeElement(props: Record<string, unknown> = {}): Record<string, unknow
 export function loadGame(options: LoadOptions = {}): Game {
     const storage = options.storage ?? new Map<string, string>();
     const windowListeners: Record<string, (event?: unknown) => void> = {};
+    const consoleErrors: string[] = [];
     let pendingFrame: ((now: number) => void) | null = null;
 
     const dialog = {
@@ -161,7 +206,19 @@ export function loadGame(options: LoadOptions = {}): Game {
                 this.children = children;
             }
         }),
-        'levels-back-btn': makeElement()
+        'levels-back-btn': makeElement(),
+        'pets-btn': makeElement({ hidden: true }),
+        'pause-pets-btn': makeElement(),
+        'roster-screen': makeElement({ hidden: true }),
+        'roster-grid': makeElement({
+            children: [] as Record<string, unknown>[],
+            replaceChildren(this: { children: unknown[] }, ...children: unknown[]) {
+                this.children = children;
+            }
+        }),
+        'roster-count': makeElement(),
+        'roster-hint': makeElement(),
+        'roster-back-btn': makeElement()
     };
 
     const localStorage = {
@@ -186,7 +243,7 @@ export function loadGame(options: LoadOptions = {}): Game {
             body: makeElement(),
             hidden: false,
             addEventListener() {},
-            createElement: () => makeElement(),
+            createElement: (tag: string) => makeElement(tag === 'canvas' ? { getContext: () => ctx } : {}),
             getElementById: (id: string) => elements[id],
             querySelectorAll: (selector: string) => (selector === '[data-key]' ? touchButtons : [])
         },
@@ -196,7 +253,12 @@ export function loadGame(options: LoadOptions = {}): Game {
         },
         Date,
         Math,
-        console
+        console: {
+            ...console,
+            error: (...args: unknown[]) => void consoleErrors.push(args.map(String).join(' ')),
+            warn: (...args: unknown[]) => void consoleErrors.push(args.map(String).join(' '))
+        },
+        ...(options.withAudio ? { Tone: makeFakeTone() } : {})
     };
 
     vm.createContext(sandbox);
@@ -216,10 +278,13 @@ export function loadGame(options: LoadOptions = {}): Game {
         storage,
         drawnText: () => frameText.map(t => t.text),
         levelCards: () => elements['level-grid'].children as ReturnType<Game['levelCards']>,
+        rosterCards: () => elements['roster-grid'].children as ReturnType<Game['rosterCards']>,
         key(code) {
             key('keydown', code);
             key('keyup', code);
         },
+        hasPendingFrame: () => pendingFrame !== null,
+        consoleErrors,
         drawnTextAt: () => [...frameText],
         step(ticks = 1) {
             for (let i = 0; i < ticks; i++) run('update(); render();');
