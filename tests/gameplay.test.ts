@@ -34,7 +34,7 @@ test('CT-1/CT-3/CT-4: letter keys do nothing; only arrows and Space are controls
     }
     assert.equal(game.run('flora.x'), 100);
     assert.equal(game.run('flora.y'), 380);
-    assert.equal(game.run('sprouts[0].bloomed || digMounds.some(m => m.dug)'), false);
+    assert.equal(game.run('state.sprouts[0].bloomed || state.digMounds.some(m => m.dug)'), false);
 });
 
 test('CT-2: Space waters instead of jumping', () => {
@@ -137,11 +137,11 @@ test('CT-3: an elevated sprout cannot be watered from the ground, but can from i
     const game = loadGame();
     placeFlora(game, 250, 428);
     game.tap('Space');
-    assert.equal(game.run('sprouts[1].bloomed'), false);
+    assert.equal(game.run('state.sprouts[1].bloomed'), false);
 
     placeFlora(game, 250, 345);
     game.tap('Space');
-    assert.equal(game.run('sprouts[1].bloomed'), true);
+    assert.equal(game.run('state.sprouts[1].bloomed'), true);
     assert.equal(game.text('status-display'), 'Flowers: 1/3 | Bone: ❌ | Key: ❌');
 });
 
@@ -149,39 +149,39 @@ test('CT-4: digging does nothing while standing on a platform', () => {
     const game = loadGame();
     placeFlora(game, 250, 345);
     game.tap('ArrowDown');
-    assert.equal(game.run('digMounds.some(m => m.dug)'), false);
+    assert.equal(game.run('state.digMounds.some(m => m.dug)'), false);
 });
 
 test('LV-2: digging an empty mound marks it dug and keeps the bone hidden', () => {
     const game = loadGame();
-    const decoyX = game.run<number>('digMounds.find(m => !m.hasBone).x');
+    const decoyX = game.run<number>('state.digMounds.find(m => !m.hasBone).x');
     placeFlora(game, decoyX - 16, 428);
     game.tap('ArrowDown');
-    assert.equal(game.run(`digMounds.find(m => m.x === ${decoyX}).dug`), true);
-    assert.equal(game.run('boneFound'), false);
+    assert.equal(game.run(`state.digMounds.find(m => m.x === ${decoyX}).dug`), true);
+    assert.equal(game.run('state.boneFound'), false);
     assert.equal(game.run('noodle.speechBubble'), 'Keep sniffing! 🐾');
 });
 
 test('LV-2: digging picks the closest undug mound, even next to a dug one', () => {
     const game = loadGame();
-    game.run('currentLevel = 3; restartLevel();'); // Enchanted Garden: mounds at 210 and 300 are 90px apart
-    game.run('digMounds.forEach(m => { m.hasBone = false; }); digMounds[1].hasBone = true;');
-    game.run('digMounds[0].dug = true;');
+    game.run('state.currentLevel = 3; restartLevel();'); // Enchanted Garden: mounds at 210 and 300 are 90px apart
+    game.run('state.digMounds.forEach(m => { m.hasBone = false; }); state.digMounds[1].hasBone = true;');
+    game.run('state.digMounds[0].dug = true;');
     placeFlora(game, 255 - 16, 428); // centre at 255: within range of both 210 and 300
     game.tap('ArrowDown');
-    assert.equal(game.run('boneFound'), true, 'should dig the undug mound at 300');
+    assert.equal(game.run('state.boneFound'), true, 'should dig the undug mound at 300');
 });
 
 test('LV-2: the bone can be dug before every flower blooms', () => {
     const game = loadGame();
     digBone(game);
-    assert.equal(game.run('boneFound'), true);
-    assert.equal(game.run('keyCollected'), false);
+    assert.equal(game.run('state.boneFound'), true);
+    assert.equal(game.run('state.keyCollected'), false);
 });
 
 test('LV-3: Noodle sniffs out the bone when Flora is nearby', () => {
     const game = loadGame();
-    const boneX = game.run<number>('digMounds.find(m => m.hasBone).x');
+    const boneX = game.run<number>('state.digMounds.find(m => m.hasBone).x');
     placeFlora(game, boneX - 30, 428);
     game.run('noodle.barkTimer = 0;');
     game.step();
@@ -192,16 +192,16 @@ test('LV-3: Noodle sniffs out the bone when Flora is nearby', () => {
 test('LV-4: the key cannot be collected until flowers and bone are done', () => {
     const game = loadGame();
     collectKey(game);
-    assert.equal(game.run('keyCollected'), false);
+    assert.equal(game.run('state.keyCollected'), false);
 
     bloomAll(game);
     collectKey(game);
-    assert.equal(game.run('keyCollected'), false, 'still needs the bone');
+    assert.equal(game.run('state.keyCollected'), false, 'still needs the bone');
 
     digBone(game);
     assert.match(game.text('objective-display'), /key/);
     collectKey(game);
-    assert.equal(game.run('keyCollected'), true);
+    assert.equal(game.run('state.keyCollected'), true);
     assert.match(game.text('objective-display'), /doghouse/);
 });
 
@@ -212,7 +212,7 @@ test('LV-5: reaching the doghouse without the key does not end the level', () =>
     placeFlora(game, 690, 428);
     game.run('noodle.barkTimer = 0;');
     game.step();
-    assert.equal(game.run('levelClearTimer'), 0);
+    assert.equal(game.run('state.levelClearTimer'), 0);
     assert.match(game.run<string>('noodle.speechBubble'), /locked/);
 });
 
@@ -226,11 +226,11 @@ test('LV-5: walking into the doghouse with the key ends the level', () => {
     game.press('ArrowRight');
     game.step(30);
     game.release('ArrowRight');
-    assert.ok(game.run<number>('levelClearTimer') > 0, 'celebration should start');
+    assert.ok(game.run<number>('state.levelClearTimer') > 0, 'celebration should start');
     assert.match(game.text('objective-display'), /rescued Milo the Kitty/);
 
     game.step(75);
-    assert.equal(game.run('currentLevel'), 1);
+    assert.equal(game.run('state.currentLevel'), 1);
     assert.equal(game.text('level-display'), 'Level 2: Sunny Glade');
 });
 
@@ -264,7 +264,7 @@ test('LV-8: the rainbow is hidden while playing and sweeps in once the level is 
     assert.equal(game.run('rainbowProgress()'), 1, 'full rainbow before the celebration ends');
 
     game.step(30);
-    assert.equal(game.run('currentLevel'), 1);
+    assert.equal(game.run('state.currentLevel'), 1);
     assert.equal(game.run('rainbowProgress()'), 0, 'rainbow gone on the next level');
 });
 
@@ -280,26 +280,26 @@ test('LV-8: the full rainbow stays up behind the victory dialog', () => {
 test('LV-6: a cleared level resets state and adds the pet to the parade', () => {
     const game = loadGame();
     clearLevel(game);
-    assert.equal(game.run('currentLevel'), 1);
-    assert.equal(game.run('rescuedFriends.length'), 1);
-    assert.equal(game.run('rescuedFriends[0].species'), 'kitty');
+    assert.equal(game.run('state.currentLevel'), 1);
+    assert.equal(game.run('state.rescuedFriends.length'), 1);
+    assert.equal(game.run('state.rescuedFriends[0].species'), 'kitty');
     assert.equal(game.run('flora.x'), 50);
-    assert.equal(game.run('boneFound || keyCollected'), false);
-    assert.equal(game.run('sprouts.length'), LEVELS[1].sprouts.length);
+    assert.equal(game.run('state.boneFound || state.keyCollected'), false);
+    assert.equal(game.run('state.sprouts.length'), LEVELS[1].sprouts.length);
     assert.equal(game.text('status-display'), 'Flowers: 0/4 | Bone: ❌ | Key: ❌');
 });
 
 test('LV-7: clearing every level opens the victory dialog, closing it restarts', () => {
     const game = loadGame();
     for (let lvl = 0; lvl < LEVELS.length; lvl++) {
-        assert.equal(game.run('currentLevel'), lvl);
-        assert.equal(game.run('rescuedFriends.length'), Math.min(lvl, 3), 'up to 3 pets follow');
+        assert.equal(game.run('state.currentLevel'), lvl);
+        assert.equal(game.run('state.rescuedFriends.length'), Math.min(lvl, 3), 'up to 3 pets follow');
         clearLevel(game);
     }
     assert.equal(game.dialog.open, true);
-    assert.equal(game.run('screen'), 'victory');
-    assert.equal(game.run('progress.roster.join()'), LEVELS.map(l => l.species).join(), 'every pet is in the roster');
-    assert.equal(game.run('rescuedFriends.map(f => f.species).join()'), 'snail,bear,owl', 'the 3 newest follow');
+    assert.equal(game.run('state.screen'), 'victory');
+    assert.equal(game.run('state.progress.roster.join()'), LEVELS.map(l => l.species).join(), 'every pet is in the roster');
+    assert.equal(game.run('state.rescuedFriends.map(f => f.species).join()'), 'snail,bear,owl', 'the 3 newest follow');
 
     // The game stays frozen behind the dialog.
     const x = game.run<number>('flora.x');
@@ -308,9 +308,9 @@ test('LV-7: clearing every level opens the victory dialog, closing it restarts',
     assert.equal(game.run('flora.x'), x);
 
     game.dialog.close();
-    assert.equal(game.run('currentLevel'), 0);
-    assert.equal(game.run('rescuedFriends.length'), 3, 'followers come along into the new game');
-    assert.equal(game.run('screen'), 'playing');
+    assert.equal(game.run('state.currentLevel'), 0);
+    assert.equal(game.run('state.rescuedFriends.length'), 3, 'followers come along into the new game');
+    assert.equal(game.run('state.screen'), 'playing');
     assert.equal(game.run('keys.ArrowLeft'), false, 'held keys are cleared on restart');
     assert.equal(game.text('level-display'), 'Level 1: Blooming Meadow');
 });
@@ -322,11 +322,11 @@ test('CT-5: the Restart button restarts the current level', () => {
     digBone(game);
     placeFlora(game, 400, 428);
     (game.elements['restart-btn'].click as () => void)();
-    assert.equal(game.run('currentLevel'), 1);
-    assert.equal(game.run('sprouts.some(s => s.bloomed)'), false);
-    assert.equal(game.run('boneFound'), false);
+    assert.equal(game.run('state.currentLevel'), 1);
+    assert.equal(game.run('state.sprouts.some(s => s.bloomed)'), false);
+    assert.equal(game.run('state.boneFound'), false);
     assert.equal(game.run('flora.x'), 50);
-    assert.equal(game.run('rescuedFriends.length'), 1, 'already-rescued pets stay');
+    assert.equal(game.run('state.rescuedFriends.length'), 1, 'already-rescued pets stay');
 });
 
 test('CT-7: losing window focus releases held keys', () => {
@@ -423,29 +423,29 @@ test('TW-4: walking along the ground past a mushroom does not bounce', () => {
 test('TW-5: the cloud glides back and forth and carries Flora with it', () => {
     const game = loadGame();
     goToLevel(game, 2);
-    const start = game.run<number>('movingPlatforms[0].x');
+    const start = game.run<number>('state.movingPlatforms[0].x');
     game.step(60);
-    const later = game.run<number>('movingPlatforms[0].x');
+    const later = game.run<number>('state.movingPlatforms[0].x');
     assert.ok(later > start, 'cloud moves right first');
     game.step(180);
-    assert.ok(Math.abs(game.run<number>('movingPlatforms[0].x') - start) < 0.5, 'and returns after one period');
+    assert.ok(Math.abs(game.run<number>('state.movingPlatforms[0].x') - start) < 0.5, 'and returns after one period');
 
     placeFlora(game, start + 30, 300);
-    const offset = game.run<number>('flora.x - movingPlatforms[0].x');
+    const offset = game.run<number>('flora.x - state.movingPlatforms[0].x');
     game.step(60);
     assert.equal(game.run('flora.y + flora.height'), 300, 'still riding the cloud');
-    assert.ok(Math.abs(game.run<number>('flora.x - movingPlatforms[0].x') - offset) < 0.01, 'moved with the cloud');
+    assert.ok(Math.abs(game.run<number>('flora.x - state.movingPlatforms[0].x') - offset) < 0.01, 'moved with the cloud');
 });
 
 test('TW-6: the big flower needs three splashes and shows a hint', () => {
     const game = loadGame();
     goToLevel(game, 3);
-    const big = game.run<{ x: number; y: number }>('(({ x, y }) => ({ x, y }))(sprouts.find(s => s.waterNeeded === 3))');
+    const big = game.run<{ x: number; y: number }>('(({ x, y }) => ({ x, y }))(state.sprouts.find(s => s.waterNeeded === 3))');
     assert.match(game.text('objective-display'), /big ones need extra/);
     for (let splash = 1; splash <= 3; splash++) {
         placeFlora(game, big.x - 20, big.y);
         game.tap('Space');
-        const s = game.run<{ water: number; bloomed: boolean }>(`sprouts.find(s => s.waterNeeded === 3)`);
+        const s = game.run<{ water: number; bloomed: boolean }>(`state.sprouts.find(s => s.waterNeeded === 3)`);
         assert.equal(s.water, splash);
         assert.equal(s.bloomed, splash === 3);
     }
@@ -464,7 +464,7 @@ test('ST-1: the game opens on the start screen and waits for Play', () => {
     const game = loadGame({ atStartScreen: true });
     assert.equal(game.elements['start-screen'].hidden, false);
     assert.equal(game.elements['continue-btn'].hidden, true, 'no Continue without a save');
-    assert.equal(game.run('screen'), 'start');
+    assert.equal(game.run('state.screen'), 'start');
 
     placeFlora(game, 100, 428);
     game.press('ArrowRight');
@@ -473,7 +473,7 @@ test('ST-1: the game opens on the start screen and waits for Play', () => {
 
     game.click('play-btn');
     assert.equal(game.elements['start-screen'].hidden, true);
-    assert.equal(game.run('screen'), 'playing');
+    assert.equal(game.run('state.screen'), 'playing');
     assert.equal(game.run('keys.ArrowRight'), false, 'keys held on the start screen are dropped');
     assert.equal(game.text('level-display'), 'Level 1: Blooming Meadow');
 });
@@ -483,7 +483,7 @@ test('SV-1: beating a level saves progress; reloading offers Continue', () => {
     const first = loadGame({ storage });
     clearLevel(first);
     clearLevel(first);
-    assert.equal(first.run('currentLevel'), 2);
+    assert.equal(first.run('state.currentLevel'), 2);
 
     const reloaded = loadGame({ storage, atStartScreen: true });
     assert.equal(reloaded.elements['continue-btn'].hidden, false);
@@ -491,8 +491,8 @@ test('SV-1: beating a level saves progress; reloading offers Continue', () => {
     assert.match(reloaded.text('play-btn'), /New game/);
 
     reloaded.click('continue-btn');
-    assert.equal(reloaded.run('currentLevel'), 2);
-    assert.equal(reloaded.run('rescuedFriends.map(f => f.species).join()'), 'kitty,puppy', 'parade is restored');
+    assert.equal(reloaded.run('state.currentLevel'), 2);
+    assert.equal(reloaded.run('state.rescuedFriends.map(f => f.species).join()'), 'kitty,puppy', 'parade is restored');
     assert.equal(reloaded.text('level-display'), 'Level 3: Rainbow Hills');
 });
 
@@ -503,8 +503,8 @@ test('SV-2: New game starts over at level 1 but keeps unlocked levels', () => {
     clearLevel(first);
     const reloaded = loadGame({ storage, atStartScreen: true });
     reloaded.click('play-btn');
-    assert.equal(reloaded.run('currentLevel'), 0);
-    assert.equal(reloaded.run('rescuedFriends.map(p => p.species).join()'), 'kitty,puppy', 'rescued pets still follow');
+    assert.equal(reloaded.run('state.currentLevel'), 0);
+    assert.equal(reloaded.run('state.rescuedFriends.map(p => p.species).join()'), 'kitty,puppy', 'rescued pets still follow');
     const saved = JSON.parse(storage.get('floras-adventure-save-v1')!);
     assert.equal(saved.level, null, 'nothing to continue');
     assert.equal(saved.unlocked, 2, 'levels 1–3 still open');
@@ -547,7 +547,7 @@ test('LD-9: no flower is the same color as its level sky', () => {
     const game = loadGame();
     for (let lvl = 0; lvl < LEVELS.length; lvl++) {
         goToLevel(game, lvl);
-        const colors = game.run<string>('sprouts.map(s => s.color.toUpperCase()).join()').split(',');
+        const colors = game.run<string>('state.sprouts.map(s => s.color.toUpperCase()).join()').split(',');
         assert.ok(!colors.includes(LEVELS[lvl].bg.toUpperCase()), `level ${lvl + 1} hides a flower in the sky`);
     }
 });
@@ -561,11 +561,11 @@ test('LV-5: falling past the doghouse door from above does not end the level unt
     let clearedInAir = false;
     while (!game.run('flora.grounded')) {
         game.step();
-        if (game.run<number>('levelClearTimer') > 0 && !game.run('flora.grounded')) clearedInAir = true;
+        if (game.run<number>('state.levelClearTimer') > 0 && !game.run('flora.grounded')) clearedInAir = true;
     }
     assert.equal(clearedInAir, false, 'no celebration while still falling');
     game.step();
-    assert.ok(game.run<number>('levelClearTimer') > 0, 'celebration starts once on the ground');
+    assert.ok(game.run<number>('state.levelClearTimer') > 0, 'celebration starts once on the ground');
 });
 
 test('CT-12: holding water splashes for about two seconds, then stops until pressed again', () => {
@@ -589,12 +589,12 @@ test('CT-12: holding water splashes for about two seconds, then stops until pres
 
 test('CT-12: a tap shorter than one tick still waters', () => {
     const game = loadGame();
-    const sprout = game.run<{ x: number; y: number }>('({ x: sprouts[0].x, y: sprouts[0].y })');
+    const sprout = game.run<{ x: number; y: number }>('({ x: state.sprouts[0].x, y: state.sprouts[0].y })');
     placeFlora(game, sprout.x - 20, sprout.y);
     game.press('Space');
     game.release('Space');
     game.step();
-    assert.equal(game.run('sprouts[0].bloomed'), true);
+    assert.equal(game.run('state.sprouts[0].bloomed'), true);
 });
 
 /** Records which pet species get drawn on each render. */
@@ -647,11 +647,11 @@ test('PT-3: parade pets turn to face the way they walk', () => {
     clearLevel(game);
     placeFlora(game, 700, 428);
     game.step(90);
-    assert.equal(game.run('rescuedFriends.length'), 2);
-    assert.equal(game.run('rescuedFriends.every(p => p.facingLeft !== true)'), true, 'following Flora right');
+    assert.equal(game.run('state.rescuedFriends.length'), 2);
+    assert.equal(game.run('state.rescuedFriends.every(p => p.facingLeft !== true)'), true, 'following Flora right');
     placeFlora(game, 40, 428);
     game.step(60);
-    assert.equal(game.run('rescuedFriends.some(p => p.facingLeft === true)'), true, 'turned back left');
+    assert.equal(game.run('state.rescuedFriends.some(p => p.facingLeft === true)'), true, 'turned back left');
 });
 
 test('BF-1: a few butterflies flutter in the sky and wrap around the screen', () => {
@@ -664,7 +664,7 @@ test('BF-1: a few butterflies flutter in the sky and wrap around the screen', ()
         assert.ok(b.x >= -20 && b.x <= 820, `x=${b.x} left the screen`);
         assert.ok(b.y >= 100 && b.y <= 340, `y=${b.y} left the sky band`);
     }
-    assert.equal(game.run('screen'), 'start', 'fluttering behind the start screen changes nothing else');
+    assert.equal(game.run('state.screen'), 'start', 'fluttering behind the start screen changes nothing else');
 });
 
 test("SP-1: Noodle's speech bubble sits on the grass below the characters", () => {
@@ -699,20 +699,20 @@ test('ND-1: Noodle turns to face the way he trots, without flipping on tiny drif
 test('BG-3: the camera follows Flora across wide levels and stops at both ends', () => {
     const game = loadGame();
     game.step(30);
-    assert.equal(game.run('cameraX'), 0, 'one-screen levels never scroll');
+    assert.equal(game.run('state.cameraX'), 0, 'one-screen levels never scroll');
 
     goToLevel(game, 5); // Buzzing Meadow, 1600 wide
-    assert.equal(game.run('cameraX'), 0, 'starts at the left end');
+    assert.equal(game.run('state.cameraX'), 0, 'starts at the left end');
     game.run('flora.x = 900; flora.y = 380;');
     game.step(120);
-    const mid = game.run<number>('cameraX');
+    const mid = game.run<number>('state.cameraX');
     assert.ok(mid > 300 && mid < 800, `camera follows to ${mid}`);
-    const floraOnScreen = game.run<number>('flora.x - cameraX');
+    const floraOnScreen = game.run<number>('flora.x - state.cameraX');
     assert.ok(floraOnScreen > 200 && floraOnScreen < 600, 'Flora stays near the middle');
 
     game.run('flora.x = 1560; flora.y = 380;');
     game.step(200);
-    assert.ok(Math.abs(game.run<number>('cameraX') - 800) < 0.5, 'stops at the right end (1600 - 800)');
+    assert.ok(Math.abs(game.run<number>('state.cameraX') - 800) < 0.5, 'stops at the right end (1600 - 800)');
 });
 
 test('BG-4: a bramble bush blocks walking, but Flora can jump onto it and over it', () => {
@@ -742,7 +742,7 @@ test('BG-5: touching a bee bumps Flora back for a moment, and nothing is lost', 
     goToLevel(game, 5);
     bloomAll(game);
     digBone(game);
-    const bee = game.run<{ x: number; y: number }>('({ x: bees[0].x, y: bees[0].y })');
+    const bee = game.run<{ x: number; y: number }>('({ x: state.bees[0].x, y: state.bees[0].y })');
     // Stand right in the first bee's path, facing it, with no bump-proofing.
     placeFlora(game, bee.x - 50, 428);
     game.run('flora.safeTimer = 0;');
@@ -764,7 +764,7 @@ test('BG-5: touching a bee bumps Flora back for a moment, and nothing is lost', 
     assert.equal(game.run('flora.stunTimer'), 0, 'control returns');
     assert.ok(game.run<number>('flora.safeTimer') > 0, 'and she blinks, safe from another bump');
     game.release('ArrowRight');
-    assert.equal(game.run('sprouts.every(s => s.bloomed) && boneFound'), true, 'flowers and bone are kept');
+    assert.equal(game.run('state.sprouts.every(s => s.bloomed) && state.boneFound'), true, 'flowers and bone are kept');
 });
 
 test('BG-6: arrows at the screen edge point to an off-screen key, then the doghouse', () => {
@@ -796,10 +796,10 @@ test('BG-7: in a wide level the doghouse is at the far right end', () => {
     collectKey(game);
     placeFlora(game, 700, 428);
     game.step();
-    assert.equal(game.run('levelClearTimer'), 0, "the old doghouse spot doesn't count");
+    assert.equal(game.run('state.levelClearTimer'), 0, "the old doghouse spot doesn't count");
     placeFlora(game, 2290, 428);
     game.step();
-    assert.ok(game.run<number>('levelClearTimer') > 0);
+    assert.ok(game.run<number>('state.levelClearTimer') > 0);
 });
 
 test('LV-7: the victory dialog lists every rescued pet', () => {
@@ -814,7 +814,7 @@ test('PS-1: the Pause button and Esc pause and resume the game', () => {
     const game = loadGame();
     placeFlora(game, 100, 428);
     game.click('pause-btn');
-    assert.equal(game.run('screen'), 'paused');
+    assert.equal(game.run('state.screen'), 'paused');
     assert.equal(game.elements['pause-screen'].hidden, false);
     game.press('ArrowRight');
     game.step(20);
@@ -822,20 +822,20 @@ test('PS-1: the Pause button and Esc pause and resume the game', () => {
     game.release('ArrowRight');
 
     game.key('Escape');
-    assert.equal(game.run('screen'), 'playing', 'Esc resumes');
+    assert.equal(game.run('state.screen'), 'playing', 'Esc resumes');
     assert.equal(game.elements['pause-screen'].hidden, true);
     game.key('Escape');
-    assert.equal(game.run('screen'), 'paused', 'Esc pauses');
+    assert.equal(game.run('state.screen'), 'paused', 'Esc pauses');
     game.click('resume-btn');
-    assert.equal(game.run('screen'), 'playing');
+    assert.equal(game.run('state.screen'), 'playing');
 });
 
 test('PS-2: switching away from the window pauses the game', () => {
     const game = loadGame();
     game.fireWindowEvent('blur');
-    assert.equal(game.run('screen'), 'paused');
+    assert.equal(game.run('state.screen'), 'paused');
     game.fireWindowEvent('blur');
-    assert.equal(game.run('screen'), 'paused', 'stays paused, no toggling');
+    assert.equal(game.run('state.screen'), 'paused', 'stays paused, no toggling');
 });
 
 test('PS-3: keys pressed in a menu never leak into play', () => {
@@ -857,12 +857,12 @@ test('PS-4: the pause menu can restart the level or go to the main menu', () => 
     bloomAll(game);
     game.click('pause-btn');
     game.click('pause-restart-btn');
-    assert.equal(game.run('screen'), 'playing');
-    assert.equal(game.run('sprouts.some(s => s.bloomed)'), false, 'level restarted');
+    assert.equal(game.run('state.screen'), 'playing');
+    assert.equal(game.run('state.sprouts.some(s => s.bloomed)'), false, 'level restarted');
 
     game.click('pause-btn');
     game.click('pause-menu-btn');
-    assert.equal(game.run('screen'), 'start');
+    assert.equal(game.run('state.screen'), 'start');
     assert.equal(game.elements['start-screen'].hidden, false);
     assert.equal(game.elements['pause-screen'].hidden, true);
     assert.match(game.text('continue-btn'), /Level 2/, 'Continue returns to the level you left');
@@ -871,14 +871,14 @@ test('PS-4: the pause menu can restart the level or go to the main menu', () => 
 test('LS-1: the level list unlocks levels as you reach them', () => {
     const game = loadGame({ atStartScreen: true });
     game.click('levels-btn');
-    assert.equal(game.run('screen'), 'levels');
+    assert.equal(game.run('state.screen'), 'levels');
     const cards = game.levelCards();
     assert.equal(cards.length, LEVELS.length);
     assert.equal(cards[0].disabled, false, 'level 1 is always open');
     assert.ok(cards.slice(1).every(c => c.disabled && c.innerText.includes('🔒')), 'the rest are locked');
 
     game.click('levels-back-btn');
-    assert.equal(game.run('screen'), 'start');
+    assert.equal(game.run('state.screen'), 'start');
     game.click('play-btn');
     clearLevel(game);
     clearLevel(game);
@@ -896,11 +896,11 @@ test('LS-2: picking a level starts it with your followers in the parade', () => 
     const game = loadGame({ storage, atStartScreen: true });
     game.click('levels-btn');
     game.levelCards()[7].click();
-    assert.equal(game.run('screen'), 'playing');
-    assert.equal(game.run('currentLevel'), 7);
+    assert.equal(game.run('state.screen'), 'playing');
+    assert.equal(game.run('state.currentLevel'), 7);
     // An older save with no roster: the 9 beaten levels' pets are rescued, the newest 3 follow.
-    assert.equal(game.run('progress.roster.length'), 9);
-    assert.equal(game.run('rescuedFriends.map(p => p.species).join()'), 'piglet,fox,panda');
+    assert.equal(game.run('state.progress.roster.length'), 9);
+    assert.equal(game.run('state.rescuedFriends.map(p => p.species).join()'), 'piglet,fox,panda');
     assert.equal(game.text('level-display'), 'Level 8: Cloud Canyon');
     assert.equal(game.elements['level-select'].hidden, true);
     assert.equal(JSON.parse(storage.get('floras-adventure-save-v1')!).level, 7, 'Continue now points here');
@@ -910,7 +910,7 @@ test('LS-3: locked levels cannot be started', () => {
     const game = loadGame({ atStartScreen: true });
     game.click('levels-btn');
     game.levelCards()[5].click();
-    assert.equal(game.run('screen'), 'levels');
+    assert.equal(game.run('state.screen'), 'levels');
 });
 
 test('LS-4: Back and Esc return from the level list to where it was opened', () => {
@@ -918,10 +918,10 @@ test('LS-4: Back and Esc return from the level list to where it was opened', () 
     game.click('pause-btn');
     game.click('pause-levels-btn');
     game.key('Escape');
-    assert.equal(game.run('screen'), 'paused', 'back to the pause menu');
+    assert.equal(game.run('state.screen'), 'paused', 'back to the pause menu');
     game.click('pause-levels-btn');
     game.click('levels-back-btn');
-    assert.equal(game.run('screen'), 'paused');
+    assert.equal(game.run('state.screen'), 'paused');
 });
 
 test('AU-1: two sounds in the same tick (a bee bump while jumping) never throw', () => {
@@ -946,7 +946,7 @@ test('AU-1: level 8 — walking and jumping into the bee with sound on keeps the
         }
         game.release('ArrowRight');
     }
-    assert.equal(game.run('screen'), 'playing');
+    assert.equal(game.run('state.screen'), 'playing');
     assert.deepEqual(game.consoleErrors, []);
 });
 
@@ -990,7 +990,7 @@ test('SK-1: kites, planes and balloons drift by one at a time, never the same ki
     assert.ok(kinds.length >= 3, `only ${kinds.length} visitors in two minutes`);
     assert.deepEqual([...new Set(kinds)].sort(), ['balloons', 'kite', 'plane'], 'all three kinds show up');
     for (let i = 1; i < kinds.length; i++) assert.notEqual(kinds[i], kinds[i - 1], 'no repeats in a row');
-    assert.equal(game.run('screen'), 'start', 'purely decorative');
+    assert.equal(game.run('state.screen'), 'start', 'purely decorative');
 });
 
 test('SK-1: the first sky visitor arrives a few seconds in, and there are pauses between visits', () => {
@@ -1010,10 +1010,10 @@ test('RS-1: a rescued pet joins the roster and the parade; a fourth sends the lo
     clearLevel(game);
     clearLevel(game);
     clearLevel(game);
-    assert.equal(game.run('rescuedFriends.map(p => p.species).join()'), 'kitty,puppy,hamster');
+    assert.equal(game.run('state.rescuedFriends.map(p => p.species).join()'), 'kitty,puppy,hamster');
     clearLevel(game);
-    assert.equal(game.run('progress.roster.join()'), 'kitty,puppy,hamster,turtle', 'everyone stays in the roster');
-    assert.equal(game.run('rescuedFriends.map(p => p.species).join()'), 'puppy,hamster,turtle', 'kitty went to rest');
+    assert.equal(game.run('state.progress.roster.join()'), 'kitty,puppy,hamster,turtle', 'everyone stays in the roster');
+    assert.equal(game.run('state.rescuedFriends.map(p => p.species).join()'), 'puppy,hamster,turtle', 'kitty went to rest');
     assert.match(game.run<string>('noodle.speechBubble'), /Milo the Kitty went home to rest/);
     game.step(160);
     assert.match(game.run<string>('noodle.speechBubble'), /Bounce, float and splash/, "then level 5's tip still shows");
@@ -1026,8 +1026,8 @@ test('RS-1: re-rescuing a pet already in the roster changes nothing', () => {
     clearLevel(game);
     game.run('startGame(0);');
     clearLevel(game);
-    assert.equal(game.run('progress.roster.join()'), 'kitty');
-    assert.equal(game.run('rescuedFriends.length'), 1);
+    assert.equal(game.run('state.progress.roster.join()'), 'kitty');
+    assert.equal(game.run('state.rescuedFriends.length'), 1);
 });
 
 test('RS-2: My pets shows the roster; tap to rest or follow, at most 3 follow', () => {
@@ -1037,7 +1037,7 @@ test('RS-2: My pets shows the roster; tap to rest or follow, at most 3 follow', 
     const game = loadGame({ storage, atStartScreen: true });
     assert.equal(game.elements['pets-btn'].hidden, false, 'My pets is offered once a pet is rescued');
     game.click('pets-btn');
-    assert.equal(game.run('screen'), 'roster');
+    assert.equal(game.run('state.screen'), 'roster');
     const states = () => game.rosterCards().map(c => c.dataset.state);
     assert.deepEqual(states().slice(0, 5), ['resting', 'following', 'following', 'following', 'locked']);
     assert.equal(game.rosterCards().length, LEVELS.length, 'every pet has a card, rescued or not');
@@ -1056,9 +1056,9 @@ test('RS-2: My pets shows the roster; tap to rest or follow, at most 3 follow', 
     assert.deepEqual(saved.followers, ['puppy', 'turtle', 'kitty'], 'your choice is saved');
 
     game.click('roster-back-btn');
-    assert.equal(game.run('screen'), 'start');
+    assert.equal(game.run('state.screen'), 'start');
     game.click('continue-btn');
-    assert.equal(game.run('rescuedFriends.map(p => p.species).join()'), 'puppy,turtle,kitty', 'and walks with you');
+    assert.equal(game.run('state.rescuedFriends.map(p => p.species).join()'), 'puppy,turtle,kitty', 'and walks with you');
 });
 
 test('RS-2: changing followers from the pause menu updates the parade right away', () => {
@@ -1068,12 +1068,12 @@ test('RS-2: changing followers from the pause menu updates the parade right away
     game.click('pause-btn');
     game.click('pause-pets-btn');
     game.rosterCards()[0].click(); // kitty rests
-    assert.equal(game.run('rescuedFriends.map(p => p.species).join()'), 'puppy');
+    assert.equal(game.run('state.rescuedFriends.map(p => p.species).join()'), 'puppy');
     game.key('Escape');
-    assert.equal(game.run('screen'), 'paused', 'Esc goes back to the pause menu');
+    assert.equal(game.run('state.screen'), 'paused', 'Esc goes back to the pause menu');
     game.click('resume-btn');
     game.step(5);
-    assert.equal(game.run('rescuedFriends.length'), 1);
+    assert.equal(game.run('state.rescuedFriends.length'), 1);
 });
 
 test('RS-2: zero followers is fine, and a new rescue still joins', () => {
@@ -1084,16 +1084,16 @@ test('RS-2: zero followers is fine, and a new rescue still joins', () => {
     game.rosterCards()[0].click();
     game.click('roster-back-btn');
     game.click('resume-btn');
-    assert.equal(game.run('rescuedFriends.length'), 0);
+    assert.equal(game.run('state.rescuedFriends.length'), 0);
     clearLevel(game);
-    assert.equal(game.run('rescuedFriends.map(p => p.species).join()'), 'puppy');
+    assert.equal(game.run('state.rescuedFriends.map(p => p.species).join()'), 'puppy');
 });
 
 test('RS-3: an old save without a roster gets one from the beaten levels', () => {
     const storage = new Map([['floras-adventure-save-v1', '{"level":5,"unlocked":5}']]);
     const game = loadGame({ storage, atStartScreen: true });
-    assert.equal(game.run('progress.roster.join()'), 'kitty,puppy,hamster,turtle,bunny');
-    assert.equal(game.run('progress.followers.join()'), 'hamster,turtle,bunny');
+    assert.equal(game.run('state.progress.roster.join()'), 'kitty,puppy,hamster,turtle,bunny');
+    assert.equal(game.run('state.progress.followers.join()'), 'hamster,turtle,bunny');
 });
 
 test('RS-3: a roster with unknown or duplicate pets is cleaned up', () => {
@@ -1101,8 +1101,8 @@ test('RS-3: a roster with unknown or duplicate pets is cleaned up', () => {
         level: 2, unlocked: 2, roster: ['kitty', 'dragon', 'kitty', 'puppy'], followers: ['dragon', 'puppy', 'hamster', 'kitty', 'puppy']
     })]]);
     const game = loadGame({ storage, atStartScreen: true });
-    assert.equal(game.run('progress.roster.join()'), 'kitty,puppy');
-    assert.equal(game.run('progress.followers.join()'), 'puppy,kitty', 'only rostered pets, no repeats');
+    assert.equal(game.run('state.progress.roster.join()'), 'kitty,puppy');
+    assert.equal(game.run('state.progress.followers.join()'), 'puppy,kitty', 'only rostered pets, no repeats');
 });
 
 test('RS-4: when a level starts, Noodle and the parade line up behind Flora', () => {
@@ -1110,7 +1110,7 @@ test('RS-4: when a level starts, Noodle and the parade line up behind Flora', ()
     goToLevel(game, 5);
     clearLevel(game); // ends at the far right of a 1600px level
     clearLevel(game);
-    const xs = game.run<number[]>('[noodle.x, ...rescuedFriends.map(p => p.x)]');
+    const xs = game.run<number[]>('[noodle.x, ...state.rescuedFriends.map(p => p.x)]');
     assert.equal(xs[0], 20, 'Noodle starts next to Flora');
     for (let i = 1; i < xs.length; i++) assert.equal(xs[i], 20 - i * 32, `pet ${i} lines up behind`);
 });
@@ -1132,7 +1132,7 @@ test('WX-3: walking into a pond is just a splash: Flora pops back on the bank, n
     const x = game.run<number>('flora.x');
     assert.ok(x < 500 && x > 400, `back on the bank near where she left it (x=${x})`);
     assert.equal(game.run('flora.y'), 380);
-    assert.equal(game.run('sprouts.every(s => s.bloomed)'), true, 'flowers are kept');
+    assert.equal(game.run('state.sprouts.every(s => s.bloomed)'), true, 'flowers are kept');
 });
 
 test('WX-3: Flora can stand on lily pads, and Noodle paddles across the water', () => {
@@ -1181,11 +1181,11 @@ test('WX-5: rain clouds water the sprouts beneath them over time', () => {
     const game = loadGame();
     goToLevel(game, 12); // Rainy Meadow
     // Park a cloud over the first ground sprout and let it rain
-    game.run('LEVELS[12].rainClouds[0].range = 0; LEVELS[12].rainClouds[0].x = sprouts[0].x; restartLevel();');
+    game.run('LEVELS[12].rainClouds[0].range = 0; LEVELS[12].rainClouds[0].x = state.sprouts[0].x; restartLevel();');
     placeFlora(game, 60, 428);
     game.step(95);
-    assert.equal(game.run('sprouts[0].bloomed'), true, 'bloomed by the rain alone');
-    const bloomed = game.run<number>('sprouts.filter(s => s.bloomed).length');
+    assert.equal(game.run('state.sprouts[0].bloomed'), true, 'bloomed by the rain alone');
+    const bloomed = game.run<number>('state.sprouts.filter(s => s.bloomed).length');
     assert.ok(game.text('status-display').startsWith(`Flowers: ${bloomed}/`), 'the HUD counts rain-bloomed flowers');
 });
 
@@ -1222,4 +1222,62 @@ test('WX-7: the night has a moon, fireflies and darkness; quiet weather keeps ki
         assert.equal(game.run('weather.kind'), kind);
         assert.equal(game.run('weather.calmSky'), kind === 'wind' || kind === 'clear');
     }
+});
+
+test('DV-1: without ?dev the game behaves normally: no badge, no skip, levels locked', () => {
+    const game = loadGame({ atStartScreen: true });
+    assert.equal(game.run('state.dev'), false);
+    assert.equal(game.elements['dev-badge'].hidden, true);
+    assert.equal(game.elements['pause-skip-btn'].hidden, true);
+    game.click('levels-btn');
+    assert.ok(game.levelCards().slice(1).every(c => c.disabled));
+});
+
+test('DV-2: ?dev opens every level and pet and shows a DEV badge', () => {
+    const game = loadGame({ atStartScreen: true, search: '?dev' });
+    assert.equal(game.run('state.dev'), true);
+    assert.equal(game.elements['dev-badge'].hidden, false);
+    game.click('levels-btn');
+    assert.ok(game.levelCards().every(c => !c.disabled), 'every level can be picked');
+    game.click('levels-back-btn');
+    game.click('pets-btn');
+    assert.ok(game.rosterCards().every(c => c.dataset.state !== 'locked'), 'every pet is in the roster');
+});
+
+test('DV-3: Skip level (dev) finishes the level at once and rescues its pet', () => {
+    const game = loadGame({ search: '?dev' });
+    assert.equal(game.elements['pause-skip-btn'].hidden, false);
+    game.click('pause-btn');
+    game.click('pause-skip-btn');
+    assert.equal(game.run('state.screen'), 'playing');
+    game.step();
+    assert.equal(game.run('state.currentLevel'), 1, 'on to level 2');
+    game.run('state.currentLevel = 14; restartLevel();');
+    game.click('pause-btn');
+    game.click('pause-skip-btn');
+    game.step();
+    assert.equal(game.dialog.open, true, 'skipping the last level shows the victory dialog');
+});
+
+test('DV-4: dev mode never touches the real save', () => {
+    const saved = JSON.stringify({ level: 2, unlocked: 2, roster: ['kitty', 'puppy'], followers: ['kitty', 'puppy'] });
+    const storage = new Map([['floras-adventure-save-v1', saved]]);
+    const game = loadGame({ storage, atStartScreen: true, search: '?dev' });
+    game.click('levels-btn');
+    game.levelCards()[12].click();
+    clearLevel(game);
+    game.click('pause-btn');
+    game.click('pause-pets-btn');
+    game.rosterCards()[0].click();
+    assert.equal(storage.get('floras-adventure-save-v1'), saved, 'save is exactly as it was');
+
+    const normal = loadGame({ storage, atStartScreen: true });
+    assert.match(normal.text('continue-btn'), /Level 3/, 'normal play still continues from level 3');
+});
+
+test('DV-5: ?dev is recognised in any position, and only as its own word', () => {
+    const game = loadGame();
+    const isDev = (search: string) => game.run<boolean>(`isDevUrl(${JSON.stringify(search)})`);
+    for (const yes of ['?dev', '?dev=1', '?dev=', '?a=1&dev', '?dev&a=1']) assert.equal(isDev(yes), true, yes);
+    for (const no of ['', '?devx', '?level=dev', '?a=dev', '?developer']) assert.equal(isDev(no), false, no);
 });

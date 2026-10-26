@@ -10,7 +10,7 @@ Requirement IDs (e.g. `LV-3`) are referenced from the tests in `tests/`.
 | ID | Requirement |
 |----|-------------|
 | PL-1 | Runs in a modern desktop browser from `index.html` with no install step; `dist/game.js` is committed or built with `npm run build`. |
-| PL-2 | Source is TypeScript in `src/`, type-checked with `npm run typecheck` (strict mode, no errors). |
+| PL-2 | Source is TypeScript in `src/`, type-checked with `npm run typecheck` (strict mode, no errors). The build refuses to run if a source file is missing from its module list, or if two modules declare the same top-level name. |
 | PL-3 | The playfield is an 800×500 canvas. Ground surface is at y = 428. |
 | PL-4 | The simulation runs at a fixed 60 ticks per second, independent of display refresh rate (60 Hz and 120 Hz screens play at the same speed). After a long pause (e.g. backgrounded tab) the game must not fast-forward more than 250 ms. |
 | PL-5 | Music/sound effects use Tone.js. Browsers only allow audio after a click or tap, so music switches **on** when the player taps Play/Continue on the start screen; the 🎵 button turns it off/on. The game is fully playable if Tone.js fails to load. |
@@ -77,6 +77,15 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | RS-2 | **🐾 My pets** (from the start screen or pause menu) shows a card for every pet, drawn in the game's style: rescued ones are marked 🐾 Following or 💤 Resting, unrescued ones are a grey silhouette with "Rescue in level N" and can't be picked. Tapping a rescued pet makes it rest or follow; with 3 already following it explains to rest one first. Zero followers is allowed. Changes are saved and, from the pause menu, the parade updates straight away. A counter shows "Following: n / 3". |
 | RS-3 | Saves from before the roster get one built from the beaten levels, with the 3 newest following. Unknown or repeated pets in a save are dropped, and only rostered pets can follow. |
 | RS-4 | Whenever a level starts or restarts, Noodle and the parade line up behind Flora at the left, rather than walking back from where the last level ended. |
+
+## 2e. Dev mode
+
+| ID | Requirement |
+|----|-------------|
+| DV-1 | Without `?dev` in the URL the game behaves normally: no badge, no skip, levels locked as usual. |
+| DV-2 | With `?dev` (anywhere in the query, with or without a value, e.g. `?dev`, `?dev=1`, `?a=1&dev`; but not `?devx` or `?level=dev`), every level and every pet is available, and a DEV badge shows next to the level name. |
+| DV-3 | Dev mode adds **⏭ Skip level (dev)** to the pause menu: it finishes the current level at once, rescuing its pet, as if the celebration had just ended (the last level shows the victory dialog). |
+| DV-4 | Dev mode never writes to the save, so normal play continues exactly where it was. |
 
 ## 3. Level flow
 

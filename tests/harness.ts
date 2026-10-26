@@ -57,6 +57,8 @@ export interface LoadOptions {
     atStartScreen?: boolean;
     /** Provide a fake Tone.js (as strict as the real one), so Play switches sound on. */
     withAudio?: boolean;
+    /** The page URL's query string, e.g. '?dev'. */
+    search?: string;
 }
 
 /**
@@ -221,7 +223,9 @@ export function loadGame(options: LoadOptions = {}): Game {
         }),
         'roster-count': makeElement(),
         'roster-hint': makeElement(),
-        'roster-back-btn': makeElement()
+        'roster-back-btn': makeElement(),
+        'dev-badge': makeElement({ hidden: true }),
+        'pause-skip-btn': makeElement({ hidden: true })
     };
 
     const localStorage = {
@@ -235,6 +239,7 @@ export function loadGame(options: LoadOptions = {}): Game {
         innerHeight: 800,
         devicePixelRatio: 1,
         localStorage,
+        location: { search: options.search ?? '' },
         addEventListener(evt: string, fn: (event?: unknown) => void) {
             windowListeners[evt] = fn;
         }
@@ -335,10 +340,10 @@ export function placeFlora(game: Game, x: number, feetY: number): void {
 }
 
 export function bloomAll(game: Game): void {
-    const sprouts = game.run<{ x: number; y: number }[]>('sprouts.map(s => ({ x: s.x, y: s.y }))');
+    const sprouts = game.run<{ x: number; y: number }[]>('state.sprouts.map(s => ({ x: s.x, y: s.y }))');
     for (const s of sprouts) {
         placeFlora(game, s.x - 20, s.y);
-        for (let i = 0; i < game.run<number>(`sprouts.find(s => s.x === ${s.x}).waterNeeded`); i++) {
+        for (let i = 0; i < game.run<number>(`state.sprouts.find(s => s.x === ${s.x}).waterNeeded`); i++) {
             game.run('flora.waterTimer = 0; flora.isWatering = false;');
             game.tap('Space');
         }
@@ -346,13 +351,13 @@ export function bloomAll(game: Game): void {
 }
 
 export function digBone(game: Game): void {
-    const boneX = game.run<number>('digMounds.find(m => m.hasBone).x');
+    const boneX = game.run<number>('state.digMounds.find(m => m.hasBone).x');
     placeFlora(game, boneX - 16, 428);
     game.tap('ArrowDown');
 }
 
 export function collectKey(game: Game): void {
-    const key = game.run<{ x: number; y: number }>('({ x: keyX, y: keyY })');
+    const key = game.run<{ x: number; y: number }>('({ x: state.keyX, y: state.keyY })');
     placeFlora(game, key.x - 16, key.y + 24);
     game.step();
 }
@@ -362,7 +367,7 @@ export function clearLevel(game: Game): void {
     bloomAll(game);
     digBone(game);
     collectKey(game);
-    placeFlora(game, game.run<number>('doghouseEntryX(LEVELS[currentLevel])') + 5, 428);
+    placeFlora(game, game.run<number>('doghouseEntryX(LEVELS[state.currentLevel])') + 5, 428);
     game.step();
-    while (game.run<number>('levelClearTimer') > 0) game.step();
+    while (game.run<number>('state.levelClearTimer') > 0) game.step();
 }

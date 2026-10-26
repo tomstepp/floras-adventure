@@ -2036,8 +2036,30 @@ function drawPetSprite(
     ctx.restore();
 }
 
-// --- src/renderer.ts ---
-const WATER_COLOR         = "#5DADE2";
+// --- src/render/shapes.ts ---
+/** Small shared shapes: hearts and twinkles. */
+
+function drawHeart(ctx                          , x        , y        , size        )       {
+    ctx.beginPath();
+    ctx.moveTo(x, y + size * 0.35);
+    ctx.bezierCurveTo(x - size, y - size * 0.4, x - size * 0.4, y - size, x, y - size * 0.35);
+    ctx.bezierCurveTo(x + size * 0.4, y - size, x + size, y - size * 0.4, x, y + size * 0.35);
+    ctx.fill();
+}
+
+/** A four-point twinkle, like the sparkles in Flora's eyes. */
+function drawTwinkle(ctx                          , x        , y        , size        )       {
+    ctx.beginPath();
+    ctx.moveTo(x, y - size);
+    ctx.quadraticCurveTo(x, y, x + size, y);
+    ctx.quadraticCurveTo(x, y, x, y + size);
+    ctx.quadraticCurveTo(x, y, x - size, y);
+    ctx.quadraticCurveTo(x, y, x, y - size);
+    ctx.fill();
+}
+
+// --- src/render/sky.ts ---
+/** Things in the sky that stay put on screen: the sun and the victory rainbow. */
 
 /** A smiling sun in the characters' style: soft rays that turn and breathe, and eyes that blink. */
 function drawSun(ctx                          )       {
@@ -2120,6 +2142,145 @@ function drawRainbow(ctx                          , progress         = 1)       
     }
 }
 
+// --- src/render/scenery.ts ---
+/** The level itself: trees, ground, ponds, ice, platforms, clouds, mushrooms, bushes, the doghouse. */
+
+
+
+const WATER_COLOR         = "#5DADE2";
+
+function drawTreeAndGround(
+    ctx                          ,
+    worldWidth        ,
+    trees                   ,
+    digMounds                     ,
+    boneFound         ,
+    boneX        ,
+    snowy          = false
+)       {
+    for (const treeX of trees) drawTree(ctx, treeX, snowy);
+
+    // Ground: green grass, or soft snow
+    ctx.fillStyle = snowy ? "#F5F9FC" : "#00B894";
+    ctx.fillRect(0, 428, worldWidth, 72);
+    if (snowy) {
+        ctx.fillStyle = "#DDEAF3";
+        ctx.fillRect(0, 446, worldWidth, 54);
+    }
+
+    // Dirt Mounds & Hidden Bone
+    for (const m of digMounds) {
+        if (!m.dug) {
+            ctx.fillStyle = "#8D6E63";
+            ctx.beginPath();
+            ctx.arc(m.x, 428, 14, Math.PI, 0);
+            ctx.fill();
+        } else if (!m.hasBone) {
+            ctx.fillStyle = "#6D4C41";
+            ctx.fillRect(m.x - 12, 425, 24, 4);
+        }
+    }
+
+    if (boneFound) {
+        // The dug-up hole, with the bone resting on a little pile of dirt beside it
+        ctx.fillStyle = "#6D4C41";
+        ctx.beginPath();
+        ctx.ellipse(boneX, 429, 11, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#8D6E63";
+        ctx.beginPath();
+        ctx.ellipse(boneX + 3, 427, 9, 3.5, 0, Math.PI, 0);
+        ctx.fill();
+        drawBone(ctx, boneX, 420);
+    }
+}
+
+/** Puffy round canopy on a soft tapered trunk, swaying gently, dotted with blossoms. */
+function drawTree(ctx                          , treeX        , snowy          = false)       {
+    const now = Date.now();
+    ctx.save();
+    ctx.translate(treeX, 0);
+
+    // Trunk: tapers up from a little root flare; the base hides under the grass
+    ctx.fillStyle = "#A1887F";
+    ctx.beginPath();
+    ctx.moveTo(-7, 322);
+    ctx.quadraticCurveTo(-8, 395, -15, 432);
+    ctx.lineTo(15, 432);
+    ctx.quadraticCurveTo(8, 395, 7, 322);
+    ctx.closePath();
+    ctx.fill();
+    // Shade down one side, and a little knothole
+    ctx.fillStyle = "#8D6E63";
+    ctx.beginPath();
+    ctx.moveTo(2, 322);
+    ctx.quadraticCurveTo(3, 395, 8, 432);
+    ctx.lineTo(15, 432);
+    ctx.quadraticCurveTo(8, 395, 7, 322);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#6D4C41";
+    ctx.beginPath();
+    ctx.ellipse(-2, 382, 3, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Canopy sways a touch around the top of the trunk
+    ctx.translate(0, 330);
+    ctx.rotate(Math.sin(now * 0.0012 + treeX) * 0.025);
+    ctx.translate(0, -330);
+
+    const puffs                                      = [
+        [-27, 314, 22], [27, 314, 22], [-15, 292, 24], [15, 290, 25], [0, 276, 22], [0, 312, 28]
+    ];
+    // Darker underside first, then the main green, then soft highlights
+    ctx.fillStyle = "#3FA866";
+    for (const [px, py, r] of puffs) {
+        ctx.beginPath();
+        ctx.arc(px, py + 5, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = "#55C57A";
+    for (const [px, py, r] of puffs) {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    for (const [px, py, r] of [[-18, 284, 9], [6, 268, 7], [-32, 306, 6]]         ) {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    if (snowy) {
+        // Fluffy snow resting on top of the canopy instead of blossoms
+        ctx.fillStyle = "#FFFFFF";
+        for (const [sx, sy, r] of [[-24, 298, 11], [-8, 276, 13], [10, 270, 12], [26, 292, 10], [0, 262, 9]]         ) {
+            ctx.beginPath();
+            ctx.ellipse(sx, sy, r, r * 0.6, 0, Math.PI, 0);
+            ctx.fill();
+        }
+        ctx.restore();
+        return;
+    }
+
+    // Tiny pink blossoms
+    for (const [bx, by] of [[-22, 300], [18, 280], [28, 318], [-4, 322], [4, 288]]         ) {
+        ctx.fillStyle = "#FFB8D0";
+        for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(bx + Math.cos(a) * 2.6, by + Math.sin(a) * 2.6, 2.1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = "#FFEAA7";
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
 function drawPlatforms(ctx                          , platforms                     )       {
     for (const p of platforms) {
         // Earthy ledge base
@@ -2132,6 +2293,45 @@ function drawPlatforms(ctx                          , platforms                 
         ctx.fillStyle = "#00B894";
         ctx.beginPath();
         ctx.roundRect(p.x - 2, p.y, p.width + 4, 8, 5);
+        ctx.fill();
+    }
+}
+
+/** Moving platforms are fluffy clouds so they read as different from the earthy ledges. */
+function drawCloudPlatforms(ctx                          , platforms                     )       {
+    for (const p of platforms) {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.width, 14, 7);
+        ctx.fill();
+        const puffs = Math.max(2, Math.round(p.width / 30));
+        for (let i = 0; i < puffs; i++) {
+            ctx.beginPath();
+            ctx.arc(p.x + ((i + 0.5) * p.width) / puffs, p.y + 4, 10, Math.PI, 0);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(116, 185, 255, 0.35)";
+        ctx.fillRect(p.x + 6, p.y + 10, p.width - 12, 3);
+    }
+}
+
+function drawMushrooms(ctx                          , mushrooms                  )       {
+    for (const m of mushrooms) {
+        const squash = 1 + Math.sin(Date.now() * 0.008 + m.x) * 0.04;
+        // Stalk
+        ctx.fillStyle = "#FFF3E0";
+        ctx.fillRect(m.x - 7, m.y - MUSHROOM_HEIGHT + 6, 14, MUSHROOM_HEIGHT - 6);
+        // Cap
+        ctx.fillStyle = "#E84393";
+        ctx.beginPath();
+        ctx.ellipse(m.x, m.y - MUSHROOM_HEIGHT + 4, (MUSHROOM_WIDTH / 2) * squash, 12 / squash, 0, Math.PI, 0);
+        ctx.fill();
+        // Spots
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(m.x - 9, m.y - MUSHROOM_HEIGHT - 1, 3, 0, Math.PI * 2);
+        ctx.arc(m.x + 7, m.y - MUSHROOM_HEIGHT - 3, 3.5, 0, Math.PI * 2);
+        ctx.arc(m.x, m.y - MUSHROOM_HEIGHT + 2, 2, 0, Math.PI * 2);
         ctx.fill();
     }
 }
@@ -2312,225 +2512,95 @@ function drawBushes(ctx                          , bushes                 )     
     }
 }
 
-/** A chubby striped bumblebee with buzzing wings, facing the way it flies. */
-function drawBee(ctx                          , x        , y        , facingLeft         )       {
-    const now = Date.now();
+/** Noodle's house: soft pink walls, a scalloped rounded roof, an arched door and a bone sign. */
+/** Draws the doghouse centred on `centerX` (the shapes below are laid out for 707). */
+function drawDoghouse(ctx                          , centerX         = 707)       {
     ctx.save();
-    ctx.translate(x, y);
-    if (facingLeft) ctx.scale(-1, 1);
+    ctx.translate(centerX - 707, 0);
 
-    // Wings flutter fast
-    const flap = Math.abs(Math.sin(now * 0.06));
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    // Walls with faint planks
+    ctx.fillStyle = "#FF9AA2";
     ctx.beginPath();
-    ctx.ellipse(-3, -BEE_RADIUS + 1, 4, 6 * (0.5 + flap * 0.5), -0.4, 0, Math.PI * 2);
-    ctx.ellipse(3, -BEE_RADIUS + 2, 3.5, 5 * (0.5 + flap * 0.5), 0.4, 0, Math.PI * 2);
+    ctx.roundRect(670, 346, 75, 84, [6, 6, 0, 0]);
     ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    for (let py = 360; py < 428; py += 14) ctx.fillRect(672, py, 71, 2);
 
-    // Body with stripes, clipped to the body shape
+    // Roof: a rounded peak with rows of scalloped shingles
     ctx.beginPath();
-    ctx.ellipse(0, 0, BEE_RADIUS, BEE_RADIUS * 0.75, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#FDCB6E";
+    ctx.moveTo(654, 356);
+    ctx.quadraticCurveTo(690, 322, 703, 309);
+    ctx.quadraticCurveTo(707.5, 304, 712, 309);
+    ctx.quadraticCurveTo(725, 322, 761, 356);
+    ctx.closePath();
+    ctx.fillStyle = "#E17055";
     ctx.fill();
     ctx.save();
     ctx.clip();
-    ctx.fillStyle = "#2D3436";
-    ctx.fillRect(-4, -10, 3, 20);
-    ctx.fillRect(2, -10, 3, 20);
+    ctx.fillStyle = "#EE8A6E";
+    for (let row = 0; row < 4; row++) {
+        const sy = 322 + row * 10;
+        for (let sx = 650 + (row % 2) * 6; sx < 765; sx += 12) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5.5, 0, Math.PI);
+            ctx.fill();
+        }
+    }
     ctx.restore();
-    // Stinger
-    ctx.fillStyle = "#2D3436";
+    // Rounded eave along the bottom of the roof
+    ctx.fillStyle = "#C8553D";
     ctx.beginPath();
-    ctx.moveTo(-BEE_RADIUS + 1, -1.5);
-    ctx.lineTo(-BEE_RADIUS - 3, 0);
-    ctx.lineTo(-BEE_RADIUS + 1, 1.5);
+    ctx.roundRect(652, 352, 111, 8, 4);
     ctx.fill();
-    // Face: sparkly eye and blush, same as everyone else
+
+    // Heart on the gable
+    ctx.fillStyle = "#FFFFFF";
+    drawHeart(ctx, 707.5, 330, 6);
+
+    // Bone sign over the door
+    ctx.fillStyle = "#FDCB6E";
     ctx.beginPath();
-    ctx.arc(6, -1.5, 1.6, 0, Math.PI * 2);
+    ctx.roundRect(694, 365, 27, 13, 5);
     ctx.fill();
     ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(701, 370, 13, 3);
+    for (const [bx, by] of [[700.5, 369.5], [700.5, 373.5], [714.5, 369.5], [714.5, 373.5]]         ) {
+        ctx.beginPath();
+        ctx.arc(bx, by, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Arched door with a cream trim
     ctx.beginPath();
-    ctx.arc(6.5, -2.2, 0.6, 0, Math.PI * 2);
+    ctx.moveTo(690, 430);
+    ctx.lineTo(690, 402);
+    ctx.arc(707.5, 402, 17.5, Math.PI, 0);
+    ctx.lineTo(725, 430);
+    ctx.closePath();
+    ctx.fillStyle = "#4A3B47";
     ctx.fill();
-    ctx.fillStyle = "rgba(255, 118, 117, 0.6)";
+    ctx.strokeStyle = "#FFE0D6";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Food bowl beside the house
+    ctx.fillStyle = "#C8A27A";
     ctx.beginPath();
-    ctx.arc(7, 2.5, 1.6, 0, Math.PI * 2);
+    ctx.ellipse(756, 424, 7, 2.5, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "#74B9FF";
+    ctx.beginPath();
+    ctx.moveTo(747, 423);
+    ctx.lineTo(765, 423);
+    ctx.quadraticCurveTo(764, 430, 756, 430);
+    ctx.quadraticCurveTo(748, 430, 747, 423);
+    ctx.fill();
+
     ctx.restore();
 }
 
-/**
- * When a goal is off-screen, a small pill at the screen edge shows its emoji and which
- * way to go. `screenX` is the goal's position relative to the visible screen.
- */
-function drawOffscreenArrow(ctx                          , screenX        , screenWidth        , emoji        )       {
-    if (screenX >= 0 && screenX <= screenWidth) return;
-    const right = screenX > screenWidth;
-    const pulse = Math.sin(Date.now() * 0.008) * 3;
-    const cx = right ? screenWidth - 34 - pulse : 34 + pulse;
-    const cy = 215;
-    ctx.save();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-    ctx.beginPath();
-    ctx.roundRect(cx - 26, cy - 15, 52, 30, 15);
-    ctx.fill();
-    ctx.fillStyle = "#FF6B8B";
-    ctx.beginPath();
-    const tip = right ? cx + 22 : cx - 22;
-    const back = right ? cx + 10 : cx - 10;
-    ctx.moveTo(back, cy - 8);
-    ctx.lineTo(tip, cy);
-    ctx.lineTo(back, cy + 8);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "#000";
-    ctx.font = "18px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(emoji, right ? cx - 6 : cx + 6, cy + 1);
-    ctx.restore();
-}
-
-/** Moving platforms are fluffy clouds so they read as different from the earthy ledges. */
-function drawCloudPlatforms(ctx                          , platforms                     )       {
-    for (const p of platforms) {
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.roundRect(p.x, p.y, p.width, 14, 7);
-        ctx.fill();
-        const puffs = Math.max(2, Math.round(p.width / 30));
-        for (let i = 0; i < puffs; i++) {
-            ctx.beginPath();
-            ctx.arc(p.x + ((i + 0.5) * p.width) / puffs, p.y + 4, 10, Math.PI, 0);
-            ctx.fill();
-        }
-        ctx.fillStyle = "rgba(116, 185, 255, 0.35)";
-        ctx.fillRect(p.x + 6, p.y + 10, p.width - 12, 3);
-    }
-}
-
-function drawMushrooms(ctx                          , mushrooms                  )       {
-    for (const m of mushrooms) {
-        const squash = 1 + Math.sin(Date.now() * 0.008 + m.x) * 0.04;
-        // Stalk
-        ctx.fillStyle = "#FFF3E0";
-        ctx.fillRect(m.x - 7, m.y - MUSHROOM_HEIGHT + 6, 14, MUSHROOM_HEIGHT - 6);
-        // Cap
-        ctx.fillStyle = "#E84393";
-        ctx.beginPath();
-        ctx.ellipse(m.x, m.y - MUSHROOM_HEIGHT + 4, (MUSHROOM_WIDTH / 2) * squash, 12 / squash, 0, Math.PI, 0);
-        ctx.fill();
-        // Spots
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.arc(m.x - 9, m.y - MUSHROOM_HEIGHT - 1, 3, 0, Math.PI * 2);
-        ctx.arc(m.x + 7, m.y - MUSHROOM_HEIGHT - 3, 3.5, 0, Math.PI * 2);
-        ctx.arc(m.x, m.y - MUSHROOM_HEIGHT + 2, 2, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-const PET_EMOJI                                    = {
-    kitty: "🐱",
-    puppy: "🐶",
-    hamster: "🐹",
-    turtle: "🐢",
-    bunny: "🐰",
-    duckling: "🐥",
-    piglet: "🐷",
-    fox: "🦊",
-    panda: "🐼",
-    unicorn: "🦄",
-    frog: "🐸",
-    bird: "🐦",
-    snail: "🐌",
-    bear: "🐻",
-    owl: "🦉"
-};
-
-/**
- * A rescued pet standing on the grass (its feet at `y + 12`), drawn in the characters' style,
- * with a soft shadow and a little heart. It trots while moving and hops gently while waiting.
- */
-function drawRescuedPet(
-    ctx                          ,
-    species         ,
-    x        ,
-    y        ,
-    facingLeft          = false,
-    vx         = 0,
-    swimming          = false
-)       {
-    const now = Date.now();
-    // Each species bobs on its own rhythm so the parade doesn't move in lockstep.
-    const phase = Object.keys(PET_EMOJI).indexOf(species) * 1.3;
-    const moving = Math.abs(vx) > 0.4;
-    const step = moving ? Math.sin(now * 0.022 + phase) : 0;
-    const hop = moving ? Math.abs(step) * 1.5 : Math.abs(Math.sin(now * 0.004 + phase)) * 2.5;
-    // Paddling across a pond: sit lower in the water, no hopping, legs hidden by a ripple
-    const groundY = swimming ? WATER_SURFACE_Y + 6 : y + 12;
-    const lift = swimming ? Math.sin(now * 0.006 + phase) * 1 : hop;
-
-    ctx.save();
-    if (!swimming) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-        ctx.beginPath();
-        ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    drawPetSprite(ctx, species, x, groundY - lift, facingLeft, swimming ? 0 : step);
-    if (swimming) drawSwimRipple(ctx, x + 2, 15);
-    ctx.fillStyle = "#FF7A93";
-    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - lift, 4);
-    ctx.restore();
-}
-
-function drawTreeAndGround(
-    ctx                          ,
-    worldWidth        ,
-    trees                   ,
-    digMounds                     ,
-    boneFound         ,
-    boneX        ,
-    snowy          = false
-)       {
-    for (const treeX of trees) drawTree(ctx, treeX, snowy);
-
-    // Ground: green grass, or soft snow
-    ctx.fillStyle = snowy ? "#F5F9FC" : "#00B894";
-    ctx.fillRect(0, 428, worldWidth, 72);
-    if (snowy) {
-        ctx.fillStyle = "#DDEAF3";
-        ctx.fillRect(0, 446, worldWidth, 54);
-    }
-
-    // Dirt Mounds & Hidden Bone
-    for (const m of digMounds) {
-        if (!m.dug) {
-            ctx.fillStyle = "#8D6E63";
-            ctx.beginPath();
-            ctx.arc(m.x, 428, 14, Math.PI, 0);
-            ctx.fill();
-        } else if (!m.hasBone) {
-            ctx.fillStyle = "#6D4C41";
-            ctx.fillRect(m.x - 12, 425, 24, 4);
-        }
-    }
-
-    if (boneFound) {
-        // The dug-up hole, with the bone resting on a little pile of dirt beside it
-        ctx.fillStyle = "#6D4C41";
-        ctx.beginPath();
-        ctx.ellipse(boneX, 429, 11, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#8D6E63";
-        ctx.beginPath();
-        ctx.ellipse(boneX + 3, 427, 9, 3.5, 0, Math.PI, 0);
-        ctx.fill();
-        drawBone(ctx, boneX, 420);
-    }
-}
+// --- src/render/items.ts ---
+/** Things Flora looks after or finds: sprouts and flowers, the key and the bone. */
 
 /** A tiny happy face for flower centres: dot eyes, a smile and a blush. */
 function drawFlowerFace(ctx                          , x        , y        , r        )       {
@@ -2688,198 +2758,6 @@ function drawSprouts(
     }
 }
 
-function drawHeart(ctx                          , x        , y        , size        )       {
-    ctx.beginPath();
-    ctx.moveTo(x, y + size * 0.35);
-    ctx.bezierCurveTo(x - size, y - size * 0.4, x - size * 0.4, y - size, x, y - size * 0.35);
-    ctx.bezierCurveTo(x + size * 0.4, y - size, x + size, y - size * 0.4, x, y + size * 0.35);
-    ctx.fill();
-}
-
-/** Puffy round canopy on a soft tapered trunk, swaying gently, dotted with blossoms. */
-function drawTree(ctx                          , treeX        , snowy          = false)       {
-    const now = Date.now();
-    ctx.save();
-    ctx.translate(treeX, 0);
-
-    // Trunk: tapers up from a little root flare; the base hides under the grass
-    ctx.fillStyle = "#A1887F";
-    ctx.beginPath();
-    ctx.moveTo(-7, 322);
-    ctx.quadraticCurveTo(-8, 395, -15, 432);
-    ctx.lineTo(15, 432);
-    ctx.quadraticCurveTo(8, 395, 7, 322);
-    ctx.closePath();
-    ctx.fill();
-    // Shade down one side, and a little knothole
-    ctx.fillStyle = "#8D6E63";
-    ctx.beginPath();
-    ctx.moveTo(2, 322);
-    ctx.quadraticCurveTo(3, 395, 8, 432);
-    ctx.lineTo(15, 432);
-    ctx.quadraticCurveTo(8, 395, 7, 322);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#6D4C41";
-    ctx.beginPath();
-    ctx.ellipse(-2, 382, 3, 4.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Canopy sways a touch around the top of the trunk
-    ctx.translate(0, 330);
-    ctx.rotate(Math.sin(now * 0.0012 + treeX) * 0.025);
-    ctx.translate(0, -330);
-
-    const puffs                                      = [
-        [-27, 314, 22], [27, 314, 22], [-15, 292, 24], [15, 290, 25], [0, 276, 22], [0, 312, 28]
-    ];
-    // Darker underside first, then the main green, then soft highlights
-    ctx.fillStyle = "#3FA866";
-    for (const [px, py, r] of puffs) {
-        ctx.beginPath();
-        ctx.arc(px, py + 5, r, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.fillStyle = "#55C57A";
-    for (const [px, py, r] of puffs) {
-        ctx.beginPath();
-        ctx.arc(px, py, r, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-    for (const [px, py, r] of [[-18, 284, 9], [6, 268, 7], [-32, 306, 6]]         ) {
-        ctx.beginPath();
-        ctx.arc(px, py, r, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    if (snowy) {
-        // Fluffy snow resting on top of the canopy instead of blossoms
-        ctx.fillStyle = "#FFFFFF";
-        for (const [sx, sy, r] of [[-24, 298, 11], [-8, 276, 13], [10, 270, 12], [26, 292, 10], [0, 262, 9]]         ) {
-            ctx.beginPath();
-            ctx.ellipse(sx, sy, r, r * 0.6, 0, Math.PI, 0);
-            ctx.fill();
-        }
-        ctx.restore();
-        return;
-    }
-
-    // Tiny pink blossoms
-    for (const [bx, by] of [[-22, 300], [18, 280], [28, 318], [-4, 322], [4, 288]]         ) {
-        ctx.fillStyle = "#FFB8D0";
-        for (let i = 0; i < 5; i++) {
-            const a = (i / 5) * Math.PI * 2;
-            ctx.beginPath();
-            ctx.arc(bx + Math.cos(a) * 2.6, by + Math.sin(a) * 2.6, 2.1, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.fillStyle = "#FFEAA7";
-        ctx.beginPath();
-        ctx.arc(bx, by, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.restore();
-}
-
-/** Noodle's house: soft pink walls, a scalloped rounded roof, an arched door and a bone sign. */
-/** Draws the doghouse centred on `centerX` (the shapes below are laid out for 707). */
-function drawDoghouse(ctx                          , centerX         = 707)       {
-    ctx.save();
-    ctx.translate(centerX - 707, 0);
-
-    // Walls with faint planks
-    ctx.fillStyle = "#FF9AA2";
-    ctx.beginPath();
-    ctx.roundRect(670, 346, 75, 84, [6, 6, 0, 0]);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-    for (let py = 360; py < 428; py += 14) ctx.fillRect(672, py, 71, 2);
-
-    // Roof: a rounded peak with rows of scalloped shingles
-    ctx.beginPath();
-    ctx.moveTo(654, 356);
-    ctx.quadraticCurveTo(690, 322, 703, 309);
-    ctx.quadraticCurveTo(707.5, 304, 712, 309);
-    ctx.quadraticCurveTo(725, 322, 761, 356);
-    ctx.closePath();
-    ctx.fillStyle = "#E17055";
-    ctx.fill();
-    ctx.save();
-    ctx.clip();
-    ctx.fillStyle = "#EE8A6E";
-    for (let row = 0; row < 4; row++) {
-        const sy = 322 + row * 10;
-        for (let sx = 650 + (row % 2) * 6; sx < 765; sx += 12) {
-            ctx.beginPath();
-            ctx.arc(sx, sy, 5.5, 0, Math.PI);
-            ctx.fill();
-        }
-    }
-    ctx.restore();
-    // Rounded eave along the bottom of the roof
-    ctx.fillStyle = "#C8553D";
-    ctx.beginPath();
-    ctx.roundRect(652, 352, 111, 8, 4);
-    ctx.fill();
-
-    // Heart on the gable
-    ctx.fillStyle = "#FFFFFF";
-    drawHeart(ctx, 707.5, 330, 6);
-
-    // Bone sign over the door
-    ctx.fillStyle = "#FDCB6E";
-    ctx.beginPath();
-    ctx.roundRect(694, 365, 27, 13, 5);
-    ctx.fill();
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(701, 370, 13, 3);
-    for (const [bx, by] of [[700.5, 369.5], [700.5, 373.5], [714.5, 369.5], [714.5, 373.5]]         ) {
-        ctx.beginPath();
-        ctx.arc(bx, by, 2, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    // Arched door with a cream trim
-    ctx.beginPath();
-    ctx.moveTo(690, 430);
-    ctx.lineTo(690, 402);
-    ctx.arc(707.5, 402, 17.5, Math.PI, 0);
-    ctx.lineTo(725, 430);
-    ctx.closePath();
-    ctx.fillStyle = "#4A3B47";
-    ctx.fill();
-    ctx.strokeStyle = "#FFE0D6";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Food bowl beside the house
-    ctx.fillStyle = "#C8A27A";
-    ctx.beginPath();
-    ctx.ellipse(756, 424, 7, 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#74B9FF";
-    ctx.beginPath();
-    ctx.moveTo(747, 423);
-    ctx.lineTo(765, 423);
-    ctx.quadraticCurveTo(764, 430, 756, 430);
-    ctx.quadraticCurveTo(748, 430, 747, 423);
-    ctx.fill();
-
-    ctx.restore();
-}
-
-/** A four-point twinkle, like the sparkles in Flora's eyes. */
-function drawTwinkle(ctx                          , x        , y        , size        )       {
-    ctx.beginPath();
-    ctx.moveTo(x, y - size);
-    ctx.quadraticCurveTo(x, y, x + size, y);
-    ctx.quadraticCurveTo(x, y, x, y + size);
-    ctx.quadraticCurveTo(x, y, x - size, y);
-    ctx.quadraticCurveTo(x, y, x, y - size);
-    ctx.fill();
-}
-
 /** The golden key: a glowing, gently swaying key with a smiling round bow and twinkles. */
 function drawKey(ctx                          , keyX        , keyY        )       {
     const now = Date.now();
@@ -2996,6 +2874,150 @@ function drawBone(ctx                          , x        , y        )       {
     ctx.arc(-4.6, 1.4, 1.1, 0, Math.PI * 2);
     ctx.arc(4.6, 1.4, 1.1, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+}
+
+// --- src/render/creatures.ts ---
+/** Rescued pets (with their emoji for menus) and bumblebees. */
+
+
+
+
+const PET_EMOJI                                    = {
+    kitty: "🐱",
+    puppy: "🐶",
+    hamster: "🐹",
+    turtle: "🐢",
+    bunny: "🐰",
+    duckling: "🐥",
+    piglet: "🐷",
+    fox: "🦊",
+    panda: "🐼",
+    unicorn: "🦄",
+    frog: "🐸",
+    bird: "🐦",
+    snail: "🐌",
+    bear: "🐻",
+    owl: "🦉"
+};
+
+/**
+ * A rescued pet standing on the grass (its feet at `y + 12`), drawn in the characters' style,
+ * with a soft shadow and a little heart. It trots while moving and hops gently while waiting.
+ */
+function drawRescuedPet(
+    ctx                          ,
+    species         ,
+    x        ,
+    y        ,
+    facingLeft          = false,
+    vx         = 0,
+    swimming          = false
+)       {
+    const now = Date.now();
+    // Each species bobs on its own rhythm so the parade doesn't move in lockstep.
+    const phase = Object.keys(PET_EMOJI).indexOf(species) * 1.3;
+    const moving = Math.abs(vx) > 0.4;
+    const step = moving ? Math.sin(now * 0.022 + phase) : 0;
+    const hop = moving ? Math.abs(step) * 1.5 : Math.abs(Math.sin(now * 0.004 + phase)) * 2.5;
+    // Paddling across a pond: sit lower in the water, no hopping, legs hidden by a ripple
+    const groundY = swimming ? WATER_SURFACE_Y + 6 : y + 12;
+    const lift = swimming ? Math.sin(now * 0.006 + phase) * 1 : hop;
+
+    ctx.save();
+    if (!swimming) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+        ctx.beginPath();
+        ctx.ellipse(x, groundY, 11 - hop, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    drawPetSprite(ctx, species, x, groundY - lift, facingLeft, swimming ? 0 : step);
+    if (swimming) drawSwimRipple(ctx, x + 2, 15);
+    ctx.fillStyle = "#FF7A93";
+    drawHeart(ctx, x + (facingLeft ? -8 : 8), groundY - 34 - lift, 4);
+    ctx.restore();
+}
+
+/** A chubby striped bumblebee with buzzing wings, facing the way it flies. */
+function drawBee(ctx                          , x        , y        , facingLeft         )       {
+    const now = Date.now();
+    ctx.save();
+    ctx.translate(x, y);
+    if (facingLeft) ctx.scale(-1, 1);
+
+    // Wings flutter fast
+    const flap = Math.abs(Math.sin(now * 0.06));
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.beginPath();
+    ctx.ellipse(-3, -BEE_RADIUS + 1, 4, 6 * (0.5 + flap * 0.5), -0.4, 0, Math.PI * 2);
+    ctx.ellipse(3, -BEE_RADIUS + 2, 3.5, 5 * (0.5 + flap * 0.5), 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body with stripes, clipped to the body shape
+    ctx.beginPath();
+    ctx.ellipse(0, 0, BEE_RADIUS, BEE_RADIUS * 0.75, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#FDCB6E";
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = "#2D3436";
+    ctx.fillRect(-4, -10, 3, 20);
+    ctx.fillRect(2, -10, 3, 20);
+    ctx.restore();
+    // Stinger
+    ctx.fillStyle = "#2D3436";
+    ctx.beginPath();
+    ctx.moveTo(-BEE_RADIUS + 1, -1.5);
+    ctx.lineTo(-BEE_RADIUS - 3, 0);
+    ctx.lineTo(-BEE_RADIUS + 1, 1.5);
+    ctx.fill();
+    // Face: sparkly eye and blush, same as everyone else
+    ctx.beginPath();
+    ctx.arc(6, -1.5, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.arc(6.5, -2.2, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 118, 117, 0.6)";
+    ctx.beginPath();
+    ctx.arc(7, 2.5, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+// --- src/render/hud.ts ---
+/** Overlays drawn on top of the scene: edge arrows and the celebration banner. */
+
+/**
+ * When a goal is off-screen, a small pill at the screen edge shows its emoji and which
+ * way to go. `screenX` is the goal's position relative to the visible screen.
+ */
+function drawOffscreenArrow(ctx                          , screenX        , screenWidth        , emoji        )       {
+    if (screenX >= 0 && screenX <= screenWidth) return;
+    const right = screenX > screenWidth;
+    const pulse = Math.sin(Date.now() * 0.008) * 3;
+    const cx = right ? screenWidth - 34 - pulse : 34 + pulse;
+    const cy = 215;
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.beginPath();
+    ctx.roundRect(cx - 26, cy - 15, 52, 30, 15);
+    ctx.fill();
+    ctx.fillStyle = "#FF6B8B";
+    ctx.beginPath();
+    const tip = right ? cx + 22 : cx - 22;
+    const back = right ? cx + 10 : cx - 10;
+    ctx.moveTo(back, cy - 8);
+    ctx.lineTo(tip, cy);
+    ctx.lineTo(back, cy + 8);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.font = "18px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(emoji, right ? cx - 6 : cx + 6, cy + 1);
     ctx.restore();
 }
 
@@ -3688,39 +3710,108 @@ class Noodle {
     }
 }
 
-// --- src/game.ts ---
-const stage = document.getElementById('game-stage')               ;
-const container = document.getElementById('game-container')               ;
-const canvas = document.getElementById('gameCanvas')                     ;
-const ctx = canvas.getContext('2d')                            ;
-const musicBtn = document.getElementById('music-btn')                     ;
-const restartBtn = document.getElementById('restart-btn')                     ;
-const victoryDialog = document.getElementById('victory-dialog')                     ;
-const levelDisplay = document.getElementById('level-display')               ;
-const statusDisplay = document.getElementById('status-display')               ;
-const objectiveDisplay = document.getElementById('objective-display')               ;
-const startScreen = document.getElementById('start-screen')               ;
-const playBtn = document.getElementById('play-btn')                     ;
-const continueBtn = document.getElementById('continue-btn')                     ;
-const rescuedList = document.getElementById('rescued-list')               ;
-const pauseBtn = document.getElementById('pause-btn')                     ;
-const pauseScreen = document.getElementById('pause-screen')               ;
-const resumeBtn = document.getElementById('resume-btn')                     ;
-const pauseRestartBtn = document.getElementById('pause-restart-btn')                     ;
-const pauseLevelsBtn = document.getElementById('pause-levels-btn')                     ;
-const pauseMenuBtn = document.getElementById('pause-menu-btn')                     ;
-const levelsBtn = document.getElementById('levels-btn')                     ;
-const levelSelect = document.getElementById('level-select')               ;
-const levelGrid = document.getElementById('level-grid')               ;
-const levelsBackBtn = document.getElementById('levels-back-btn')                     ;
-const petsBtn = document.getElementById('pets-btn')                     ;
-const pausePetsBtn = document.getElementById('pause-pets-btn')                     ;
-const rosterScreen = document.getElementById('roster-screen')               ;
-const rosterGrid = document.getElementById('roster-grid')               ;
-const rosterCount = document.getElementById('roster-count')               ;
-const rosterHint = document.getElementById('roster-hint')               ;
-const rosterBackBtn = document.getElementById('roster-back-btn')                     ;
-const victoryText = document.getElementById('victory-text')               ;
+// --- src/game/dom.ts ---
+/** The page elements the game talks to, looked up once at startup. */
+
+const byId =                                      (id        )    => document.getElementById(id)     ;
+
+const dom = {
+    stage: byId('game-stage'),
+    container: byId('game-container'),
+    canvas: byId                   ('gameCanvas'),
+    // HUD
+    levelDisplay: byId('level-display'),
+    statusDisplay: byId('status-display'),
+    objectiveDisplay: byId('objective-display'),
+    musicBtn: byId                   ('music-btn'),
+    restartBtn: byId                   ('restart-btn'),
+    pauseBtn: byId                   ('pause-btn'),
+    devBadge: byId('dev-badge'),
+    // Start screen
+    startScreen: byId('start-screen'),
+    playBtn: byId                   ('play-btn'),
+    continueBtn: byId                   ('continue-btn'),
+    levelsBtn: byId                   ('levels-btn'),
+    petsBtn: byId                   ('pets-btn'),
+    // Pause menu
+    pauseScreen: byId('pause-screen'),
+    resumeBtn: byId                   ('resume-btn'),
+    pauseRestartBtn: byId                   ('pause-restart-btn'),
+    pauseSkipBtn: byId                   ('pause-skip-btn'),
+    pauseLevelsBtn: byId                   ('pause-levels-btn'),
+    pausePetsBtn: byId                   ('pause-pets-btn'),
+    pauseMenuBtn: byId                   ('pause-menu-btn'),
+    // Level list
+    levelSelect: byId('level-select'),
+    levelGrid: byId('level-grid'),
+    levelsBackBtn: byId                   ('levels-back-btn'),
+    // My pets
+    rosterScreen: byId('roster-screen'),
+    rosterGrid: byId('roster-grid'),
+    rosterCount: byId('roster-count'),
+    rosterHint: byId('roster-hint'),
+    rosterBackBtn: byId                   ('roster-back-btn'),
+    // Victory
+    victoryDialog: byId                   ('victory-dialog'),
+    victoryText: byId('victory-text'),
+    rescuedList: byId('rescued-list')
+};
+
+/** The game canvas's drawing context; every frame is drawn through it. */
+const ctx = dom.canvas.getContext('2d')                            ;
+
+// --- src/game/state.ts ---
+/**
+ * Everything the game remembers while it runs, in one place. Modules read and change
+ * `state.x` rather than keeping their own copies, so any module can be composed with any other.
+ * The long-lived objects (Flora, Noodle, audio, particles, weather…) live here too.
+ */
+
+
+
+
+
+
+
+
+/** Where a sub-menu (level list, My pets) was opened from, so Back returns there. */
+                                            
+/** A moving platform where it is this tick. */
+                                                                        
+/** A bee where it is this tick, and which way it's flying. */
+                                                     
+
+                            
+                                                                                      
+                       
+                   
+                             
+                         
+                                                                       
+                            
+                                                                                       
+                       
+                                                                                           
+                    
+                                                       
+                          
+                                                                                        
+                      
+                   
+                                         
+                      
+                          
+                                    
+                       
+                  
+                          
+                 
+                 
+                                                                          
+                       
+                                                                                       
+                 
+ 
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
@@ -3728,42 +3819,57 @@ const butterflies = new ButterflySwarm();
 const skyVisitors = new SkyVisitors();
 const weather = new WeatherEffects();
 const storage = getStorage();
-/** Continue point, unlocked levels, roster and followers; kept in memory and mirrored to storage. */
-let progress           = loadSave(storage, LEVELS.map(l => l.species));
+const flora = new Player();
+const noodle = new Noodle();
 
-                                                                               
-let screen         = 'start';
-/** Where the level list's or roster's Back button goes. */
-let menuReturnTo                     = 'start';
-let currentLevel         = 0;
-let levelClearTimer         = 0;
-/** Ticks since the level started; drives moving platforms and bees. */
-let levelTicks         = 0;
-/** Left edge of the visible part of the level; levels wider than the screen scroll. */
-let cameraX         = 0;
-/** Where each rain cloud's middle is this tick. */
-let rainCloudXs           = [];
-/** The last spot Flora stood on solid ground, where a pond splash puts her back. */
-let lastSafeX         = 50;
-/** Where each bee is this tick, and which way it's flying. */
-let bees                                      = [];
+/** True when the page URL asks for dev mode (`?dev` or `&dev`, with or without a value). */
+function isDevUrl(search        )          {
+    return /[?&]dev(=[^&]*)?(&|$)/.test(search);
+}
 
-let flora         = new Player();
-let noodle         = new Noodle();
-let sprouts           = [];
-let digMounds             = [];
-let rescuedFriends                  = [];
-let boneFound          = false;
-let boneX         = 400;
-let keyCollected          = false;
-let keyX         = 530;
-let keyY         = 315;
-/** Where each of the level's moving platforms is this tick. */
-let movingPlatforms                                              = [];
+const state            = {
+    progress: loadSave(storage, LEVELS.map(l => l.species)),
+    screen: 'start',
+    menuReturnTo: 'start',
+    currentLevel: 0,
+    levelClearTimer: 0,
+    levelTicks: 0,
+    cameraX: 0,
+    rainCloudXs: [],
+    lastSafeX: 50,
+    bees: [],
+    movingPlatforms: [],
+    sprouts: [],
+    digMounds: [],
+    rescuedFriends: [],
+    boneFound: false,
+    boneX: 400,
+    keyCollected: false,
+    keyX: 530,
+    keyY: 315,
+    pixelScale: 1,
+    dev: isDevUrl(window.location?.search ?? '')
+};
 
+/** The level being played. */
+const currentLevelConfig = ()              => LEVELS[state.currentLevel];
+
+/** Saves progress, except in dev mode, which never touches the real save. */
+function persist()       {
+    if (!state.dev) writeSave(storage, state.progress);
+}
+
+// --- src/game/input.ts ---
+/** Keyboard and on-screen touch buttons, turned into held and just-pressed keys. */
+
+
+
+/** Keys held down right now, by KeyboardEvent.code. */
 const keys                          = {};
 /** Keys that went down since the last tick, so a tap shorter than one tick still counts. */
 const pressed                          = {};
+
+const GAME_KEYS                    = Object.values(CONTROLS);
 
 function pressKey(code        )       {
     if (!keys[code]) pressed[code] = true;
@@ -3774,183 +3880,559 @@ function clearKeys()       {
     for (const code of Object.keys(keys)) keys[code] = false;
 }
 
-const GAME_KEYS                    = Object.values(CONTROLS);
-
-window.addEventListener('keydown', (e               ) => {
-    if (GAME_KEYS.includes(e.code) && screen === 'playing') {
-        e.preventDefault();
-    }
-    if (e.code === 'Escape' && !e.repeat) {
-        if (screen === 'playing') pauseGame();
-        else if (screen === 'paused') resumeGame();
-        else if (screen === 'levels') closeLevelSelect();
-        else if (screen === 'roster') closeRoster();
-    }
-    pressKey(e.code);
-});
-window.addEventListener('keyup', (e               ) => {
-    keys[e.code] = false;
-});
-// Releasing a key while the window is unfocused never fires keyup, which left Flora running forever.
-window.addEventListener('blur', () => {
-    clearKeys();
-    // Switching apps or tabs shouldn't leave the game running unattended.
-    if (screen === 'playing') pauseGame();
-});
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden && screen === 'playing') pauseGame();
-});
-
-// On-screen buttons hold down the same key codes the keyboard does while a finger is on them.
-for (const btn of document.querySelectorAll             ('[data-key]')) {
-    const code = btn.dataset.key          ;
-    const release = ()       => {
-        keys[code] = false;
-        btn.classList.remove('pressed');
-    };
-    btn.addEventListener('pointerdown', (e              ) => {
-        e.preventDefault();
-        pressKey(code);
-        btn.classList.add('pressed');
-        try {
-            // Keeps the button held if the finger slides off it slightly.
-            btn.setPointerCapture(e.pointerId);
-        } catch {
-            // Unknown pointer id (e.g. synthetic events); the press still counts.
-        }
-    });
-    btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', release);
-    btn.addEventListener('lostpointercapture', release);
-    btn.addEventListener('contextmenu', (e       ) => e.preventDefault());
-}
-
-musicBtn.addEventListener('click', () => {
-    audio.toggle(currentLevel, musicBtn);
-});
-
-restartBtn.addEventListener('click', () => {
-    // Blur so a later Space press waters instead of clicking Restart again.
-    restartBtn.blur();
-    if (screen === 'playing' && levelClearTimer === 0) restartLevel();
-});
-
-function saveProgress(level               )       {
-    progress = { ...progress, level, unlocked: Math.max(progress.unlocked, level ?? 0) };
-    writeSave(storage, progress);
-}
-
-/**
- * Makes the parade match the followers: pets already walking keep their spot, new ones
- * join at the back, and ones that went to rest leave.
- */
-function syncParade()       {
-    const kept = rescuedFriends.filter(p => progress.followers.includes(p.species));
-    for (const species of progress.followers) {
-        if (kept.some(p => p.species === species)) continue;
-        const behind = kept.length === 0 ? noodle.x : kept[kept.length - 1].x;
-        kept.push({ species, x: behind - PARADE_GAP, y: 416 });
-    }
-    // Keep the parade in follow order (longest-following nearest Noodle).
-    kept.sort((a, b) => progress.followers.indexOf(a.species) - progress.followers.indexOf(b.species));
-    rescuedFriends = kept;
-}
-
-const petName = (species         )         => LEVELS.find(l => l.species === species)?.pet ?? species;
-
 /** Drops held and just-pressed keys, so menu key presses never leak into play. */
 function dropInput()       {
     clearKeys();
     for (const code of Object.keys(pressed)) pressed[code] = false;
 }
 
+/** Listens to the keyboard, window focus and the touch buttons. Called once at startup. */
+function setupInput()       {
+    window.addEventListener('keydown', (e               ) => {
+        if (GAME_KEYS.includes(e.code) && state.screen === 'playing') {
+            e.preventDefault();
+        }
+        if (e.code === 'Escape' && !e.repeat) {
+            if (state.screen === 'playing') pauseGame();
+            else if (state.screen === 'paused') resumeGame();
+            else if (state.screen === 'levels') closeLevelSelect();
+            else if (state.screen === 'roster') closeRoster();
+        }
+        pressKey(e.code);
+    });
+    window.addEventListener('keyup', (e               ) => {
+        keys[e.code] = false;
+    });
+    // Releasing a key while the window is unfocused never fires keyup, which left Flora running forever.
+    window.addEventListener('blur', () => {
+        clearKeys();
+        // Switching apps or tabs shouldn't leave the game running unattended.
+        if (state.screen === 'playing') pauseGame();
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state.screen === 'playing') pauseGame();
+    });
+
+    // On-screen buttons hold down the same key codes the keyboard does while a finger is on them.
+    for (const btn of document.querySelectorAll             ('[data-key]')) {
+        const code = btn.dataset.key          ;
+        const release = ()       => {
+            keys[code] = false;
+            btn.classList.remove('pressed');
+        };
+        btn.addEventListener('pointerdown', (e              ) => {
+            e.preventDefault();
+            pressKey(code);
+            btn.classList.add('pressed');
+            try {
+                // Keeps the button held if the finger slides off it slightly.
+                btn.setPointerCapture(e.pointerId);
+            } catch {
+                // Unknown pointer id (e.g. synthetic events); the press still counts.
+            }
+        });
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointercancel', release);
+        btn.addEventListener('lostpointercapture', release);
+        btn.addEventListener('contextmenu', (e       ) => e.preventDefault());
+    }
+}
+
+// --- src/game/world.ts ---
+/** Things that move around the level each tick: moving platforms, bees, wind, rain clouds, ponds, the camera and the pet parade. */
+
+
+
+
+/** Gap between pets in the parade; the drawn pets are about 30px wide. */
+const PARADE_GAP = 32;
+
+const petName = (species         )         => LEVELS.find(l => l.species === species)?.pet ?? species;
+
+/**
+ * Makes the parade match the followers: pets already walking keep their spot, new ones
+ * join at the back, and ones that went to rest leave.
+ */
+function syncParade()       {
+    const kept = state.rescuedFriends.filter(p => state.progress.followers.includes(p.species));
+    for (const species of state.progress.followers) {
+        if (kept.some(p => p.species === species)) continue;
+        const behind = kept.length === 0 ? noodle.x : kept[kept.length - 1].x;
+        kept.push({ species, x: behind - PARADE_GAP, y: 416 });
+    }
+    // Keep the parade in follow order (longest-following nearest Noodle).
+    kept.sort((a, b) => state.progress.followers.indexOf(a.species) - state.progress.followers.indexOf(b.species));
+    state.rescuedFriends = kept;
+}
+
+/** The camera keeps Flora a little behind centre, looking ahead the way she faces. */
+function cameraTarget()         {
+    const maxX = levelWidth(LEVELS[state.currentLevel]) - CANVAS_WIDTH;
+    const lookAhead = flora.facing === 'right' ? 60 : -60;
+    const target = flora.x + flora.width / 2 - CANVAS_WIDTH / 2 + lookAhead;
+    return Math.min(Math.max(0, target), maxX);
+}
+
+function updateCamera()       {
+    state.cameraX += (cameraTarget() - state.cameraX) * 0.1;
+}
+
+/** Positions of the level's moving platforms at tick `t`: an eased glide out and back. */
+function movingPlatformsAt(t        )                                              {
+    return (LEVELS[state.currentLevel].movingPlatforms ?? []).map(p => ({
+        x: p.x + (p.range * (1 - Math.cos((2 * Math.PI * t) / p.period))) / 2,
+        y: p.y,
+        width: p.width,
+        style: p.style
+    }));
+}
+
+function updateMovingPlatforms()       {
+    state.levelTicks++;
+    const next = movingPlatformsAt(state.levelTicks);
+    // Carry Flora along with a platform she is standing on.
+    state.movingPlatforms.forEach((p, i) => {
+        const standing =
+            flora.grounded &&
+            Math.abs(flora.y + flora.height - p.y) < 0.5 &&
+            flora.x + flora.width > p.x + 6 &&
+            flora.x < p.x + p.width - 6;
+        if (standing) flora.x += next[i].x - p.x;
+    });
+    state.movingPlatforms = next;
+}
+
+/** Bees glide out and back like clouds, bobbing up and down as they buzz. */
+function beesAt(t        )                                      {
+    return (LEVELS[state.currentLevel].bees ?? []).map((b, i) => {
+        const phase = (2 * Math.PI * t) / b.period;
+        return {
+            x: b.x + (b.range * (1 - Math.cos(phase))) / 2,
+            y: b.y + Math.sin(t * 0.09 + i) * 6,
+            // Moving right during the first half of each trip
+            facingLeft: Math.sin(phase) < 0
+        };
+    });
+}
+
+function updateBees()       {
+    state.bees = beesAt(state.levelTicks);
+    for (const bee of state.bees) {
+        // Circle-vs-box: nearest point on Flora's box to the bee
+        const nx = Math.min(Math.max(bee.x, flora.x), flora.x + flora.width);
+        const ny = Math.min(Math.max(bee.y, flora.y), flora.y + flora.height);
+        if ((bee.x - nx) ** 2 + (bee.y - ny) ** 2 > BEE_RADIUS ** 2) continue;
+        if (flora.bump(bee.x)) {
+            audio.playSound('bump');
+            particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
+            noodle.barkTimer = 70;
+            noodle.speechBubble = "Ouch! Jump over the bees 🐝";
+        }
+    }
+}
+
+/**
+ * The wind's push this tick: calm, then a gust that eases in and out. `soon` is true in the
+ * second before a gust, when warning leaves start to blow.
+ */
+function currentWind()                               {
+    const wind = LEVELS[state.currentLevel].wind;
+    if (!wind) return { x: 0, soon: false };
+    const t = state.levelTicks % (wind.calm + wind.gust);
+    if (t < wind.calm) return { x: 0, soon: t > wind.calm - 60 };
+    const into = t - wind.calm;
+    const ease = Math.min(1, into / 25, (wind.gust - into) / 25);
+    return { x: wind.strength * ease, soon: false };
+}
+
+/** Rain clouds drift like the moving clouds, without being solid. */
+function rainCloudsAt(t        )           {
+    return (LEVELS[state.currentLevel].rainClouds ?? []).map(
+        c => c.x + (c.range * (1 - Math.cos((2 * Math.PI * t) / c.period))) / 2
+    );
+}
+
+/** Sprouts under a rain cloud get a splash every so often, helping Flora along. */
+function updateRain()       {
+    state.rainCloudXs = rainCloudsAt(state.levelTicks);
+    if (state.rainCloudXs.length === 0) return;
+    let changed = false;
+    for (const s of state.sprouts) {
+        if (s.bloomed) continue;
+        const underRain = state.rainCloudXs.some(cx => Math.abs(cx - s.x) <= RAIN_WIDTH / 2);
+        if (!underRain) continue;
+        s.rainTicks = (s.rainTicks ?? 0) + 1;
+        if (s.rainTicks >= RAIN_SPLASH_TICKS) {
+            s.rainTicks = 0;
+            splashSprout(s);
+            changed = true;
+        }
+    }
+    if (changed) updateStatus();
+}
+
+/** Ponds: remember the last dry spot, and splash Flora back to it if she drops in. */
+function updatePond()       {
+    const water = LEVELS[state.currentLevel].water ?? [];
+    noodle.swimming = water.some(w => noodle.x + 12 >= w.x && noodle.x + 12 <= w.x + w.width);
+    if (water.length === 0) return;
+    if (flora.grounded && flora.y + flora.height >= GROUND_Y - 1 && !flora.over(water)) state.lastSafeX = flora.x;
+    if (!flora.fellInWater) return;
+    particleSystem.spawn(flora.x + flora.width / 2, GROUND_Y + 6, '#74B9FF', 16, 'circle');
+    audio.playSound('bump');
+    flora.reset();
+    flora.x = state.lastSafeX;
+    flora.safeTimer = 60;
+    noodle.sayFirst("Splash! Hop on the lily pads 🪷", 120);
+}
+
+const overWater = (x        )          =>
+    (LEVELS[state.currentLevel].water ?? []).some(w => x >= w.x && x <= w.x + w.width);
+
+function updateParade()       {
+    state.rescuedFriends.forEach((pet, idx) => {
+        const leaderX = idx === 0 ? noodle.x : state.rescuedFriends[idx - 1].x;
+        const vx = (leaderX - PARADE_GAP - pet.x) * 0.08;
+        pet.x += vx;
+        pet.vx = vx;
+        // Same dead zone as Noodle, so settled pets don't flip back and forth.
+        if (vx > 0.3) pet.facingLeft = false;
+        else if (vx < -0.3) pet.facingLeft = true;
+    });
+}
+
+// --- src/game/level.ts ---
+/** The level's rules: setting it up, watering, digging, the key, the doghouse, the celebration, and the HUD text. */
+
+
+
+
+
+
+
+function allBloomed()          {
+    return state.sprouts.every(s => s.bloomed);
+}
+
+function objectiveText()         {
+    if (state.levelClearTimer > 0) return `🎉 You rescued ${LEVELS[state.currentLevel].pet}!`;
+    if (state.keyCollected) return '🏠 Bring the key to the doghouse!';
+    if (!allBloomed()) {
+        return state.sprouts.some(s => !s.bloomed && s.waterNeeded > 1)
+            ? '💦 Water every sprout — big ones need extra splashes!'
+            : '💦 Water every sprout';
+    }
+    if (!state.boneFound) return "🦴 Follow Noodle's nose and dig for the bone";
+    return '🔑 Grab the shiny key!';
+}
+
+/** How much of the victory rainbow to draw: 0 while playing, sweeping to 1 once a level is beaten. */
+function rainbowProgress()         {
+    if (state.screen === 'victory') return 1; // keep the full rainbow behind the victory dialog
+    if (state.levelClearTimer <= 0) return 0;
+    return Math.min(1, (LEVEL_CLEAR_FRAMES - state.levelClearTimer + 1) / RAINBOW_SWEEP_FRAMES);
+}
+
+function updateStatus()       {
+    const bloomedCount = state.sprouts.filter(s => s.bloomed).length;
+    dom.statusDisplay.innerText = `Flowers: ${bloomedCount}/${LEVELS[state.currentLevel].flowersNeeded} | Bone: ${state.boneFound ? '🦴' : '❌'} | Key: ${state.keyCollected ? '🔑' : '❌'}`;
+    dom.objectiveDisplay.innerText = objectiveText();
+}
+
+function initLevel()       {
+    const level = LEVELS[state.currentLevel];
+    state.sprouts = [];
+    state.digMounds = [];
+    particleSystem.clear();
+    state.boneFound = false;
+    state.keyCollected = false;
+    state.levelClearTimer = 0;
+    state.levelTicks = 0;
+    state.movingPlatforms = movingPlatformsAt(0);
+    state.bees = beesAt(0);
+    state.rainCloudXs = rainCloudsAt(0);
+    state.lastSafeX = 50;
+    weather.setKind(level.weather ?? 'clear');
+    state.keyX = level.keyPos.x;
+    state.keyY = level.keyPos.y;
+
+    level.sprouts.forEach((pos, i) => {
+        state.sprouts.push({
+            x: pos.x,
+            y: pos.y,
+            water: 0,
+            waterNeeded: pos.waterNeeded ?? 1,
+            bloomed: false,
+            color: (pos.waterNeeded ?? 1) > 1 ? BIG_FLOWER_COLOR : FLOWER_COLORS[i % FLOWER_COLORS.length],
+            danceOffset: Math.random() * Math.PI * 2
+        });
+    });
+
+    const boneIdx = Math.floor(Math.random() * level.mounds.length);
+    level.mounds.forEach((mx, idx) => {
+        state.digMounds.push({
+            x: mx,
+            y: GROUND_Y,
+            hasBone: idx === boneIdx,
+            dug: false
+        });
+    });
+    state.boneX = level.mounds[boneIdx];
+
+    if (level.tip) {
+        noodle.speechBubble = level.tip;
+        noodle.barkTimer = 240;
+    }
+
+    dom.levelDisplay.innerText = `Level ${state.currentLevel + 1}: ${level.name}`;
+    updateStatus();
+    if (audio.enabled) audio.startBgMusic(state.currentLevel);
+}
+
+function restartLevel()       {
+    initLevel();
+    flora.reset();
+    // Line Noodle and the parade up behind Flora, instead of them walking back from
+    // wherever the last level ended.
+    noodle.x = 20;
+    state.rescuedFriends.forEach((pet, i) => {
+        pet.x = noodle.x - (i + 1) * PARADE_GAP;
+        pet.vx = 0;
+        pet.facingLeft = false;
+    });
+    state.cameraX = cameraTarget();
+}
+
+/** One splash of water on a sprout, from Flora's can or a rain cloud. */
+function splashSprout(s        )       {
+    if (s.bloomed) return;
+    s.water++;
+    if (s.water >= s.waterNeeded) {
+        s.bloomed = true;
+        audio.playSound('bloom');
+        const big = s.waterNeeded > 1;
+        particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
+        particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
+    } else {
+        particleSystem.spawn(s.x, s.y - 20, '#74B9FF', 8, 'circle');
+    }
+}
+
+function checkWatering()       {
+    const canCenterX = flora.facing === 'right' ? flora.x + 30 : flora.x + 2;
+    const floraFeetY = flora.y + flora.height;
+    for (const s of state.sprouts) {
+        if (s.bloomed || Math.abs(canCenterX - s.x) >= 48 || Math.abs(floraFeetY - s.y) >= 48) continue;
+        splashSprout(s);
+    }
+    updateStatus();
+}
+
+function checkDigging()       {
+    if (flora.y + flora.height < GROUND_Y - 5) return;
+    const playerCenterX = flora.x + flora.width / 2;
+    // Pick the closest undug mound so an already-dug neighbour can't block a nearby one.
+    let mound                      ;
+    for (const m of state.digMounds) {
+        if (m.dug || Math.abs(playerCenterX - m.x) >= DIG_RANGE) continue;
+        if (!mound || Math.abs(playerCenterX - m.x) < Math.abs(playerCenterX - mound.x)) mound = m;
+    }
+
+    particleSystem.spawn(mound ? mound.x : playerCenterX, GROUND_Y - 4, '#8D6E63', 8, 'circle');
+    if (!mound) return;
+
+    mound.dug = true;
+    if (mound.hasBone) {
+        state.boneFound = true;
+        state.boneX = mound.x;
+        audio.playSound('key');
+        particleSystem.spawn(mound.x, GROUND_Y - 10, '#F1C40F', 16, 'star');
+        noodle.barkTimer = 75;
+        noodle.speechBubble = allBloomed() ? "Woof! Found it! 🦴" : "Bone! Now water the flowers! 🌸";
+        updateStatus();
+    } else {
+        noodle.barkTimer = 60;
+        noodle.speechBubble = "Keep sniffing! 🐾";
+    }
+}
+
+function updateKey()       {
+    if (state.keyCollected || !allBloomed() || !state.boneFound) return;
+    const floraCenterX = flora.x + flora.width / 2;
+    const floraCenterY = flora.y + flora.height / 2;
+    if (Math.abs(floraCenterX - state.keyX) < 34 && Math.abs(floraCenterY - state.keyY) < 42) {
+        state.keyCollected = true;
+        audio.playSound('key');
+        particleSystem.spawn(state.keyX, state.keyY, '#F1C40F', 18, 'star');
+        updateStatus();
+    }
+}
+
+function updateDoghouse()       {
+    // Flora has to walk in at the door, not fall past it from above.
+    const atDoor = flora.grounded && flora.y + flora.height >= GROUND_Y - 1;
+    if (flora.x <= doghouseEntryX(LEVELS[state.currentLevel]) || !atDoor || state.levelClearTimer > 0) return;
+    const houseX = doghouseX(LEVELS[state.currentLevel]);
+    if (state.keyCollected) {
+        state.levelClearTimer = LEVEL_CLEAR_FRAMES;
+        audio.playSound('victory');
+        particleSystem.spawn(houseX, 395, '#FF7675', 14, 'heart');
+        particleSystem.spawn(houseX, 385, '#F1C40F', 20, 'star');
+        updateStatus();
+    } else if (noodle.barkTimer <= 0) {
+        noodle.barkTimer = 70;
+        noodle.speechBubble = "It's locked! Need the key 🔑";
+    }
+}
+
+function updateLevelClear()       {
+    if (state.levelClearTimer <= 0) return;
+    if (state.levelClearTimer % 15 === 0) {
+        particleSystem.spawn(doghouseX(LEVELS[state.currentLevel]) + (Math.random() - 0.5) * 40, 390, '#FFEAA7', 8, 'star');
+    }
+
+    state.levelClearTimer--;
+    if (state.levelClearTimer > 0) return;
+
+    // The rescued pet joins the roster and the parade; a full parade sends its longest follower home.
+    const { bumped } = addRescue(state.progress, LEVELS[state.currentLevel].species);
+    const leaving = state.rescuedFriends.find(p => p.species === bumped);
+    if (leaving) particleSystem.spawn(leaving.x, 405, '#FF7675', 8, 'heart');
+    syncParade();
+    const goodbye = bumped ? `${petName(bumped)} went home to rest 🏡` : null;
+
+    if (state.currentLevel === LEVELS.length - 1) {
+        state.screen = 'victory';
+        // Nothing left to continue, but every level stays open in the level list.
+        state.progress = { ...state.progress, level: null, unlocked: LEVELS.length - 1 };
+        persist();
+        updateStatus();
+        dom.victoryDialog.showModal();
+    } else {
+        state.currentLevel++;
+        saveProgress(state.currentLevel);
+        restartLevel();
+    }
+    // Shown before the new level's tip, which waits its turn.
+    if (goodbye) noodle.sayFirst(goodbye, 150);
+}
+
+/** What Flora should head for next, for the off-screen arrow: key, then doghouse, then any sprout left. */
+function nextGoal()                                      {
+    if (state.levelClearTimer > 0) return null;
+    if (state.keyCollected) return { x: doghouseX(LEVELS[state.currentLevel]), emoji: '🏠' };
+    if (allBloomed() && state.boneFound) return { x: state.keyX, emoji: '🔑' };
+    const onScreen = (x        )          => x >= state.cameraX && x <= state.cameraX + CANVAS_WIDTH;
+    const left = state.sprouts.filter(s => !s.bloomed);
+    if (left.length === 0 || left.some(s => onScreen(s.x))) return null;
+    const floraX = flora.x + flora.width / 2;
+    const nearest = left.reduce((a, b) => (Math.abs(a.x - floraX) <= Math.abs(b.x - floraX) ? a : b));
+    return { x: nearest.x, emoji: '🌱' };
+}
+
+// --- src/game/menus.ts ---
+/** The screens around play: start, pause, level list, My pets, and the victory dialog. */
+
+
+
+
+
+
+
+
+
+function saveProgress(level               )       {
+    state.progress = { ...state.progress, level, unlocked: Math.max(state.progress.unlocked, level ?? 0) };
+    persist();
+}
+
 /** Shows exactly one menu overlay (or none), and hides touch controls while any is up. */
 function showOverlay(overlay                    )       {
-    for (const el of [startScreen, pauseScreen, levelSelect, rosterScreen]) el.hidden = el !== overlay;
+    for (const el of [dom.startScreen, dom.pauseScreen, dom.levelSelect, dom.rosterScreen]) el.hidden = el !== overlay;
     if (overlay) document.body.classList.add('menu-open');
     else document.body.classList.remove('menu-open');
 }
 
 /** Starts play at `level`, with the chosen followers in the parade. */
 function startGame(level        )       {
-    currentLevel = level;
-    rescuedFriends = progress.followers.map((species, i) => ({ species, x: 20 - (i + 1) * PARADE_GAP, y: 416 }));
+    state.currentLevel = level;
+    state.rescuedFriends = state.progress.followers.map((species, i) => ({ species, x: 20 - (i + 1) * PARADE_GAP, y: 416 }));
     // Continue picks up from whichever level you're on; level 1 is just "New game".
     saveProgress(level > 0 ? level : null);
     noodle.x = 20;
     restartLevel();
     dropInput();
-    screen = 'playing';
+    state.screen = 'playing';
     showOverlay(null);
 }
 
 function showStartScreen()       {
-    screen = 'start';
-    const canContinue = progress.level !== null;
-    continueBtn.hidden = !canContinue;
-    if (progress.level !== null) continueBtn.innerText = `▶ Continue — Level ${progress.level + 1}`;
-    playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
-    petsBtn.hidden = progress.roster.length === 0;
-    showOverlay(startScreen);
-    (canContinue ? continueBtn : playBtn).focus();
+    state.screen = 'start';
+    const canContinue = state.progress.level !== null;
+    dom.continueBtn.hidden = !canContinue;
+    if (state.progress.level !== null) dom.continueBtn.innerText = `▶ Continue — Level ${state.progress.level + 1}`;
+    dom.playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
+    dom.petsBtn.hidden = state.progress.roster.length === 0;
+    showOverlay(dom.startScreen);
+    (canContinue ? dom.continueBtn : dom.playBtn).focus();
 }
 
 function pauseGame()       {
-    if (screen !== 'playing') return;
-    screen = 'paused';
+    if (state.screen !== 'playing') return;
+    state.screen = 'paused';
     dropInput();
-    showOverlay(pauseScreen);
-    resumeBtn.focus();
+    showOverlay(dom.pauseScreen);
+    dom.resumeBtn.focus();
 }
 
 function resumeGame()       {
-    if (screen !== 'paused') return;
+    if (state.screen !== 'paused') return;
     dropInput();
-    screen = 'playing';
+    state.screen = 'playing';
     showOverlay(null);
 }
 
 /** The level list: every level up to the furthest one reached can be picked. */
 function openLevelSelect(from                    )       {
-    menuReturnTo = from;
-    screen = 'levels';
-    levelGrid.replaceChildren(
+    state.menuReturnTo = from;
+    state.screen = 'levels';
+    dom.levelGrid.replaceChildren(
         ...LEVELS.map((level, i) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'level-card';
-            const locked = i > progress.unlocked;
-            const beaten = i < progress.unlocked;
+            const locked = i > state.progress.unlocked && !state.dev;
+            const beaten = i < state.progress.unlocked;
             btn.disabled = locked;
             if (locked) btn.classList.add('locked');
             if (beaten) btn.classList.add('beaten');
-            if (i === currentLevel && from === 'paused') btn.classList.add('current');
+            if (i === state.currentLevel && from === 'paused') btn.classList.add('current');
             // First line (the pet, or a lock) is drawn big by CSS; then "number. name".
             btn.innerText = `${locked ? '🔒' : PET_EMOJI[level.species]}\n${i + 1}. ${level.name}${beaten ? ' ✔' : ''}`;
             btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
             btn.addEventListener('click', () => {
                 if (locked) return;
                 // Picking a level is a tap, so it can switch music on like Play does.
-                audio.setEnabled(true, i, musicBtn);
+                audio.setEnabled(true, i, dom.musicBtn);
                 startGame(i);
             });
             return btn;
         })
     );
-    showOverlay(levelSelect);
-    const focusIndex = from === 'paused' ? currentLevel : progress.unlocked;
-    (levelGrid.children[focusIndex]                           )?.focus();
+    showOverlay(dom.levelSelect);
+    const focusIndex = from === 'paused' ? state.currentLevel : state.progress.unlocked;
+    (dom.levelGrid.children[focusIndex]                           )?.focus();
 }
 
 function closeLevelSelect()       {
-    if (screen !== 'levels') return;
-    returnFromMenu(pauseLevelsBtn);
+    if (state.screen !== 'levels') return;
+    returnFromMenu(dom.pauseLevelsBtn);
 }
 
 function returnFromMenu(focusInPause             )       {
-    if (menuReturnTo === 'paused') {
-        screen = 'paused';
-        showOverlay(pauseScreen);
+    if (state.menuReturnTo === 'paused') {
+        state.screen = 'paused';
+        showOverlay(dom.pauseScreen);
         focusInPause.focus();
     } else {
         showStartScreen();
@@ -3975,26 +4457,26 @@ function drawRosterPet(card                   , species         , rescued       
 
 /** The roster: every pet rescued so far. Tap one to let it follow or rest (3 can follow). */
 function openRoster(from                    )       {
-    menuReturnTo = from;
-    screen = 'roster';
-    rosterHint.innerText = '';
+    state.menuReturnTo = from;
+    state.screen = 'roster';
+    dom.rosterHint.innerText = '';
     renderRoster();
-    showOverlay(rosterScreen);
-    (rosterGrid.children[0]                           )?.focus();
+    showOverlay(dom.rosterScreen);
+    (dom.rosterGrid.children[0]                           )?.focus();
 }
 
 function renderRoster()       {
-    rosterCount.innerText = `🐾 Following: ${progress.followers.length} / ${MAX_FOLLOWERS}`;
-    rosterGrid.replaceChildren(
+    dom.rosterCount.innerText = `🐾 Following: ${state.progress.followers.length} / ${MAX_FOLLOWERS}`;
+    dom.rosterGrid.replaceChildren(
         ...LEVELS.map((level, i) => {
             const species = level.species;
-            const rescued = progress.roster.includes(species);
-            const following = progress.followers.includes(species);
-            const state = !rescued ? 'locked' : following ? 'following' : 'resting';
+            const rescued = state.progress.roster.includes(species);
+            const following = state.progress.followers.includes(species);
+            const cardState = !rescued ? 'locked' : following ? 'following' : 'resting';
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `roster-card ${state}`;
-            btn.dataset.state = state;
+            btn.className = `roster-card ${cardState}`;
+            btn.dataset.state = cardState;
             btn.dataset.species = species;
             btn.disabled = !rescued;
             const pic = document.createElement('canvas');
@@ -4008,15 +4490,15 @@ function renderRoster()       {
             btn.setAttribute('aria-pressed', String(following));
             btn.addEventListener('click', () => {
                 if (!rescued) return;
-                if (!toggleFollower(progress, species)) {
-                    rosterHint.innerText = `Only ${MAX_FOLLOWERS} pets can follow at once — tap one to let it rest first.`;
+                if (!toggleFollower(state.progress, species)) {
+                    dom.rosterHint.innerText = `Only ${MAX_FOLLOWERS} pets can follow at once — tap one to let it rest first.`;
                     return;
                 }
-                rosterHint.innerText = '';
-                writeSave(storage, progress);
+                dom.rosterHint.innerText = '';
+                persist();
                 syncParade();
                 renderRoster();
-                (rosterGrid.children[i]                           )?.focus();
+                (dom.rosterGrid.children[i]                           )?.focus();
             });
             return btn;
         })
@@ -4024,441 +4506,106 @@ function renderRoster()       {
 }
 
 function closeRoster()       {
-    if (screen !== 'roster') return;
-    returnFromMenu(pausePetsBtn);
+    if (state.screen !== 'roster') return;
+    returnFromMenu(dom.pausePetsBtn);
 }
 
-// The Play tap is the user gesture browsers require before audio can start, so music comes on here.
-playBtn.addEventListener('click', () => {
-    audio.setEnabled(true, 0, musicBtn);
-    startGame(0);
-});
-continueBtn.addEventListener('click', () => {
-    const level = progress.level ?? 0;
-    audio.setEnabled(true, level, musicBtn);
-    startGame(level);
-});
-levelsBtn.addEventListener('click', () => openLevelSelect('start'));
-
-pauseBtn.addEventListener('click', () => {
-    pauseBtn.blur();
-    pauseGame();
-});
-resumeBtn.addEventListener('click', resumeGame);
-pauseRestartBtn.addEventListener('click', () => {
-    restartLevel();
-    resumeGame();
-});
-pauseLevelsBtn.addEventListener('click', () => openLevelSelect('paused'));
-pauseMenuBtn.addEventListener('click', () => showStartScreen());
-levelsBackBtn.addEventListener('click', closeLevelSelect);
-petsBtn.addEventListener('click', () => openRoster('start'));
-pausePetsBtn.addEventListener('click', () => openRoster('paused'));
-rosterBackBtn.addEventListener('click', closeRoster);
-
-victoryDialog.addEventListener('close', () => {
-    startGame(0);
-});
-
-function allBloomed()          {
-    return sprouts.every(s => s.bloomed);
+/** The victory dialog lists every pet, so it grows with the level list. */
+function fillVictoryDialog()       {
+    dom.victoryText.innerText = `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets!`;
+    dom.rescuedList.replaceChildren(
+        ...LEVELS.map(l => {
+            const li = document.createElement('li');
+            li.innerText = `${PET_EMOJI[l.species]} ${l.pet}`;
+            return li;
+        })
+    );
 }
 
-function objectiveText()         {
-    if (levelClearTimer > 0) return `🎉 You rescued ${LEVELS[currentLevel].pet}!`;
-    if (keyCollected) return '🏠 Bring the key to the doghouse!';
-    if (!allBloomed()) {
-        return sprouts.some(s => !s.bloomed && s.waterNeeded > 1)
-            ? '💦 Water every sprout — big ones need extra splashes!'
-            : '💦 Water every sprout';
-    }
-    if (!boneFound) return "🦴 Follow Noodle's nose and dig for the bone";
-    return '🔑 Grab the shiny key!';
-}
-
-/** How much of the victory rainbow to draw: 0 while playing, sweeping to 1 once a level is beaten. */
-function rainbowProgress()         {
-    if (screen === 'victory') return 1; // keep the full rainbow behind the victory dialog
-    if (levelClearTimer <= 0) return 0;
-    return Math.min(1, (LEVEL_CLEAR_FRAMES - levelClearTimer + 1) / RAINBOW_SWEEP_FRAMES);
-}
-
-function updateStatus()       {
-    const bloomedCount = sprouts.filter(s => s.bloomed).length;
-    statusDisplay.innerText = `Flowers: ${bloomedCount}/${LEVELS[currentLevel].flowersNeeded} | Bone: ${boneFound ? '🦴' : '❌'} | Key: ${keyCollected ? '🔑' : '❌'}`;
-    objectiveDisplay.innerText = objectiveText();
-}
-
-function initLevel()       {
-    const level = LEVELS[currentLevel];
-    sprouts = [];
-    digMounds = [];
-    particleSystem.clear();
-    boneFound = false;
-    keyCollected = false;
-    levelClearTimer = 0;
-    levelTicks = 0;
-    movingPlatforms = movingPlatformsAt(0);
-    bees = beesAt(0);
-    rainCloudXs = rainCloudsAt(0);
-    lastSafeX = 50;
-    weather.setKind(level.weather ?? 'clear');
-    keyX = level.keyPos.x;
-    keyY = level.keyPos.y;
-
-    level.sprouts.forEach((pos, i) => {
-        sprouts.push({
-            x: pos.x,
-            y: pos.y,
-            water: 0,
-            waterNeeded: pos.waterNeeded ?? 1,
-            bloomed: false,
-            color: (pos.waterNeeded ?? 1) > 1 ? BIG_FLOWER_COLOR : FLOWER_COLORS[i % FLOWER_COLORS.length],
-            danceOffset: Math.random() * Math.PI * 2
-        });
+/** Wires up every menu and HUD button. Called once at startup. */
+function setupMenus()       {
+    dom.musicBtn.addEventListener('click', () => {
+        audio.toggle(state.currentLevel, dom.musicBtn);
+    });
+    dom.restartBtn.addEventListener('click', () => {
+        // Blur so a later Space press waters instead of clicking Restart again.
+        dom.restartBtn.blur();
+        if (state.screen === 'playing' && state.levelClearTimer === 0) restartLevel();
     });
 
-    const boneIdx = Math.floor(Math.random() * level.mounds.length);
-    level.mounds.forEach((mx, idx) => {
-        digMounds.push({
-            x: mx,
-            y: GROUND_Y,
-            hasBone: idx === boneIdx,
-            dug: false
-        });
+    // The Play tap is the user gesture browsers require before audio can start, so music comes on here.
+    dom.playBtn.addEventListener('click', () => {
+        audio.setEnabled(true, 0, dom.musicBtn);
+        startGame(0);
     });
-    boneX = level.mounds[boneIdx];
-
-    if (level.tip) {
-        noodle.speechBubble = level.tip;
-        noodle.barkTimer = 240;
-    }
-
-    levelDisplay.innerText = `Level ${currentLevel + 1}: ${level.name}`;
-    updateStatus();
-    if (audio.enabled) audio.startBgMusic(currentLevel);
-}
-
-function restartLevel()       {
-    initLevel();
-    flora.reset();
-    // Line Noodle and the parade up behind Flora, instead of them walking back from
-    // wherever the last level ended.
-    noodle.x = 20;
-    rescuedFriends.forEach((pet, i) => {
-        pet.x = noodle.x - (i + 1) * PARADE_GAP;
-        pet.vx = 0;
-        pet.facingLeft = false;
+    dom.continueBtn.addEventListener('click', () => {
+        const level = state.progress.level ?? 0;
+        audio.setEnabled(true, level, dom.musicBtn);
+        startGame(level);
     });
-    cameraX = cameraTarget();
-}
+    dom.levelsBtn.addEventListener('click', () => openLevelSelect('start'));
 
-/** The camera keeps Flora a little behind centre, looking ahead the way she faces. */
-function cameraTarget()         {
-    const maxX = levelWidth(LEVELS[currentLevel]) - CANVAS_WIDTH;
-    const lookAhead = flora.facing === 'right' ? 60 : -60;
-    const target = flora.x + flora.width / 2 - CANVAS_WIDTH / 2 + lookAhead;
-    return Math.min(Math.max(0, target), maxX);
-}
-
-function updateCamera()       {
-    cameraX += (cameraTarget() - cameraX) * 0.1;
-}
-
-/** Bees glide out and back like clouds, bobbing up and down as they buzz. */
-function beesAt(t        )                                      {
-    return (LEVELS[currentLevel].bees ?? []).map((b, i) => {
-        const phase = (2 * Math.PI * t) / b.period;
-        return {
-            x: b.x + (b.range * (1 - Math.cos(phase))) / 2,
-            y: b.y + Math.sin(t * 0.09 + i) * 6,
-            // Moving right during the first half of each trip
-            facingLeft: Math.sin(phase) < 0
-        };
+    dom.pauseBtn.addEventListener('click', () => {
+        dom.pauseBtn.blur();
+        pauseGame();
     });
-}
+    dom.resumeBtn.addEventListener('click', resumeGame);
+    dom.pauseRestartBtn.addEventListener('click', () => {
+        restartLevel();
+        resumeGame();
+    });
+    dom.pauseLevelsBtn.addEventListener('click', () => openLevelSelect('paused'));
+    dom.pauseMenuBtn.addEventListener('click', () => showStartScreen());
+    dom.levelsBackBtn.addEventListener('click', closeLevelSelect);
+    dom.petsBtn.addEventListener('click', () => openRoster('start'));
+    dom.pausePetsBtn.addEventListener('click', () => openRoster('paused'));
+    dom.rosterBackBtn.addEventListener('click', closeRoster);
 
-function updateBees()       {
-    bees = beesAt(levelTicks);
-    for (const bee of bees) {
-        // Circle-vs-box: nearest point on Flora's box to the bee
-        const nx = Math.min(Math.max(bee.x, flora.x), flora.x + flora.width);
-        const ny = Math.min(Math.max(bee.y, flora.y), flora.y + flora.height);
-        if ((bee.x - nx) ** 2 + (bee.y - ny) ** 2 > BEE_RADIUS ** 2) continue;
-        if (flora.bump(bee.x)) {
-            audio.playSound('bump');
-            particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
-            noodle.barkTimer = 70;
-            noodle.speechBubble = "Ouch! Jump over the bees 🐝";
-        }
-    }
-}
-
-/** One splash of water on a sprout, from Flora's can or a rain cloud. */
-function splashSprout(s        )       {
-    if (s.bloomed) return;
-    s.water++;
-    if (s.water >= s.waterNeeded) {
-        s.bloomed = true;
-        audio.playSound('bloom');
-        const big = s.waterNeeded > 1;
-        particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
-        particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
-    } else {
-        particleSystem.spawn(s.x, s.y - 20, '#74B9FF', 8, 'circle');
-    }
-}
-
-function checkWatering()       {
-    const canCenterX = flora.facing === 'right' ? flora.x + 30 : flora.x + 2;
-    const floraFeetY = flora.y + flora.height;
-    for (const s of sprouts) {
-        if (s.bloomed || Math.abs(canCenterX - s.x) >= 48 || Math.abs(floraFeetY - s.y) >= 48) continue;
-        splashSprout(s);
-    }
-    updateStatus();
+    dom.victoryDialog.addEventListener('close', () => {
+        startGame(0);
+    });
 }
 
 /**
- * The wind's push this tick: calm, then a gust that eases in and out. `soon` is true in the
- * second before a gust, when warning leaves start to blow.
+ * Dev mode (open the game with `?dev` in the URL): every level and pet is available, a
+ * Skip level button sits in the pause menu, and nothing is saved, so real progress is safe.
  */
-function currentWind()                               {
-    const wind = LEVELS[currentLevel].wind;
-    if (!wind) return { x: 0, soon: false };
-    const t = levelTicks % (wind.calm + wind.gust);
-    if (t < wind.calm) return { x: 0, soon: t > wind.calm - 60 };
-    const into = t - wind.calm;
-    const ease = Math.min(1, into / 25, (wind.gust - into) / 25);
-    return { x: wind.strength * ease, soon: false };
-}
-
-/** Rain clouds drift like the moving clouds, without being solid. */
-function rainCloudsAt(t        )           {
-    return (LEVELS[currentLevel].rainClouds ?? []).map(
-        c => c.x + (c.range * (1 - Math.cos((2 * Math.PI * t) / c.period))) / 2
-    );
-}
-
-/** Sprouts under a rain cloud get a splash every so often, helping Flora along. */
-function updateRain()       {
-    rainCloudXs = rainCloudsAt(levelTicks);
-    if (rainCloudXs.length === 0) return;
-    let changed = false;
-    for (const s of sprouts) {
-        if (s.bloomed) continue;
-        const underRain = rainCloudXs.some(cx => Math.abs(cx - s.x) <= RAIN_WIDTH / 2);
-        if (!underRain) continue;
-        s.rainTicks = (s.rainTicks ?? 0) + 1;
-        if (s.rainTicks >= RAIN_SPLASH_TICKS) {
-            s.rainTicks = 0;
-            splashSprout(s);
-            changed = true;
-        }
-    }
-    if (changed) updateStatus();
-}
-
-/** Ponds: remember the last dry spot, and splash Flora back to it if she drops in. */
-function updatePond()       {
-    const water = LEVELS[currentLevel].water ?? [];
-    noodle.swimming = water.some(w => noodle.x + 12 >= w.x && noodle.x + 12 <= w.x + w.width);
-    if (water.length === 0) return;
-    if (flora.grounded && flora.y + flora.height >= GROUND_Y - 1 && !flora.over(water)) lastSafeX = flora.x;
-    if (!flora.fellInWater) return;
-    particleSystem.spawn(flora.x + flora.width / 2, GROUND_Y + 6, '#74B9FF', 16, 'circle');
-    audio.playSound('bump');
-    flora.reset();
-    flora.x = lastSafeX;
-    flora.safeTimer = 60;
-    noodle.sayFirst("Splash! Hop on the lily pads 🪷", 120);
-}
-
-const overWater = (x        )          =>
-    (LEVELS[currentLevel].water ?? []).some(w => x >= w.x && x <= w.x + w.width);
-
-function checkDigging()       {
-    if (flora.y + flora.height < GROUND_Y - 5) return;
-    const playerCenterX = flora.x + flora.width / 2;
-    // Pick the closest undug mound so an already-dug neighbour can't block a nearby one.
-    let mound                      ;
-    for (const m of digMounds) {
-        if (m.dug || Math.abs(playerCenterX - m.x) >= DIG_RANGE) continue;
-        if (!mound || Math.abs(playerCenterX - m.x) < Math.abs(playerCenterX - mound.x)) mound = m;
-    }
-
-    particleSystem.spawn(mound ? mound.x : playerCenterX, GROUND_Y - 4, '#8D6E63', 8, 'circle');
-    if (!mound) return;
-
-    mound.dug = true;
-    if (mound.hasBone) {
-        boneFound = true;
-        boneX = mound.x;
-        audio.playSound('key');
-        particleSystem.spawn(mound.x, GROUND_Y - 10, '#F1C40F', 16, 'star');
-        noodle.barkTimer = 75;
-        noodle.speechBubble = allBloomed() ? "Woof! Found it! 🦴" : "Bone! Now water the flowers! 🌸";
-        updateStatus();
-    } else {
-        noodle.barkTimer = 60;
-        noodle.speechBubble = "Keep sniffing! 🐾";
-    }
-}
-
-function updateKey()       {
-    if (keyCollected || !allBloomed() || !boneFound) return;
-    const floraCenterX = flora.x + flora.width / 2;
-    const floraCenterY = flora.y + flora.height / 2;
-    if (Math.abs(floraCenterX - keyX) < 34 && Math.abs(floraCenterY - keyY) < 42) {
-        keyCollected = true;
-        audio.playSound('key');
-        particleSystem.spawn(keyX, keyY, '#F1C40F', 18, 'star');
-        updateStatus();
-    }
-}
-
-function updateDoghouse()       {
-    // Flora has to walk in at the door, not fall past it from above.
-    const atDoor = flora.grounded && flora.y + flora.height >= GROUND_Y - 1;
-    if (flora.x <= doghouseEntryX(LEVELS[currentLevel]) || !atDoor || levelClearTimer > 0) return;
-    const houseX = doghouseX(LEVELS[currentLevel]);
-    if (keyCollected) {
-        levelClearTimer = LEVEL_CLEAR_FRAMES;
-        audio.playSound('victory');
-        particleSystem.spawn(houseX, 395, '#FF7675', 14, 'heart');
-        particleSystem.spawn(houseX, 385, '#F1C40F', 20, 'star');
-        updateStatus();
-    } else if (noodle.barkTimer <= 0) {
-        noodle.barkTimer = 70;
-        noodle.speechBubble = "It's locked! Need the key 🔑";
-    }
-}
-
-function updateLevelClear()       {
-    if (levelClearTimer <= 0) return;
-    if (levelClearTimer % 15 === 0) {
-        particleSystem.spawn(doghouseX(LEVELS[currentLevel]) + (Math.random() - 0.5) * 40, 390, '#FFEAA7', 8, 'star');
-    }
-
-    levelClearTimer--;
-    if (levelClearTimer > 0) return;
-
-    // The rescued pet joins the roster and the parade; a full parade sends its longest follower home.
-    const { bumped } = addRescue(progress, LEVELS[currentLevel].species);
-    const leaving = rescuedFriends.find(p => p.species === bumped);
-    if (leaving) particleSystem.spawn(leaving.x, 405, '#FF7675', 8, 'heart');
-    syncParade();
-    const goodbye = bumped ? `${petName(bumped)} went home to rest 🏡` : null;
-
-    if (currentLevel === LEVELS.length - 1) {
-        screen = 'victory';
-        // Nothing left to continue, but every level stays open in the level list.
-        progress = { ...progress, level: null, unlocked: LEVELS.length - 1 };
-        writeSave(storage, progress);
-        updateStatus();
-        victoryDialog.showModal();
-    } else {
-        currentLevel++;
-        saveProgress(currentLevel);
-        restartLevel();
-    }
-    // Shown before the new level's tip, which waits its turn.
-    if (goodbye) noodle.sayFirst(goodbye, 150);
-}
-
-/** Positions of the level's moving platforms at tick `t`: an eased glide out and back. */
-function movingPlatformsAt(t        )                                              {
-    return (LEVELS[currentLevel].movingPlatforms ?? []).map(p => ({
-        x: p.x + (p.range * (1 - Math.cos((2 * Math.PI * t) / p.period))) / 2,
-        y: p.y,
-        width: p.width,
-        style: p.style
-    }));
-}
-
-function updateMovingPlatforms()       {
-    levelTicks++;
-    const next = movingPlatformsAt(levelTicks);
-    // Carry Flora along with a platform she is standing on.
-    movingPlatforms.forEach((p, i) => {
-        const standing =
-            flora.grounded &&
-            Math.abs(flora.y + flora.height - p.y) < 0.5 &&
-            flora.x + flora.width > p.x + 6 &&
-            flora.x < p.x + p.width - 6;
-        if (standing) flora.x += next[i].x - p.x;
-    });
-    movingPlatforms = next;
-}
-
-/** Gap between pets in the parade; the drawn pets are about 30px wide. */
-const PARADE_GAP = 32;
-
-function updateParade()       {
-    rescuedFriends.forEach((pet, idx) => {
-        const leaderX = idx === 0 ? noodle.x : rescuedFriends[idx - 1].x;
-        const vx = (leaderX - PARADE_GAP - pet.x) * 0.08;
-        pet.x += vx;
-        pet.vx = vx;
-        // Same dead zone as Noodle, so settled pets don't flip back and forth.
-        if (vx > 0.3) pet.facingLeft = false;
-        else if (vx < -0.3) pet.facingLeft = true;
-    });
-}
-
-/** Advances the simulation by exactly one fixed tick (1/60 s). */
-function update()       {
-    // Butterflies keep fluttering on every screen, including behind the start screen.
-    butterflies.update();
-    skyVisitors.update();
-    const wind = screen === 'playing' ? currentWind() : { x: 0, soon: false };
-    weather.update(wind.x, wind.soon);
-    tick();
-    for (const code of Object.keys(pressed)) pressed[code] = false;
-}
-
-function tick()       {
-    if (screen !== 'playing') return;
-
-    updateKey();
-    updateParade();
-    updateMovingPlatforms();
-
-    const level = LEVELS[currentLevel];
-    const world               = {
-        platforms: [...level.platforms, ...(level.lilyPads ?? []), ...movingPlatforms],
-        mushrooms: level.mushrooms ?? [],
-        bushes: level.bushes ?? [],
-        water: level.water ?? [],
-        ice: level.ice ?? [],
-        windX: levelClearTimer > 0 ? 0 : currentWind().x,
-        width: levelWidth(level)
+function setupDevMode()       {
+    if (!state.dev) return;
+    state.progress = {
+        ...state.progress,
+        unlocked: LEVELS.length - 1,
+        roster: LEVELS.map(l => l.species)
     };
-    flora.update(
-        keys,
-        pressed,
-        world,
-        levelClearTimer > 0,
-        type => audio.playSound(type),
-        checkWatering,
-        checkDigging
-    );
-    noodle.update(flora.x, digMounds, boneFound, false, type => audio.playSound(type));
-    updatePond();
-    if (levelClearTimer === 0) {
-        updateBees();
-        updateRain();
-    }
-    particleSystem.update();
-    updateCamera();
-
-    updateDoghouse();
-    updateLevelClear();
+    dom.devBadge.hidden = false;
+    dom.pauseSkipBtn.hidden = false;
+    dom.pauseSkipBtn.addEventListener('click', skipLevel);
 }
+
+/** Dev only: finish the current level at once, as if the celebration had just ended. */
+function skipLevel()       {
+    if (!state.dev || (state.screen !== 'paused' && state.screen !== 'playing')) return;
+    resumeGame();
+    // One tick left of the celebration: the next tick rescues the pet and moves on.
+    state.levelClearTimer = 1;
+}
+
+// --- src/game/scene.ts ---
+/** Draws one frame: the sky, the scrolling level, weather and night, then overlays on top. */
+
+
+
+
+
+
+
+
+
+
 
 function render()       {
-    const level = LEVELS[currentLevel];
-    ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
+    const level = LEVELS[state.currentLevel];
+    ctx.setTransform(state.pixelScale, 0, 0, state.pixelScale, 0, 0);
     ctx.fillStyle = level.bg;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -4473,34 +4620,34 @@ function render()       {
 
     const houseX = doghouseX(level);
     ctx.save();
-    ctx.translate(-cameraX, 0);
+    ctx.translate(-state.cameraX, 0);
     drawTreeAndGround(
-        ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], digMounds, boneFound, boneX, level.weather === 'snow'
+        ctx, levelWidth(level), [level.treeX, ...(level.trees ?? [])], state.digMounds, state.boneFound, state.boneX, level.weather === 'snow'
     );
     drawWater(ctx, level.water ?? []);
     drawIce(ctx, level.ice ?? []);
-    drawRainClouds(ctx, rainCloudXs);
+    drawRainClouds(ctx, state.rainCloudXs);
     drawPlatforms(ctx, level.platforms);
-    drawLilyPads(ctx, [...(level.lilyPads ?? []), ...movingPlatforms.filter(p => p.style === 'lily')]);
-    drawCloudPlatforms(ctx, movingPlatforms.filter(p => p.style !== 'lily'));
+    drawLilyPads(ctx, [...(level.lilyPads ?? []), ...state.movingPlatforms.filter(p => p.style === 'lily')]);
+    drawCloudPlatforms(ctx, state.movingPlatforms.filter(p => p.style !== 'lily'));
     drawMushrooms(ctx, level.mushrooms ?? []);
     drawBushes(ctx, level.bushes ?? []);
-    drawSprouts(ctx, sprouts, allBloomed());
+    drawSprouts(ctx, state.sprouts, allBloomed());
     drawDoghouse(ctx, houseX);
 
-    if (keyCollected) {
+    if (state.keyCollected) {
         // Waiting in the doorway, looking out toward Flora.
         drawRescuedPet(ctx, level.species, houseX, 416, true, 0);
-    } else if (allBloomed() && boneFound) {
-        drawKey(ctx, keyX, keyY);
+    } else if (allBloomed() && state.boneFound) {
+        drawKey(ctx, state.keyX, state.keyY);
     }
 
-    for (const pet of rescuedFriends) {
+    for (const pet of state.rescuedFriends) {
         drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0, overWater(pet.x));
     }
     flora.draw(ctx);
     noodle.draw(ctx);
-    for (const bee of bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
+    for (const bee of state.bees) drawBee(ctx, bee.x, bee.y, bee.facingLeft);
     particleSystem.draw(ctx);
     ctx.restore();
 
@@ -4508,63 +4655,105 @@ function render()       {
     weather.drawFront(ctx);
     if (weather.kind === 'night') {
         const lights          = [
-            { x: flora.x + flora.width / 2 - cameraX, y: flora.y + 20, r: 165 },
-            { x: houseX - cameraX, y: 400, r: 95 },
+            { x: flora.x + flora.width / 2 - state.cameraX, y: flora.y + 20, r: 165 },
+            { x: houseX - state.cameraX, y: 400, r: 95 },
             ...weather.fireflyLights()
         ];
-        if (allBloomed() && boneFound && !keyCollected) lights.push({ x: keyX - cameraX, y: keyY, r: 70 });
-        for (const s of sprouts) if (s.bloomed) lights.push({ x: s.x - cameraX, y: s.y - 24, r: 40 });
-        weather.drawDarkness(ctx, lights, pixelScale);
+        if (allBloomed() && state.boneFound && !state.keyCollected) lights.push({ x: state.keyX - state.cameraX, y: state.keyY, r: 70 });
+        for (const s of state.sprouts) if (s.bloomed) lights.push({ x: s.x - state.cameraX, y: s.y - 24, r: 40 });
+        weather.drawDarkness(ctx, lights, state.pixelScale);
         weather.drawFireflies(ctx);
     }
     // Noodle's tips stay readable above the weather.
     ctx.save();
-    ctx.translate(-cameraX, 0);
-    noodle.drawSpeech(ctx, cameraX, cameraX + CANVAS_WIDTH);
+    ctx.translate(-state.cameraX, 0);
+    noodle.drawSpeech(ctx, state.cameraX, state.cameraX + CANVAS_WIDTH);
     ctx.restore();
 
     // Point the way to the next goal when it's off-screen.
     const goal = nextGoal();
-    if (goal) drawOffscreenArrow(ctx, goal.x - cameraX, CANVAS_WIDTH, goal.emoji);
+    if (goal) drawOffscreenArrow(ctx, goal.x - state.cameraX, CANVAS_WIDTH, goal.emoji);
 
-    if (levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
+    if (state.levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
 }
 
-/** What Flora should head for next, for the off-screen arrow: key, then doghouse, then any sprout left. */
-function nextGoal()                                      {
-    if (levelClearTimer > 0) return null;
-    if (keyCollected) return { x: doghouseX(LEVELS[currentLevel]), emoji: '🏠' };
-    if (allBloomed() && boneFound) return { x: keyX, emoji: '🔑' };
-    const onScreen = (x        )          => x >= cameraX && x <= cameraX + CANVAS_WIDTH;
-    const left = sprouts.filter(s => !s.bloomed);
-    if (left.length === 0 || left.some(s => onScreen(s.x))) return null;
-    const floraX = flora.x + flora.width / 2;
-    const nearest = left.reduce((a, b) => (Math.abs(a.x - floraX) <= Math.abs(b.x - floraX) ? a : b));
-    return { x: nearest.x, emoji: '🌱' };
+// --- src/game/loop.ts ---
+/** The fixed 60-ticks-per-second game loop, and fitting the game box to the window. */
+
+
+
+
+
+
+
+
+/** Advances the simulation by exactly one fixed tick (1/60 s). */
+function update()       {
+    // Butterflies keep fluttering on every screen, including behind the start screen.
+    butterflies.update();
+    skyVisitors.update();
+    const wind = state.screen === 'playing' ? currentWind() : { x: 0, soon: false };
+    weather.update(wind.x, wind.soon);
+    tick();
+    for (const code of Object.keys(pressed)) pressed[code] = false;
 }
 
-// Scale the whole game box to fit the window, and size the canvas backing store to match
-// the real pixel count so it stays crisp on phones and retina screens.
-let pixelScale         = 1;
+function tick()       {
+    if (state.screen !== 'playing') return;
+
+    updateKey();
+    updateParade();
+    updateMovingPlatforms();
+
+    const level = LEVELS[state.currentLevel];
+    const world               = {
+        platforms: [...level.platforms, ...(level.lilyPads ?? []), ...state.movingPlatforms],
+        mushrooms: level.mushrooms ?? [],
+        bushes: level.bushes ?? [],
+        water: level.water ?? [],
+        ice: level.ice ?? [],
+        windX: state.levelClearTimer > 0 ? 0 : currentWind().x,
+        width: levelWidth(level)
+    };
+    flora.update(
+        keys,
+        pressed,
+        world,
+        state.levelClearTimer > 0,
+        type => audio.playSound(type),
+        checkWatering,
+        checkDigging
+    );
+    noodle.update(flora.x, state.digMounds, state.boneFound, false, type => audio.playSound(type));
+    updatePond();
+    if (state.levelClearTimer === 0) {
+        updateBees();
+        updateRain();
+    }
+    particleSystem.update();
+    updateCamera();
+
+    updateDoghouse();
+    updateLevelClear();
+}
 
 function fitToScreen()       {
     // clientWidth/Height ignore mobile zoom-out; innerWidth grows when content overflows the screen.
     const root = document.documentElement;
     const scale = fitScale(root.clientWidth || window.innerWidth, root.clientHeight || window.innerHeight);
-    stage.style.width = `${Math.floor(STAGE_WIDTH * scale)}px`;
-    stage.style.height = `${Math.floor(STAGE_HEIGHT * scale)}px`;
-    container.style.transform = `scale(${scale})`;
+    dom.stage.style.width = `${Math.floor(STAGE_WIDTH * scale)}px`;
+    dom.stage.style.height = `${Math.floor(STAGE_HEIGHT * scale)}px`;
+    dom.container.style.transform = `scale(${scale})`;
 
-    pixelScale = scale * (window.devicePixelRatio || 1);
-    canvas.width = Math.round(CANVAS_WIDTH * pixelScale);
-    canvas.height = Math.round(CANVAS_HEIGHT * pixelScale);
+    state.pixelScale = scale * (window.devicePixelRatio || 1);
+    dom.canvas.width = Math.round(CANVAS_WIDTH * state.pixelScale);
+    dom.canvas.height = Math.round(CANVAS_HEIGHT * state.pixelScale);
 }
-
-window.addEventListener('resize', fitToScreen);
 
 // Run the simulation at a fixed 60 ticks/s regardless of monitor refresh rate,
 // so 120 Hz displays don't play at double speed.
 let lastFrameTime                = null;
+
 let tickAccumulator         = 0;
 
 function frame(now        )       {
@@ -4593,18 +4782,19 @@ function advance(now        )       {
     render();
 }
 
-/** The victory dialog lists every pet, so it grows with the level list. */
-function fillVictoryDialog()       {
-    victoryText.innerText = `Flora and Noodle bloomed every garden and rescued all ${LEVELS.length} magical pets!`;
-    rescuedList.replaceChildren(
-        ...LEVELS.map(l => {
-            const li = document.createElement('li');
-            li.innerText = `${PET_EMOJI[l.species]} ${l.pet}`;
-            return li;
-        })
-    );
-}
+// --- src/game.ts ---
+/**
+ * Entry point: wires up input and menus, fits the game to the window, and starts the loop.
+ * The game itself lives in src/game/ (state, input, world, level, menus, scene, loop).
+ */
 
+
+
+
+setupInput();
+setupMenus();
+setupDevMode();
+window.addEventListener('resize', fitToScreen);
 fitToScreen();
 fillVictoryDialog();
 initLevel();

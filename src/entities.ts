@@ -16,7 +16,7 @@ import {
     WATER_HOLD_TICKS,
     WATER_SURFACE_Y
 } from './levels.ts';
-import { drawSwimRipple } from './renderer.ts';
+import { drawSwimRipple } from './render/scenery.ts';
 import type { DigMound, Direction, GroundSpan, PhysicsWorld, SoundType } from './types.ts';
 
 export class Player {
