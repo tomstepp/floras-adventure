@@ -342,6 +342,62 @@
             display: none;
         }
 
+        .pause-body {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .pause-body .menu-buttons {
+            min-width: 240px;
+        }
+
+        .pause-body .menu-buttons .btn {
+            font-size: 17px;
+            padding: 9px 18px;
+        }
+
+        .pause-info {
+            width: 300px;
+            background: #fff;
+            border: 3px solid #FFB6C1;
+            border-radius: 18px;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 13px;
+            color: #2d3436;
+        }
+
+        .pause-info h3 {
+            font-size: 14px;
+            color: #FF6B8B;
+            margin: 2px 0 4px;
+        }
+
+        .pause-info ul {
+            list-style: none;
+            margin-bottom: 8px;
+        }
+
+        .pause-info li {
+            line-height: 1.35;
+            margin-bottom: 3px;
+        }
+
+        .pause-best {
+            color: #E1A33B;
+            font-weight: bold;
+            margin: -4px 0 8px;
+            min-height: 0;
+        }
+
+        .star-total {
+            font-weight: bold;
+            font-size: 16px;
+            color: #E1A33B;
+            margin-top: -10px;
+        }
+
         .menu-buttons {
             display: flex;
             flex-direction: column;
@@ -381,7 +437,7 @@
 
         .level-card {
             white-space: pre-line;
-            height: 88px;
+            height: 98px;
             padding: 8px 6px;
             border: 3px solid #FFB6C1;
             border-radius: 18px;
@@ -600,6 +656,7 @@
             <div class="objective" id="objective-display" role="status" aria-live="polite"></div>
             <section id="start-screen" hidden aria-labelledby="start-title">
                 <h1 id="start-title">🌸 Flora's Magical Adventure 🐶</h1>
+                <p id="star-total" class="star-total"></p>
                 <ol class="how-to-play" aria-label="How to play">
                     <li><span class="pic">🌱💦</span><span class="label">Water flowers</span><kbd>Space</kbd><span class="touch-only">💦</span></li>
                     <li class="arrow" aria-hidden="true">➜</li>
@@ -621,6 +678,7 @@
             </section>
             <section id="pause-screen" class="menu-overlay" hidden aria-labelledby="pause-title">
                 <h2 id="pause-title">⏸ Paused</h2>
+                <div class="pause-body">
                 <div class="menu-buttons">
                     <button type="button" class="btn" id="resume-btn">▶ Resume</button>
                     <button type="button" class="btn secondary" id="pause-restart-btn">↺ Restart level</button>
@@ -628,6 +686,14 @@
                     <button type="button" class="btn secondary" id="pause-levels-btn">🗺 Choose a level</button>
                     <button type="button" class="btn secondary" id="pause-pets-btn">🐾 My pets</button>
                     <button type="button" class="btn quiet" id="pause-menu-btn">🏠 Main menu</button>
+                </div>
+                <div class="pause-info">
+                    <h3>⭐ Star goals</h3>
+                    <ul id="pause-stars"></ul>
+                    <p id="pause-best" class="pause-best"></p>
+                    <h3>🐾 Your team</h3>
+                    <ul id="pause-team"></ul>
+                </div>
                 </div>
             </section>
             <section id="level-select" class="menu-overlay" hidden aria-labelledby="levels-title">

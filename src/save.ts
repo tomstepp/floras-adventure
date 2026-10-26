@@ -14,9 +14,11 @@ export interface SaveData {
     roster: Species[];
     /** The pets walking in the parade (at most MAX_FOLLOWERS), longest-following first. */
     followers: Species[];
+    /** Best stars earned per level, as bits (rescue 1, hidden star 2, challenge 4). */
+    stars: number[];
 }
 
-export const EMPTY_SAVE: SaveData = { level: null, unlocked: 0, roster: [], followers: [] };
+export const EMPTY_SAVE: SaveData = { level: null, unlocked: 0, roster: [], followers: [], stars: [] };
 
 /** localStorage, or null where it's blocked (private mode, disabled site data). */
 export function getStorage(): Storage | null {
@@ -46,8 +48,10 @@ export function loadSave(storage: Storage | null, levelSpecies: readonly Species
     const levelCount = levelSpecies.length;
     try {
         const raw = storage?.getItem(SAVE_KEY);
-        if (!raw) return { ...EMPTY_SAVE, roster: [], followers: [] };
-        const data = JSON.parse(raw) as { level?: unknown; unlocked?: unknown; roster?: unknown; followers?: unknown };
+        if (!raw) return { ...EMPTY_SAVE, roster: [], followers: [], stars: [] };
+        const data = JSON.parse(raw) as {
+            level?: unknown; unlocked?: unknown; roster?: unknown; followers?: unknown; stars?: unknown;
+        };
         // Continue only makes sense past level 1 (level 1 is just "New game").
         const level = isIndex(data.level, levelCount) && data.level >= 1 ? data.level : null;
         // Older saves only had `level`; treat it as the furthest level reached.
@@ -60,9 +64,16 @@ export function loadSave(storage: Storage | null, levelSpecies: readonly Species
             ? cleanSpecies(data.followers, levelSpecies)
             : roster.slice(-MAX_FOLLOWERS)
         ).filter(s => roster.includes(s)).slice(0, MAX_FOLLOWERS);
-        return { level, unlocked, roster, followers };
+        // Saves from before stars: every beaten level at least earned its rescue star.
+        const savedStars: unknown[] = Array.isArray(data.stars) ? data.stars : [];
+        const stars = levelSpecies.map((species, i) => {
+            const bits = savedStars[i];
+            const clean = typeof bits === 'number' && Number.isInteger(bits) && bits >= 0 && bits <= 7 ? bits : 0;
+            return clean | (roster.includes(species) ? 1 : 0);
+        });
+        return { level, unlocked, roster, followers, stars };
     } catch {
-        return { ...EMPTY_SAVE, roster: [], followers: [] };
+        return { ...EMPTY_SAVE, roster: [], followers: [], stars: [] };
     }
 }
 
@@ -85,6 +96,14 @@ export function addRescue(data: SaveData, species: Species): { bumped: Species |
     data.followers.push(species);
     const bumped = data.followers.length > MAX_FOLLOWERS ? (data.followers.shift() as Species) : null;
     return { bumped, isNew: true };
+}
+
+/** Keeps the best stars ever earned on a level; returns the stars that are new this time. */
+export function recordStars(data: SaveData, level: number, bits: number): number {
+    const before = data.stars[level] ?? 0;
+    while (data.stars.length <= level) data.stars.push(0);
+    data.stars[level] = before | bits;
+    return bits & ~before;
 }
 
 /** Lets a rostered pet follow or rest. Returns false if the parade is already full. */

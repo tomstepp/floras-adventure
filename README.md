@@ -15,7 +15,7 @@ Then open http://localhost:8765. (Opening `index.html` directly also works once 
 **Controls:** ←/→ move · ↑ jump · Space water · ↓ dig · ↺ button restarts the level. On phones and tablets, on-screen buttons appear.
 
 **Each level:** water every sprout → dig where Noodle sniffs for the bone → grab the key → walk into the doghouse.
-Later levels add a bouncy mushroom, a moving cloud and big flowers, then bigger scrolling levels with bees and bushes, and finally a pond, wind, rain, snow and a starry night. Rescued pets join your roster; pick up to 3 to follow you. Progress is saved, so you can Continue later.
+Later levels add a bouncy mushroom, a moving cloud and big flowers, then bigger scrolling levels with bees and bushes, and finally a pond, wind, rain, snow and a starry night. Rescued pets join your roster; pick up to 3 to follow you, and each one gives a little power (like Bunny hop or Honey friend). Every level has 3 stars to earn: rescue the pet, find the hidden star, and do a simple challenge; Noodle tells you the hints. Progress is saved, so you can Continue later.
 
 ## Develop
 
@@ -48,6 +48,7 @@ nothing is saved, so your real progress is untouched.
 | `src/render/` | Drawing: `sky`, `scenery`, `items` (flowers, key, bone), `creatures` (pets, bees), `hud`, `shapes`. |
 | `src/levels.ts` | Level data, controls and tuning constants. |
 | `src/entities.ts` | Flora and Noodle (movement, physics, drawing). |
+| `src/powers.ts` | Pet powers (names, descriptions, tuning), star challenges and star helpers. |
 | `src/pets.ts`, `weather.ts`, `butterflies.ts`, `skyfriends.ts` | Pet sprites, weather visuals, sky decorations. |
 | `src/save.ts`, `audio.ts`, `particles.ts`, `layout.ts`, `types.ts` | Saving, sound, particles, screen fit, shared types. |
 

@@ -58,6 +58,31 @@ export interface PhysicsWorld {
     /** Wind push this tick, in px per tick (0 when calm). */
     windX: number;
     width: number;
+    /** How Flora moves, which her followers' pet powers can change. */
+    moves: Moves;
+}
+
+/** Flora's movement, as changed by the pet powers of whoever is following her. */
+export interface Moves {
+    walkSpeed: number;
+    jumpVy: number;
+    bounceVy: number;
+    /** Duckling: fall slowly and gently. */
+    featherFall: boolean;
+    /** Piglet: walk straight through bramble bushes. */
+    throughBushes: boolean;
+    /** Turtle: grip on ice like on snow. */
+    noIceSlip: boolean;
+    /** Frog: swim across ponds instead of falling in. */
+    swim: boolean;
+}
+
+/** The third star's challenge, kept simple for young players. */
+export type Challenge = 'flowersFirst' | 'firstDig' | 'noBumps' | 'noSplash';
+
+/** A hidden star somewhere in the level, with a kid-friendly hint for finding it. */
+export interface HiddenStar extends Point {
+    hint: string;
 }
 
 /** A bumblebee that flies from `x` to `x + range` and back around height `y`, once every `period` ticks. */
@@ -83,6 +108,8 @@ export interface Sprout {
     y: number;
     water: number;
     waterNeeded: number;
+    /** A big flower (sunflower), however many splashes it needs right now. */
+    big: boolean;
     bloomed: boolean;
     color: string;
     danceOffset: number;
@@ -149,6 +176,10 @@ export interface LevelConfig {
     keyPos: Point;
     /** What Noodle says when the level starts, introducing its new twist. */
     tip?: string;
+    /** The second star: a hidden star to find. */
+    star: HiddenStar;
+    /** The third star: a simple challenge for the whole level. */
+    challenge: Challenge;
 }
 
 export interface ToneSynthLike {

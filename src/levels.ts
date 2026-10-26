@@ -120,7 +120,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 530, y: 345 }
         ],
         mounds: [190, 400, 580],
-        keyPos: { x: 530, y: 315 }
+        keyPos: { x: 530, y: 315 },
+        star: { x: 270, y: 230, hint: "Jump high from the left ledge" },
+        challenge: "flowersFirst"
     },
     {
         name: "Sunny Glade",
@@ -144,7 +146,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 555, y: 345 }
         ],
         mounds: [230, 350, 560],
-        keyPos: { x: 610, y: 120 }
+        keyPos: { x: 610, y: 120 },
+        star: { x: 380, y: 170, hint: "Jump up from the middle ledge" },
+        challenge: "firstDig"
     },
     {
         name: "Rainbow Hills",
@@ -166,7 +170,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 575, y: 215 }
         ],
         mounds: [180, 470, 600],
-        keyPos: { x: 590, y: 185 }
+        keyPos: { x: 590, y: 185 },
+        star: { x: 215, y: 240, hint: "Look above the first ledge" },
+        challenge: "flowersFirst"
     },
     {
         name: "Enchanted Garden",
@@ -190,7 +196,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 612, y: 265 }
         ],
         mounds: [210, 300, 540],
-        keyPos: { x: 612, y: 235 }
+        keyPos: { x: 612, y: 235 },
+        star: { x: 192, y: 250, hint: "Jump high from the first ledge" },
+        challenge: "firstDig"
     },
     {
         name: "Pet Paradise",
@@ -215,7 +223,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 585, y: 345 }
         ],
         mounds: [240, 390, 500],
-        keyPos: { x: 520, y: 175 }
+        keyPos: { x: 520, y: 175 },
+        star: { x: 60, y: 330, hint: "Jump right at the very start!" },
+        challenge: "flowersFirst"
     },
 
     // ---- Big scrolling levels: wider than the screen, with bees and bramble bushes ----
@@ -248,7 +258,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1310, y: 340 }
         ],
         mounds: [620, 900, 1180],
-        keyPos: { x: 1010, y: 235 }
+        keyPos: { x: 1010, y: 235 },
+        star: { x: 480, y: 160, hint: "Jump up from the high ledge near the start" },
+        challenge: "noBumps"
     },
     {
         name: "Bramble Path",
@@ -283,7 +295,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1460, y: 255 }
         ],
         mounds: [320, 620, 1050, 1330],
-        keyPos: { x: 1460, y: 225 }
+        keyPos: { x: 1460, y: 225 },
+        star: { x: 755, y: 150, hint: "High above the ledge in the middle" },
+        challenge: "noBumps"
     },
     {
         name: "Cloud Canyon",
@@ -318,7 +332,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1735, y: 250 }
         ],
         mounds: [500, 1000, 1450],
-        keyPos: { x: 1155, y: 160 }
+        keyPos: { x: 1155, y: 160 },
+        star: { x: 295, y: 100, hint: "Bounce on the first mushroom, then jump!" },
+        challenge: "noBumps"
     },
     {
         name: "Bumblebee Woods",
@@ -360,7 +376,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1660, y: 265, waterNeeded: 3 }
         ],
         mounds: [620, 1000, 1400, 1650],
-        keyPos: { x: 1660, y: 235 }
+        keyPos: { x: 1660, y: 235 },
+        star: { x: 935, y: 150, hint: "Jump up from the ledge above the bees" },
+        challenge: "noBumps"
     },
     {
         name: "Grand Garden",
@@ -402,7 +420,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 2105, y: 340 }
         ],
         mounds: [560, 1050, 1600, 1840],
-        keyPos: { x: 1805, y: 150 }
+        keyPos: { x: 1805, y: 150 },
+        star: { x: 835, y: 100, hint: "Bounce on the mushroom to the high ledge" },
+        challenge: "noBumps"
     },
 
     // ---- Weather and water levels ----
@@ -441,7 +461,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1805, y: 265 }
         ],
         mounds: [400, 900, 1550],
-        keyPos: { x: 1805, y: 235 }
+        keyPos: { x: 1805, y: 235 },
+        star: { x: 695, y: 360, hint: "Jump up from a lily pad" },
+        challenge: "noSplash"
     },
     {
         name: "Windy Hills",
@@ -479,7 +501,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1780, y: 265, waterNeeded: 2 }
         ],
         mounds: [700, 1050, 1500, 1900],
-        keyPos: { x: 1165, y: 160 }
+        keyPos: { x: 1165, y: 160 },
+        star: { x: 475, y: 170, hint: "Above the ledge near the start (mind the wind!)" },
+        challenge: "firstDig"
     },
     {
         name: "Rainy Meadow",
@@ -520,7 +544,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1760, y: 270, waterNeeded: 3 }
         ],
         mounds: [380, 1300, 1650, 1900],
-        keyPos: { x: 1760, y: 240 }
+        keyPos: { x: 1760, y: 240 },
+        star: { x: 1205, y: 160, hint: "High above the middle ledge" },
+        challenge: "noBumps"
     },
     {
         name: "Snowy Peaks",
@@ -557,7 +583,9 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 1655, y: 270, waterNeeded: 2 }
         ],
         mounds: [330, 760, 1550, 1960],
-        keyPos: { x: 1655, y: 240 }
+        keyPos: { x: 1655, y: 240 },
+        star: { x: 525, y: 340, hint: "Jump while you slide on the first ice" },
+        challenge: "flowersFirst"
     },
     {
         name: "Starry Night",
@@ -597,6 +625,8 @@ export const LEVELS: readonly LevelConfig[] = [
             { x: 2105, y: 340 }
         ],
         mounds: [520, 1050, 1350, 1800],
-        keyPos: { x: 1805, y: 150 }
+        keyPos: { x: 1805, y: 150 },
+        star: { x: 475, y: 170, hint: "Up high near the start (fireflies help!)" },
+        challenge: "noSplash"
     }
 ];

@@ -12,7 +12,7 @@ import { getStorage, loadSave, writeSave } from '../save.ts';
 import { SkyVisitors } from '../skyfriends.ts';
 import { WeatherEffects } from '../weather.ts';
 import type { SaveData } from '../save.ts';
-import type { DigMound, LevelConfig, Platform, Point, RescuedFriend, Sprout } from '../types.ts';
+import type { DigMound, LevelConfig, Platform, Point, RescuedFriend, Species, Sprout } from '../types.ts';
 
 export type Screen = 'start' | 'playing' | 'paused' | 'levels' | 'roster' | 'victory';
 /** Where a sub-menu (level list, My pets) was opened from, so Back returns there. */
@@ -21,6 +21,24 @@ export type MenuOrigin = 'start' | 'paused';
 export type MovingPlatformNow = Platform & { style?: 'cloud' | 'lily' };
 /** A bee where it is this tick, and which way it's flying. */
 export type BeeNow = Point & { facingLeft: boolean };
+
+/** How the current level's stars are going. */
+export interface LevelStars {
+    /** The hidden star has been picked up. */
+    found: boolean;
+    bumps: number;
+    splashes: number;
+    /** Mounds dug before the bone turned up (firstDig challenge). */
+    wrongDigs: number;
+    /** The bone was dug up before every flower bloomed (flowersFirst challenge). */
+    dugTooEarly: boolean;
+    /** Stars earned, as bits, once Flora reaches the doghouse with the key. */
+    earned: number;
+}
+
+export const freshLevelStars = (): LevelStars => ({
+    found: false, bumps: 0, splashes: 0, wrongDigs: 0, dugTooEarly: false, earned: 0
+});
 
 export interface GameState {
     /** Continue point, unlocked levels, roster and followers; mirrored to storage. */
@@ -52,6 +70,7 @@ export interface GameState {
     pixelScale: number;
     /** Opened with ?dev in the URL: every level unlocked, plus a Skip level button. */
     dev: boolean;
+    levelStars: LevelStars;
 }
 
 export const audio = new AudioController();
@@ -89,8 +108,12 @@ export const state: GameState = {
     keyX: 530,
     keyY: 315,
     pixelScale: 1,
-    dev: isDevUrl(window.location?.search ?? '')
+    dev: isDevUrl(window.location?.search ?? ''),
+    levelStars: freshLevelStars()
 };
+
+/** Whether a pet is following Flora right now, so its power is on. */
+export const hasPower = (species: Species): boolean => state.progress.followers.includes(species);
 
 /** The level being played. */
 export const currentLevelConfig = (): LevelConfig => LEVELS[state.currentLevel];

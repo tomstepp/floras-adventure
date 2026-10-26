@@ -225,6 +225,20 @@ export function loadGame(options: LoadOptions = {}): Game {
         'roster-hint': makeElement(),
         'roster-back-btn': makeElement(),
         'dev-badge': makeElement({ hidden: true }),
+        'star-total': makeElement(),
+        'pause-best': makeElement(),
+        'pause-stars': makeElement({
+            items: [] as string[],
+            replaceChildren(this: { items: string[] }, ...children: { innerText: string }[]) {
+                this.items = children.map(c => c.innerText);
+            }
+        }),
+        'pause-team': makeElement({
+            items: [] as string[],
+            replaceChildren(this: { items: string[] }, ...children: { innerText: string }[]) {
+                this.items = children.map(c => c.innerText);
+            }
+        }),
         'pause-skip-btn': makeElement({ hidden: true })
     };
 

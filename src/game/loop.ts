@@ -1,10 +1,11 @@
 /** The fixed 60-ticks-per-second game loop, and fitting the game box to the window. */
 import { dom } from './dom.ts';
 import { keys, pressed } from './input.ts';
-import { checkDigging, checkWatering, updateDoghouse, updateKey, updateLevelClear } from './level.ts';
+import { checkDigging, checkWatering, updateDoghouse, updateHiddenStar, updateKey, updateLevelClear } from './level.ts';
 import { render } from './scene.ts';
-import { audio, butterflies, flora, noodle, particleSystem, skyVisitors, state, weather } from './state.ts';
+import { audio, butterflies, flora, hasPower, noodle, particleSystem, skyVisitors, state, weather } from './state.ts';
 import { currentWind, updateBees, updateCamera, updateMovingPlatforms, updateParade, updatePond, updateRain } from './world.ts';
+import { movesFor, POWER_TUNING } from '../powers.ts';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, STAGE_HEIGHT, STAGE_WIDTH, fitScale } from '../layout.ts';
 import { LEVELS, TICK_MS, levelWidth } from '../levels.ts';
 import type { PhysicsWorld } from '../types.ts';
@@ -24,6 +25,7 @@ export function tick(): void {
     if (state.screen !== 'playing') return;
 
     updateKey();
+    updateHiddenStar();
     updateParade();
     updateMovingPlatforms();
 
@@ -34,8 +36,10 @@ export function tick(): void {
         bushes: level.bushes ?? [],
         water: level.water ?? [],
         ice: level.ice ?? [],
-        windX: state.levelClearTimer > 0 ? 0 : currentWind().x,
-        width: levelWidth(level)
+        // Wind rider (bird): gusts hardly push.
+        windX: state.levelClearTimer > 0 ? 0 : currentWind().x * (hasPower('bird') ? POWER_TUNING.windFactor : 1),
+        width: levelWidth(level),
+        moves: movesFor(state.progress.followers)
     };
     flora.update(
         keys,
@@ -46,7 +50,9 @@ export function tick(): void {
         checkWatering,
         checkDigging
     );
-    noodle.update(flora.x, state.digMounds, state.boneFound, false, type => audio.playSound(type));
+    // Super sniffer (puppy): Noodle smells the bone from much farther away.
+    const sniffRange = hasPower('puppy') ? POWER_TUNING.superSniffRange : POWER_TUNING.sniffRange;
+    noodle.update(flora.x, state.digMounds, state.boneFound, false, type => audio.playSound(type), sniffRange);
     updatePond();
     if (state.levelClearTimer === 0) {
         updateBees();

@@ -58,6 +58,31 @@
                                                              
                   
                   
+                                                                       
+                 
+ 
+
+/** Flora's movement, as changed by the pet powers of whoever is following her. */
+                        
+                      
+                   
+                     
+                                            
+                         
+                                                        
+                           
+                                            
+                       
+                                                         
+                  
+ 
+
+/** The third star's challenge, kept simple for young players. */
+                                                                             
+
+/** A hidden star somewhere in the level, with a kid-friendly hint for finding it. */
+                                           
+                 
  
 
 /** A bumblebee that flies from `x` to `x + range` and back around height `y`, once every `period` ticks. */
@@ -189,7 +214,9 @@ const LEVELS                         = [
             { x: 530, y: 345 }
         ],
         mounds: [190, 400, 580],
-        keyPos: { x: 530, y: 315 }
+        keyPos: { x: 530, y: 315 },
+        star: { x: 270, y: 230, hint: "Jump high from the left ledge" },
+        challenge: "flowersFirst"
     },
     {
         name: "Sunny Glade",
@@ -213,7 +240,9 @@ const LEVELS                         = [
             { x: 555, y: 345 }
         ],
         mounds: [230, 350, 560],
-        keyPos: { x: 610, y: 120 }
+        keyPos: { x: 610, y: 120 },
+        star: { x: 380, y: 170, hint: "Jump up from the middle ledge" },
+        challenge: "firstDig"
     },
     {
         name: "Rainbow Hills",
@@ -235,7 +264,9 @@ const LEVELS                         = [
             { x: 575, y: 215 }
         ],
         mounds: [180, 470, 600],
-        keyPos: { x: 590, y: 185 }
+        keyPos: { x: 590, y: 185 },
+        star: { x: 215, y: 240, hint: "Look above the first ledge" },
+        challenge: "flowersFirst"
     },
     {
         name: "Enchanted Garden",
@@ -259,7 +290,9 @@ const LEVELS                         = [
             { x: 612, y: 265 }
         ],
         mounds: [210, 300, 540],
-        keyPos: { x: 612, y: 235 }
+        keyPos: { x: 612, y: 235 },
+        star: { x: 192, y: 250, hint: "Jump high from the first ledge" },
+        challenge: "firstDig"
     },
     {
         name: "Pet Paradise",
@@ -284,7 +317,9 @@ const LEVELS                         = [
             { x: 585, y: 345 }
         ],
         mounds: [240, 390, 500],
-        keyPos: { x: 520, y: 175 }
+        keyPos: { x: 520, y: 175 },
+        star: { x: 60, y: 330, hint: "Jump right at the very start!" },
+        challenge: "flowersFirst"
     },
 
     // ---- Big scrolling levels: wider than the screen, with bees and bramble bushes ----
@@ -317,7 +352,9 @@ const LEVELS                         = [
             { x: 1310, y: 340 }
         ],
         mounds: [620, 900, 1180],
-        keyPos: { x: 1010, y: 235 }
+        keyPos: { x: 1010, y: 235 },
+        star: { x: 480, y: 160, hint: "Jump up from the high ledge near the start" },
+        challenge: "noBumps"
     },
     {
         name: "Bramble Path",
@@ -352,7 +389,9 @@ const LEVELS                         = [
             { x: 1460, y: 255 }
         ],
         mounds: [320, 620, 1050, 1330],
-        keyPos: { x: 1460, y: 225 }
+        keyPos: { x: 1460, y: 225 },
+        star: { x: 755, y: 150, hint: "High above the ledge in the middle" },
+        challenge: "noBumps"
     },
     {
         name: "Cloud Canyon",
@@ -387,7 +426,9 @@ const LEVELS                         = [
             { x: 1735, y: 250 }
         ],
         mounds: [500, 1000, 1450],
-        keyPos: { x: 1155, y: 160 }
+        keyPos: { x: 1155, y: 160 },
+        star: { x: 295, y: 100, hint: "Bounce on the first mushroom, then jump!" },
+        challenge: "noBumps"
     },
     {
         name: "Bumblebee Woods",
@@ -429,7 +470,9 @@ const LEVELS                         = [
             { x: 1660, y: 265, waterNeeded: 3 }
         ],
         mounds: [620, 1000, 1400, 1650],
-        keyPos: { x: 1660, y: 235 }
+        keyPos: { x: 1660, y: 235 },
+        star: { x: 935, y: 150, hint: "Jump up from the ledge above the bees" },
+        challenge: "noBumps"
     },
     {
         name: "Grand Garden",
@@ -471,7 +514,9 @@ const LEVELS                         = [
             { x: 2105, y: 340 }
         ],
         mounds: [560, 1050, 1600, 1840],
-        keyPos: { x: 1805, y: 150 }
+        keyPos: { x: 1805, y: 150 },
+        star: { x: 835, y: 100, hint: "Bounce on the mushroom to the high ledge" },
+        challenge: "noBumps"
     },
 
     // ---- Weather and water levels ----
@@ -510,7 +555,9 @@ const LEVELS                         = [
             { x: 1805, y: 265 }
         ],
         mounds: [400, 900, 1550],
-        keyPos: { x: 1805, y: 235 }
+        keyPos: { x: 1805, y: 235 },
+        star: { x: 695, y: 360, hint: "Jump up from a lily pad" },
+        challenge: "noSplash"
     },
     {
         name: "Windy Hills",
@@ -548,7 +595,9 @@ const LEVELS                         = [
             { x: 1780, y: 265, waterNeeded: 2 }
         ],
         mounds: [700, 1050, 1500, 1900],
-        keyPos: { x: 1165, y: 160 }
+        keyPos: { x: 1165, y: 160 },
+        star: { x: 475, y: 170, hint: "Above the ledge near the start (mind the wind!)" },
+        challenge: "firstDig"
     },
     {
         name: "Rainy Meadow",
@@ -589,7 +638,9 @@ const LEVELS                         = [
             { x: 1760, y: 270, waterNeeded: 3 }
         ],
         mounds: [380, 1300, 1650, 1900],
-        keyPos: { x: 1760, y: 240 }
+        keyPos: { x: 1760, y: 240 },
+        star: { x: 1205, y: 160, hint: "High above the middle ledge" },
+        challenge: "noBumps"
     },
     {
         name: "Snowy Peaks",
@@ -626,7 +677,9 @@ const LEVELS                         = [
             { x: 1655, y: 270, waterNeeded: 2 }
         ],
         mounds: [330, 760, 1550, 1960],
-        keyPos: { x: 1655, y: 240 }
+        keyPos: { x: 1655, y: 240 },
+        star: { x: 525, y: 340, hint: "Jump while you slide on the first ice" },
+        challenge: "flowersFirst"
     },
     {
         name: "Starry Night",
@@ -666,7 +719,9 @@ const LEVELS                         = [
             { x: 2105, y: 340 }
         ],
         mounds: [520, 1050, 1350, 1800],
-        keyPos: { x: 1805, y: 150 }
+        keyPos: { x: 1805, y: 150 },
+        star: { x: 475, y: 170, hint: "Up high near the start (fireflies help!)" },
+        challenge: "noSplash"
     }
 ];
 
@@ -706,9 +761,11 @@ const MAX_FOLLOWERS         = 3;
                       
                                                                                            
                          
+                                                                                       
+                    
  
 
-const EMPTY_SAVE           = { level: null, unlocked: 0, roster: [], followers: [] };
+const EMPTY_SAVE           = { level: null, unlocked: 0, roster: [], followers: [], stars: [] };
 
 /** localStorage, or null where it's blocked (private mode, disabled site data). */
 function getStorage()                 {
@@ -738,8 +795,10 @@ function loadSave(storage                , levelSpecies                    )    
     const levelCount = levelSpecies.length;
     try {
         const raw = storage?.getItem(SAVE_KEY);
-        if (!raw) return { ...EMPTY_SAVE, roster: [], followers: [] };
-        const data = JSON.parse(raw)                                                                                  ;
+        if (!raw) return { ...EMPTY_SAVE, roster: [], followers: [], stars: [] };
+        const data = JSON.parse(raw)     
+                                                                                                        
+         ;
         // Continue only makes sense past level 1 (level 1 is just "New game").
         const level = isIndex(data.level, levelCount) && data.level >= 1 ? data.level : null;
         // Older saves only had `level`; treat it as the furthest level reached.
@@ -752,9 +811,16 @@ function loadSave(storage                , levelSpecies                    )    
             ? cleanSpecies(data.followers, levelSpecies)
             : roster.slice(-MAX_FOLLOWERS)
         ).filter(s => roster.includes(s)).slice(0, MAX_FOLLOWERS);
-        return { level, unlocked, roster, followers };
+        // Saves from before stars: every beaten level at least earned its rescue star.
+        const savedStars            = Array.isArray(data.stars) ? data.stars : [];
+        const stars = levelSpecies.map((species, i) => {
+            const bits = savedStars[i];
+            const clean = typeof bits === 'number' && Number.isInteger(bits) && bits >= 0 && bits <= 7 ? bits : 0;
+            return clean | (roster.includes(species) ? 1 : 0);
+        });
+        return { level, unlocked, roster, followers, stars };
     } catch {
-        return { ...EMPTY_SAVE, roster: [], followers: [] };
+        return { ...EMPTY_SAVE, roster: [], followers: [], stars: [] };
     }
 }
 
@@ -777,6 +843,14 @@ function addRescue(data          , species         )                            
     data.followers.push(species);
     const bumped = data.followers.length > MAX_FOLLOWERS ? (data.followers.shift()           ) : null;
     return { bumped, isNew: true };
+}
+
+/** Keeps the best stars ever earned on a level; returns the stars that are new this time. */
+function recordStars(data          , level        , bits        )         {
+    const before = data.stars[level] ?? 0;
+    while (data.stars.length <= level) data.stars.push(0);
+    data.stars[level] = before | bits;
+    return bits & ~before;
 }
 
 /** Lets a rostered pet follow or rest. Returns false if the parade is already full. */
@@ -2036,6 +2110,82 @@ function drawPetSprite(
     ctx.restore();
 }
 
+// --- src/powers.ts ---
+/*
+ * Pet powers: every rescued pet gives Flora a small, gentle bonus while it follows her.
+ * Powers only ever help, and no level needs one, so any team of followers (or none) can win.
+ * Names and descriptions are short and plain, for young players.
+ */
+
+const PET_POWERS                                      = {
+    kitty: { name: "Quick paws", description: "Walk a little faster." },
+    puppy: { name: "Super sniffer", description: "Noodle smells the bone from far away." },
+    hamster: { name: "Big splash", description: "Water flowers from farther away." },
+    turtle: { name: "Steady feet", description: "No slipping on ice." },
+    bunny: { name: "Bunny hop", description: "Jump a little higher." },
+    duckling: { name: "Feather float", description: "Fall slowly and land softly." },
+    piglet: { name: "Bush buddy", description: "Walk right through bramble bushes." },
+    fox: { name: "Clever eyes", description: "A sparkle shows where the bone is." },
+    panda: { name: "Mushroom fan", description: "Mushrooms bounce you even higher." },
+    unicorn: { name: "Rainbow magic", description: "Big flowers need one less splash." },
+    frog: { name: "Pond paddler", description: "Swim across ponds instead of splashing in." },
+    bird: { name: "Wind rider", description: "The wind hardly pushes you." },
+    snail: { name: "Rain friend", description: "Rain clouds water flowers twice as fast." },
+    bear: { name: "Honey friend", description: "Bees are friendly and won't bump you." },
+    owl: { name: "Night eyes", description: "See much farther in the dark." }
+};
+
+/** How much each power changes things. Kept gentle: helpful, never game-breaking. */
+const POWER_TUNING = {
+    walkSpeed: 3.5,
+    quickWalkSpeed: 4.2,
+    hopJumpVy: -11.3,
+    fanBounceVy: -18.5,
+    waterRange: 48,
+    bigWaterRange: 72,
+    sniffRange: 95,
+    superSniffRange: 190,
+    windFactor: 0.25,
+    rainFriendFactor: 0.5,
+    nightLight: 165,
+    nightEyesLight: 270
+}         ;
+
+/** Flora's movement for a team of followers. */
+function movesFor(followers                    )        {
+    const has = (s         )          => followers.includes(s);
+    return {
+        walkSpeed: has('kitty') ? POWER_TUNING.quickWalkSpeed : POWER_TUNING.walkSpeed,
+        jumpVy: has('bunny') ? POWER_TUNING.hopJumpVy : JUMP_VY,
+        bounceVy: has('panda') ? POWER_TUNING.fanBounceVy : BOUNCE_VY,
+        featherFall: has('duckling'),
+        throughBushes: has('piglet'),
+        noIceSlip: has('turtle'),
+        swim: has('frog')
+    };
+}
+
+/** What each challenge asks, in words a young player can follow. */
+const CHALLENGE_TEXT                                      = {
+    flowersFirst: "Water every flower before you dig up the bone",
+    firstDig: "Find the bone on your very first dig (watch Noodle!)",
+    noBumps: "Don't let a bee bump you",
+    noSplash: "Don't fall in the water"
+};
+
+/** Stars a level can give, as bits: rescue the pet, find the hidden star, do the challenge. */
+const STAR_RESCUE = 1;
+const STAR_HIDDEN = 2;
+const STAR_CHALLENGE = 4;
+const STARS_PER_LEVEL = 3;
+
+const starCount = (bits        )         =>
+    (bits & STAR_RESCUE ? 1 : 0) + (bits & STAR_HIDDEN ? 1 : 0) + (bits & STAR_CHALLENGE ? 1 : 0);
+
+/** "★★☆" for a level's stars. */
+const starString = (bits        )         =>
+    [STAR_RESCUE, STAR_HIDDEN, STAR_CHALLENGE].map(b => (bits & b ? '★' : '☆')).join('');
+
 // --- src/render/shapes.ts ---
 /** Small shared shapes: hearts and twinkles. */
 
@@ -2645,7 +2795,7 @@ function drawSprouts(
 )       {
     const now = Date.now();
     for (const s of sprouts) {
-        const isBig = s.waterNeeded > 1;
+        const isBig = s.big;
         if (s.bloomed) {
             // Every flower dances once the whole garden has bloomed; otherwise a gentle sway.
             const dance = allBloomed ? Math.sin(now * 0.01 + s.danceOffset) : Math.sin(now * 0.002 + s.danceOffset) * 0.25;
@@ -2725,7 +2875,7 @@ function drawSprouts(
             ctx.fillStyle = "#000";
             ctx.font = "11px sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - bh - 8);
+            ctx.fillText("💧".repeat(Math.max(0, s.waterNeeded - s.water)), s.x, budY - bh - 8);
             ctx.textAlign = "start";
         } else {
             // Sprout: two plump leaves around a sleepy little bud, waiting for water
@@ -2877,6 +3027,56 @@ function drawBone(ctx                          , x        , y        )       {
     ctx.restore();
 }
 
+/** A five-point star path with softly rounded points, centred on (x, y). */
+function starPath(ctx                          , x        , y        , outer        , inner        )       {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outer : inner;
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+}
+
+/** The hidden star: a plump, smiling gold star that bobs, glows and twinkles. */
+function drawHiddenStar(ctx                          , x        , y        )       {
+    const now = Date.now();
+    const bobY = y + Math.sin(now * 0.005 + 1) * 3;
+    ctx.save();
+    const halo = ctx.createRadialGradient(x, bobY, 3, x, bobY, 22);
+    halo.addColorStop(0, `rgba(255, 246, 204, ${0.55 + Math.sin(now * 0.006) * 0.15})`);
+    halo.addColorStop(1, "rgba(255, 246, 204, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(x, bobY, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(x, bobY);
+    ctx.rotate(Math.sin(now * 0.003) * 0.15);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#F7B731";
+    ctx.fillStyle = "#FDCB6E";
+    starPath(ctx, 0, 0, 12, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.beginPath();
+    ctx.ellipse(-3.5, -4.5, 2.6, 1.4, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    drawFlowerFace(ctx, 0, 1, 6);
+    ctx.restore();
+
+    ctx.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 2; i++) {
+        const size = Math.max(0, Math.sin(now * 0.005 + i * 2.6)) * 3;
+        if (size > 0.4) drawTwinkle(ctx, x + (i ? -15 : 15), bobY + (i ? 10 : -12), size);
+    }
+}
+
 // --- src/render/creatures.ts ---
 /** Rescued pets (with their emoji for menus) and bumblebees. */
 
@@ -2987,7 +3187,7 @@ function drawBee(ctx                          , x        , y        , facingLeft
 }
 
 // --- src/render/hud.ts ---
-/** Overlays drawn on top of the scene: edge arrows and the celebration banner. */
+/** Overlays drawn on top of the scene: edge arrows, the star tracker and the celebration banner. */
 
 /**
  * When a goal is off-screen, a small pill at the screen edge shows its emoji and which
@@ -3021,11 +3221,12 @@ function drawOffscreenArrow(ctx                          , screenX        , scre
     ctx.restore();
 }
 
-function drawCelebrationBanner(ctx                          , petName        )       {
+/** The celebration banner, with the level's stars popping in underneath one by one. */
+function drawCelebrationBanner(ctx                          , petName        , stars             , age        )       {
     ctx.save();
     ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
     ctx.beginPath();
-    ctx.roundRect(220, 120, 360, 54, 20);
+    ctx.roundRect(220, 112, 360, 92, 20);
     ctx.fill();
     ctx.strokeStyle = "#FFB6C1";
     ctx.lineWidth = 3;
@@ -3034,7 +3235,50 @@ function drawCelebrationBanner(ctx                          , petName        )  
     ctx.fillStyle = "#FF6B8B";
     ctx.font = "bold 20px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`🎉 Rescued ${petName}! 🎉`, 400, 154);
+    ctx.fillText(`🎉 Rescued ${petName}! 🎉`, 400, 146);
+    stars.forEach((st, i) => {
+        // Each star pops in a moment after the last, with a little bounce.
+        const t = Math.max(0, Math.min(1, (age - 8 - i * 10) / 12));
+        if (t <= 0) return;
+        const pop = t < 1 ? 1 + Math.sin(t * Math.PI) * 0.3 : 1;
+        drawStarIcon(ctx, 370 + i * 30, 176, 11 * pop * t, st);
+    });
+    ctx.restore();
+}
+
+/** How one of a level's three stars is going: earned, still possible, or missed this time. */
+                                                     
+
+/** A small star for the HUD and banner: gold when earned, outlined while possible, pale when missed. */
+function drawStarIcon(ctx                          , x        , y        , r        , st           )       {
+    ctx.save();
+    ctx.lineJoin = 'round';
+    starPath(ctx, x, y, r, r * 0.5);
+    if (st === 'earned') {
+        ctx.fillStyle = "#FDCB6E";
+        ctx.fill();
+        ctx.strokeStyle = "#E1A33B";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+    } else {
+        ctx.fillStyle = st === 'open' ? "rgba(255, 255, 255, 0.85)" : "rgba(223, 230, 233, 0.6)";
+        ctx.fill();
+        ctx.strokeStyle = st === 'open' ? "#F7B731" : "#B2BEC3";
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash(st === 'missed' ? [2, 2] : []);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+/** The three stars for this level, in a soft pill under the level name. */
+function drawStarRow(ctx                          , stars                      )       {
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.beginPath();
+    ctx.roundRect(16, 54, 82, 24, 12);
+    ctx.fill();
+    stars.forEach((st, i) => drawStarIcon(ctx, 32 + i * 25, 66, 8, st));
     ctx.restore();
 }
 
@@ -3066,6 +3310,8 @@ class Player {
             knockVx         = 0;
     /** Set when she drops into a pond; the game splashes her back onto the bank. */
            fellInWater          = false;
+    /** Paddling across a pond (frog power). */
+           swimming          = false;
 
            reset()       {
         this.x = 50;
@@ -3129,14 +3375,14 @@ class Player {
 
         let targetVx = 0;
         if (keys[CONTROLS.right]) {
-            targetVx = 3.5;
+            targetVx = world.moves.walkSpeed;
             this.facing = 'right';
         } else if (keys[CONTROLS.left]) {
-            targetVx = -3.5;
+            targetVx = -world.moves.walkSpeed;
             this.facing = 'left';
         }
         // On ice she speeds up and slows down gradually, so she slides.
-        const onIce = this.grounded && this.y + this.height >= GROUND_Y - 1 && this.over(world.ice);
+        const onIce = this.grounded && this.y + this.height >= GROUND_Y - 1 && this.over(world.ice) && !world.moves.noIceSlip;
         this.vx = onIce ? this.vx + (targetVx - this.vx) * ICE_GRIP : targetVx;
 
         // Jumps fire on a press (latched even if released within the same tick), not while held,
@@ -3144,7 +3390,7 @@ class Player {
         if (pressed[CONTROLS.jump]) this.jumpBufferTimer = JUMP_BUFFER_TICKS;
 
         if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0) {
-            this.vy = JUMP_VY;
+            this.vy = world.moves.jumpVy;
             this.grounded = false;
             this.jumpRising = true;
             this.jumpBufferTimer = 0;
@@ -3189,10 +3435,18 @@ class Player {
     }
 
             applyPhysics(world              , playSound                           )       {
-        const { platforms, mushrooms, bushes } = world;
+        const { platforms, mushrooms } = world;
+        // Bush buddy (piglet): bramble bushes don't get in the way at all.
+        const bushes = world.moves.throughBushes ? [] : world.bushes;
         const prevX = this.x;
         const prevBottom = this.y + this.height;
-        this.vy += GRAVITY;
+        this.swimming = false;
+        if (world.moves.featherFall && this.vy > 0) {
+            // Feather float (duckling): gentle gravity and a slow top speed on the way down.
+            this.vy = Math.min(this.vy + GRAVITY * 0.45, 3.2);
+        } else {
+            this.vy += GRAVITY;
+        }
         // Wind pushes her whether she's walking, jumping or knocked back.
         this.x += this.vx + world.windX;
 
@@ -3221,7 +3475,7 @@ class Player {
                     this.y + this.height >= top
                 ) {
                     this.y = top - this.height;
-                    this.vy = BOUNCE_VY;
+                    this.vy = world.moves.bounceVy;
                     this.jumpRising = false;
                     playSound('bounce');
                     break;
@@ -3249,7 +3503,16 @@ class Player {
 
         // Ground collision (y = 428), except over a pond, where she drops in
         if (this.over(world.water)) {
-            if (!this.grounded && this.y + this.height > WATER_SURFACE_Y + 12) this.fellInWater = true;
+            const floatAt = WATER_SURFACE_Y + 4;
+            if (world.moves.swim && !this.grounded && this.y + this.height >= floatAt) {
+                // Pond paddler (frog): float on the water and paddle along.
+                this.y = floatAt - this.height;
+                this.vy = 0;
+                this.grounded = true;
+                this.swimming = true;
+            } else if (!this.grounded && this.y + this.height > WATER_SURFACE_Y + 12) {
+                this.fellInWater = true;
+            }
         } else if (this.y >= 380) {
             this.y = 380;
             this.vy = 0;
@@ -3457,6 +3720,7 @@ class Player {
         }
 
         ctx.restore();
+        if (this.swimming) drawSwimRipple(ctx, this.x + this.width / 2, 19);
     }
 }
 
@@ -3481,18 +3745,41 @@ class Noodle {
         this.barkTimer = ticks;
     }
 
+    /** Says `text` once he's finished what he's saying now (or right away if he's quiet). */
+           sayLater(text        , ticks        )       {
+        if (this.barkTimer > 0) this.speechQueue.push([text, ticks]);
+        else {
+            this.speechBubble = text;
+            this.barkTimer = ticks;
+        }
+    }
+
+    /** Forgets lines starting with `prefix`, whether he's saying one now or it's waiting its turn. */
+           forget(prefix        )       {
+        this.speechQueue = this.speechQueue.filter(([text]) => !text.startsWith(prefix));
+        if (this.barkTimer > 0 && this.speechBubble.startsWith(prefix)) this.barkTimer = 0;
+    }
+
+    /** Stops talking and forgets anything waiting to be said. */
+           clearSpeech()       {
+        this.speechQueue = [];
+        this.barkTimer = 0;
+    }
+
            update(
         playerX        ,
         digMounds                     ,
         boneFound         ,
         gamePaused         ,
-        playSound                           
+        playSound                           ,
+        /** How close Flora must be for him to smell the bone; Super sniffer (puppy) doubles it. */
+        sniffRange         = 95
     )       {
         if (gamePaused) return;
         const prevX = this.x;
 
         const boneMound = digMounds.find(m => m.hasBone);
-        if (!boneFound && boneMound && Math.abs((playerX + 16) - boneMound.x) < 95) {
+        if (!boneFound && boneMound && Math.abs((playerX + 16) - boneMound.x) < sniffRange) {
             this.sniffing = true;
             const targetX = boneMound.x - 12;
             this.x += (targetX - this.x) * 0.1;
@@ -3506,7 +3793,7 @@ class Noodle {
             const targetX = playerX - 35;
             this.x += (targetX - this.x) * 0.06;
 
-            if (Math.random() < 0.006 && this.barkTimer <= 0) {
+            if (Math.random() < 0.006 && this.barkTimer <= 0 && this.speechQueue.length === 0) {
                 this.barkTimer = 70;
                 const barks = ["Woof!", "Arf!", "Yip!", "Ruff!"];
                 this.speechBubble = barks[Math.floor(Math.random() * barks.length)];
@@ -3732,6 +4019,7 @@ const dom = {
     playBtn: byId                   ('play-btn'),
     continueBtn: byId                   ('continue-btn'),
     levelsBtn: byId                   ('levels-btn'),
+    starTotal: byId('star-total'),
     petsBtn: byId                   ('pets-btn'),
     // Pause menu
     pauseScreen: byId('pause-screen'),
@@ -3741,6 +4029,9 @@ const dom = {
     pauseLevelsBtn: byId                   ('pause-levels-btn'),
     pausePetsBtn: byId                   ('pause-pets-btn'),
     pauseMenuBtn: byId                   ('pause-menu-btn'),
+    pauseStars: byId('pause-stars'),
+    pauseBest: byId('pause-best'),
+    pauseTeam: byId('pause-team'),
     // Level list
     levelSelect: byId('level-select'),
     levelGrid: byId('level-grid'),
@@ -3781,6 +4072,24 @@ const ctx = dom.canvas.getContext('2d')                            ;
 /** A bee where it is this tick, and which way it's flying. */
                                                      
 
+/** How the current level's stars are going. */
+                             
+                                              
+                   
+                  
+                     
+                                                                     
+                      
+                                                                                    
+                         
+                                                                               
+                   
+ 
+
+const freshLevelStars = ()             => ({
+    found: false, bumps: 0, splashes: 0, wrongDigs: 0, dugTooEarly: false, earned: 0
+});
+
                             
                                                                                       
                        
@@ -3811,6 +4120,7 @@ const ctx = dom.canvas.getContext('2d')                            ;
                        
                                                                                        
                  
+                           
  
 
 const audio = new AudioController();
@@ -3848,8 +4158,12 @@ const state            = {
     keyX: 530,
     keyY: 315,
     pixelScale: 1,
-    dev: isDevUrl(window.location?.search ?? '')
+    dev: isDevUrl(window.location?.search ?? ''),
+    levelStars: freshLevelStars()
 };
+
+/** Whether a pet is following Flora right now, so its power is on. */
+const hasPower = (species         )          => state.progress.followers.includes(species);
 
 /** The level being played. */
 const currentLevelConfig = ()              => LEVELS[state.currentLevel];
@@ -3944,6 +4258,7 @@ function setupInput()       {
 
 
 
+
 /** Gap between pets in the parade; the drawn pets are about 30px wide. */
 const PARADE_GAP = 32;
 
@@ -4022,7 +4337,10 @@ function updateBees()       {
         const nx = Math.min(Math.max(bee.x, flora.x), flora.x + flora.width);
         const ny = Math.min(Math.max(bee.y, flora.y), flora.y + flora.height);
         if ((bee.x - nx) ** 2 + (bee.y - ny) ** 2 > BEE_RADIUS ** 2) continue;
+        // Honey friend (bear): bees are friendly and buzz right past.
+        if (hasPower('bear')) continue;
         if (flora.bump(bee.x)) {
+            state.levelStars.bumps++;
             audio.playSound('bump');
             particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
             noodle.barkTimer = 70;
@@ -4062,7 +4380,9 @@ function updateRain()       {
         const underRain = state.rainCloudXs.some(cx => Math.abs(cx - s.x) <= RAIN_WIDTH / 2);
         if (!underRain) continue;
         s.rainTicks = (s.rainTicks ?? 0) + 1;
-        if (s.rainTicks >= RAIN_SPLASH_TICKS) {
+        // Rain friend (snail): rain waters twice as fast.
+        const every = RAIN_SPLASH_TICKS * (hasPower('snail') ? POWER_TUNING.rainFriendFactor : 1);
+        if (s.rainTicks >= every) {
             s.rainTicks = 0;
             splashSprout(s);
             changed = true;
@@ -4078,6 +4398,7 @@ function updatePond()       {
     if (water.length === 0) return;
     if (flora.grounded && flora.y + flora.height >= GROUND_Y - 1 && !flora.over(water)) state.lastSafeX = flora.x;
     if (!flora.fellInWater) return;
+    state.levelStars.splashes++;
     particleSystem.spawn(flora.x + flora.width / 2, GROUND_Y + 6, '#74B9FF', 16, 'circle');
     audio.playSound('bump');
     flora.reset();
@@ -4103,6 +4424,7 @@ function updateParade()       {
 
 // --- src/game/level.ts ---
 /** The level's rules: setting it up, watering, digging, the key, the doghouse, the celebration, and the HUD text. */
+
 
 
 
@@ -4155,15 +4477,18 @@ function initLevel()       {
     weather.setKind(level.weather ?? 'clear');
     state.keyX = level.keyPos.x;
     state.keyY = level.keyPos.y;
+    state.levelStars = freshLevelStars();
 
     level.sprouts.forEach((pos, i) => {
+        const big = (pos.waterNeeded ?? 1) > 1;
         state.sprouts.push({
             x: pos.x,
             y: pos.y,
             water: 0,
-            waterNeeded: pos.waterNeeded ?? 1,
+            waterNeeded: splashesNeeded(pos),
+            big,
             bloomed: false,
-            color: (pos.waterNeeded ?? 1) > 1 ? BIG_FLOWER_COLOR : FLOWER_COLORS[i % FLOWER_COLORS.length],
+            color: big ? BIG_FLOWER_COLOR : FLOWER_COLORS[i % FLOWER_COLORS.length],
             danceOffset: Math.random() * Math.PI * 2
         });
     });
@@ -4179,10 +4504,11 @@ function initLevel()       {
     });
     state.boneX = level.mounds[boneIdx];
 
-    if (level.tip) {
-        noodle.speechBubble = level.tip;
-        noodle.barkTimer = 240;
-    }
+    // Noodle starts with the level's tip, then gives the star hints so nobody has to guess.
+    noodle.clearSpeech();
+    if (level.tip) noodle.sayLater(level.tip, 240);
+    noodle.sayLater(`${HIDDEN_STAR_HINT}${level.star.hint}`, 240);
+    noodle.sayLater(`⭐ Star challenge: ${CHALLENGE_TEXT[level.challenge]}`, 240);
 
     dom.levelDisplay.innerText = `Level ${state.currentLevel + 1}: ${level.name}`;
     updateStatus();
@@ -4203,6 +4529,31 @@ function restartLevel()       {
     state.cameraX = cameraTarget();
 }
 
+const HIDDEN_STAR_HINT = '⭐ Hidden star: ';
+
+/** Splashes a sprout needs right now: Rainbow magic (unicorn) takes one off big flowers. */
+function splashesNeeded(config              )         {
+    const base = config.waterNeeded ?? 1;
+    return hasPower('unicorn') ? Math.max(1, base - 1) : base;
+}
+
+/**
+ * Call after the followers change (mid-level, from My pets): powers that change the level
+ * itself take effect at once. A big flower that now has enough water blooms straight away.
+ */
+function refreshPowers()       {
+    const level = LEVELS[state.currentLevel];
+    state.sprouts.forEach((s, i) => {
+        if (s.bloomed) return;
+        s.waterNeeded = splashesNeeded(level.sprouts[i]);
+        if (s.water >= s.waterNeeded) {
+            s.water = s.waterNeeded - 1;
+            splashSprout(s);
+        }
+    });
+    updateStatus();
+}
+
 /** One splash of water on a sprout, from Flora's can or a rain cloud. */
 function splashSprout(s        )       {
     if (s.bloomed) return;
@@ -4210,7 +4561,7 @@ function splashSprout(s        )       {
     if (s.water >= s.waterNeeded) {
         s.bloomed = true;
         audio.playSound('bloom');
-        const big = s.waterNeeded > 1;
+        const big = s.big;
         particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
         particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
     } else {
@@ -4221,8 +4572,10 @@ function splashSprout(s        )       {
 function checkWatering()       {
     const canCenterX = flora.facing === 'right' ? flora.x + 30 : flora.x + 2;
     const floraFeetY = flora.y + flora.height;
+    // Big splash (hamster) reaches farther.
+    const reach = hasPower('hamster') ? POWER_TUNING.bigWaterRange : POWER_TUNING.waterRange;
     for (const s of state.sprouts) {
-        if (s.bloomed || Math.abs(canCenterX - s.x) >= 48 || Math.abs(floraFeetY - s.y) >= 48) continue;
+        if (s.bloomed || Math.abs(canCenterX - s.x) >= reach || Math.abs(floraFeetY - s.y) >= 48) continue;
         splashSprout(s);
     }
     updateStatus();
@@ -4243,6 +4596,7 @@ function checkDigging()       {
 
     mound.dug = true;
     if (mound.hasBone) {
+        if (!allBloomed()) state.levelStars.dugTooEarly = true;
         state.boneFound = true;
         state.boneX = mound.x;
         audio.playSound('key');
@@ -4251,9 +4605,42 @@ function checkDigging()       {
         noodle.speechBubble = allBloomed() ? "Woof! Found it! 🦴" : "Bone! Now water the flowers! 🌸";
         updateStatus();
     } else {
+        if (!state.boneFound) state.levelStars.wrongDigs++;
         noodle.barkTimer = 60;
         noodle.speechBubble = "Keep sniffing! 🐾";
     }
+}
+
+/** The hidden star: touch it to pick it up, like the key. */
+function updateHiddenStar()       {
+    if (state.levelStars.found) return;
+    const { star } = LEVELS[state.currentLevel];
+    const cx = flora.x + flora.width / 2;
+    const cy = flora.y + flora.height / 2;
+    if (Math.abs(cx - star.x) < 30 && Math.abs(cy - star.y) < 38) {
+        state.levelStars.found = true;
+        audio.playSound('key');
+        particleSystem.spawn(star.x, star.y, '#FDCB6E', 22, 'star');
+        // No need for the hint any more.
+        noodle.forget(HIDDEN_STAR_HINT);
+        noodle.sayFirst("You found the hidden star! ⭐", 120);
+    }
+}
+
+/** Whether the level's star challenge is still on (or done). */
+function challengeMet()          {
+    const s = state.levelStars;
+    switch (LEVELS[state.currentLevel].challenge) {
+        case 'flowersFirst': return !s.dugTooEarly;
+        case 'firstDig': return s.wrongDigs === 0;
+        case 'noBumps': return s.bumps === 0;
+        case 'noSplash': return s.splashes === 0;
+    }
+}
+
+/** Stars for finishing now: the rescue, the hidden star if found, the challenge if met. */
+function starsForFinish()         {
+    return STAR_RESCUE | (state.levelStars.found ? STAR_HIDDEN : 0) | (challengeMet() ? STAR_CHALLENGE : 0);
 }
 
 function updateKey()       {
@@ -4275,13 +4662,15 @@ function updateDoghouse()       {
     const houseX = doghouseX(LEVELS[state.currentLevel]);
     if (state.keyCollected) {
         state.levelClearTimer = LEVEL_CLEAR_FRAMES;
+        state.levelStars.earned = starsForFinish();
         audio.playSound('victory');
         particleSystem.spawn(houseX, 395, '#FF7675', 14, 'heart');
         particleSystem.spawn(houseX, 385, '#F1C40F', 20, 'star');
         updateStatus();
-    } else if (noodle.barkTimer <= 0) {
-        noodle.barkTimer = 70;
-        noodle.speechBubble = "It's locked! Need the key 🔑";
+    } else {
+        // Interrupt any hints: this is what she needs to know right now.
+        const locked = "It's locked! Need the key 🔑";
+        if (noodle.speechBubble !== locked || noodle.barkTimer <= 0) noodle.sayFirst(locked, 70);
     }
 }
 
@@ -4294,12 +4683,17 @@ function updateLevelClear()       {
     state.levelClearTimer--;
     if (state.levelClearTimer > 0) return;
 
+    // Keep the best stars ever earned on this level.
+    recordStars(state.progress, state.currentLevel, state.levelStars.earned || starsForFinish());
+
     // The rescued pet joins the roster and the parade; a full parade sends its longest follower home.
-    const { bumped } = addRescue(state.progress, LEVELS[state.currentLevel].species);
+    const species = LEVELS[state.currentLevel].species;
+    const { bumped, isNew } = addRescue(state.progress, species);
     const leaving = state.rescuedFriends.find(p => p.species === bumped);
     if (leaving) particleSystem.spawn(leaving.x, 405, '#FF7675', 8, 'heart');
     syncParade();
     const goodbye = bumped ? `${petName(bumped)} went home to rest 🏡` : null;
+    const welcome = isNew ? `${petName(species)} joins you: ${PET_POWERS[species].name}! ${PET_POWERS[species].description}` : null;
 
     if (state.currentLevel === LEVELS.length - 1) {
         state.screen = 'victory';
@@ -4313,8 +4707,9 @@ function updateLevelClear()       {
         saveProgress(state.currentLevel);
         restartLevel();
     }
-    // Shown before the new level's tip, which waits its turn.
+    // Shown before the new level's tip and star hints, which wait their turn.
     if (goodbye) noodle.sayFirst(goodbye, 150);
+    if (welcome) noodle.sayFirst(welcome, 220);
 }
 
 /** What Flora should head for next, for the off-screen arrow: key, then doghouse, then any sprout left. */
@@ -4332,6 +4727,8 @@ function nextGoal()                                      {
 
 // --- src/game/menus.ts ---
 /** The screens around play: start, pause, level list, My pets, and the victory dialog. */
+
+
 
 
 
@@ -4373,6 +4770,8 @@ function showStartScreen()       {
     if (state.progress.level !== null) dom.continueBtn.innerText = `▶ Continue — Level ${state.progress.level + 1}`;
     dom.playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
     dom.petsBtn.hidden = state.progress.roster.length === 0;
+    const total = state.progress.stars.reduce((sum, bits) => sum + starCount(bits), 0);
+    dom.starTotal.innerText = `⭐ ${total} / ${LEVELS.length * STARS_PER_LEVEL} stars`;
     showOverlay(dom.startScreen);
     (canContinue ? dom.continueBtn : dom.playBtn).focus();
 }
@@ -4381,6 +4780,7 @@ function pauseGame()       {
     if (state.screen !== 'playing') return;
     state.screen = 'paused';
     dropInput();
+    fillPauseInfo();
     showOverlay(dom.pauseScreen);
     dom.resumeBtn.focus();
 }
@@ -4407,8 +4807,11 @@ function openLevelSelect(from                    )       {
             if (locked) btn.classList.add('locked');
             if (beaten) btn.classList.add('beaten');
             if (i === state.currentLevel && from === 'paused') btn.classList.add('current');
-            // First line (the pet, or a lock) is drawn big by CSS; then "number. name".
-            btn.innerText = `${locked ? '🔒' : PET_EMOJI[level.species]}\n${i + 1}. ${level.name}${beaten ? ' ✔' : ''}`;
+            // First line (the pet, or a lock) is drawn big by CSS; then "number. name", then stars.
+            const stars = state.progress.stars[i] ?? 0;
+            btn.innerText = locked
+                ? `🔒\n${i + 1}. ${level.name}`
+                : `${PET_EMOJI[level.species]}\n${i + 1}. ${level.name}\n${starString(stars)}`;
             btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
             btn.addEventListener('click', () => {
                 if (locked) return;
@@ -4459,7 +4862,7 @@ function drawRosterPet(card                   , species         , rescued       
 function openRoster(from                    )       {
     state.menuReturnTo = from;
     state.screen = 'roster';
-    dom.rosterHint.innerText = '';
+    dom.rosterHint.innerText = `Tap a pet to see its power. Up to ${MAX_FOLLOWERS} can follow you!`;
     renderRoster();
     showOverlay(dom.rosterScreen);
     (dom.rosterGrid.children[0]                           )?.focus();
@@ -4481,24 +4884,41 @@ function renderRoster()       {
             btn.disabled = !rescued;
             const pic = document.createElement('canvas');
             drawRosterPet(pic, species, rescued);
+            const power = PET_POWERS[species];
             const label = document.createElement('span');
             label.innerText = rescued
-                ? `${level.pet}\n${following ? '🐾 Following' : '💤 Resting'}`
-                : `???\nRescue in level ${i + 1}`;
+                ? `${level.pet}\n⚡ ${power.name}\n${following ? '🐾 Following' : '💤 Resting'}`
+                : `???\n⚡ ${power.name}\nRescue in level ${i + 1}`;
+            // Tapping or pointing at a card says what its power does, in plain words.
+            const describe = ()       => {
+                dom.rosterHint.innerText = rescued
+                    ? `${PET_EMOJI[species]} ${power.name}: ${power.description}`
+                    : `Rescue this pet in level ${i + 1} to get ${power.name}: ${power.description}`;
+            };
+            btn.addEventListener('mouseenter', describe);
+            btn.addEventListener('focus', describe);
             btn.append(pic, label);
             btn.setAttribute('aria-label', rescued ? `${level.pet}, ${following ? 'following' : 'resting'}` : `Not rescued yet, level ${i + 1}`);
             btn.setAttribute('aria-pressed', String(following));
             btn.addEventListener('click', () => {
-                if (!rescued) return;
+                if (!rescued) {
+                    describe();
+                    return;
+                }
                 if (!toggleFollower(state.progress, species)) {
                     dom.rosterHint.innerText = `Only ${MAX_FOLLOWERS} pets can follow at once — tap one to let it rest first.`;
                     return;
                 }
-                dom.rosterHint.innerText = '';
                 persist();
                 syncParade();
+                // Powers that change the level (like Rainbow magic) take effect right away.
+                refreshPowers();
                 renderRoster();
                 (dom.rosterGrid.children[i]                           )?.focus();
+                const now = state.progress.followers.includes(species);
+                dom.rosterHint.innerText = now
+                    ? `${PET_EMOJI[species]} ${level.pet} is following: ${power.name}! ${power.description}`
+                    : `💤 ${level.pet} is resting.`;
             });
             return btn;
         })
@@ -4590,8 +5010,42 @@ function skipLevel()       {
     state.levelClearTimer = 1;
 }
 
+/** The pause menu's side panel: this level's three star goals, and what your team can do. */
+function fillPauseInfo()       {
+    const level = LEVELS[state.currentLevel];
+    const [rescue, hidden, challenge] = starStates();
+    const mark = (st        )         => (st === 'earned' ? '✅' : st === 'missed' ? '❌' : '⬜');
+    const goals = [
+        `${mark(rescue)} Rescue ${level.pet}`,
+        `${mark(hidden)} Find the hidden star: ${level.star.hint}`,
+        `${mark(challenge)} ${CHALLENGE_TEXT[level.challenge]}${challenge === 'missed' ? ' (try again next time!)' : ''}`
+    ];
+    dom.pauseStars.replaceChildren(...goals.map(text => {
+        const li = document.createElement('li');
+        li.innerText = text;
+        return li;
+    }));
+    const best = state.progress.stars[state.currentLevel] ?? 0;
+    dom.pauseBest.innerText = best ? `Your best here: ${starString(best)}` : '';
+
+    const team = state.progress.followers.map(species => {
+        const power = PET_POWERS[species];
+        const li = document.createElement('li');
+        li.innerText = `${PET_EMOJI[species]} ${power.name}: ${power.description}`;
+        return li;
+    });
+    if (team.length === 0) {
+        const li = document.createElement('li');
+        li.innerText = "No pets following yet. Rescued pets give you powers!";
+        team.push(li);
+    }
+    dom.pauseTeam.replaceChildren(...team);
+}
+
 // --- src/game/scene.ts ---
 /** Draws one frame: the sky, the scrolling level, weather and night, then overlays on top. */
+
+
 
 
 
@@ -4641,6 +5095,14 @@ function render()       {
     } else if (allBloomed() && state.boneFound) {
         drawKey(ctx, state.keyX, state.keyY);
     }
+    if (!state.levelStars.found) drawHiddenStar(ctx, level.star.x, level.star.y);
+    // Clever eyes (fox): a sparkle twinkles over the mound hiding the bone.
+    if (hasPower('fox') && !state.boneFound) {
+        const size = 3 + Math.abs(Math.sin(Date.now() * 0.006)) * 3;
+        ctx.fillStyle = "#FFF3B0";
+        drawTwinkle(ctx, state.boneX, 404, size);
+        drawTwinkle(ctx, state.boneX + 9, 396, size * 0.6);
+    }
 
     for (const pet of state.rescuedFriends) {
         drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0, overWater(pet.x));
@@ -4655,12 +5117,18 @@ function render()       {
     weather.drawFront(ctx);
     if (weather.kind === 'night') {
         const lights          = [
-            { x: flora.x + flora.width / 2 - state.cameraX, y: flora.y + 20, r: 165 },
+            // Night eyes (owl): a much bigger light around Flora.
+            {
+                x: flora.x + flora.width / 2 - state.cameraX,
+                y: flora.y + 20,
+                r: hasPower('owl') ? POWER_TUNING.nightEyesLight : POWER_TUNING.nightLight
+            },
             { x: houseX - state.cameraX, y: 400, r: 95 },
             ...weather.fireflyLights()
         ];
         if (allBloomed() && state.boneFound && !state.keyCollected) lights.push({ x: state.keyX - state.cameraX, y: state.keyY, r: 70 });
         for (const s of state.sprouts) if (s.bloomed) lights.push({ x: s.x - state.cameraX, y: s.y - 24, r: 40 });
+        if (!state.levelStars.found) lights.push({ x: level.star.x - state.cameraX, y: level.star.y, r: 45 });
         weather.drawDarkness(ctx, lights, state.pixelScale);
         weather.drawFireflies(ctx);
     }
@@ -4674,11 +5142,27 @@ function render()       {
     const goal = nextGoal();
     if (goal) drawOffscreenArrow(ctx, goal.x - state.cameraX, CANVAS_WIDTH, goal.emoji);
 
-    if (state.levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
+    const stars = starStates();
+    drawStarRow(ctx, stars);
+    if (state.levelClearTimer > 0) {
+        drawCelebrationBanner(ctx, level.pet, stars, LEVEL_CLEAR_FRAMES - state.levelClearTimer);
+    }
+}
+
+/** This run's three stars, live: rescue, hidden star, challenge. */
+function starStates()              {
+    const finished = state.levelClearTimer > 0 || state.screen === 'victory';
+    const earned = state.levelStars.earned;
+    return [
+        finished ? 'earned' : 'open',
+        state.levelStars.found || earned & STAR_HIDDEN ? 'earned' : finished ? 'missed' : 'open',
+        finished ? (earned & STAR_CHALLENGE ? 'earned' : 'missed') : challengeMet() ? 'open' : 'missed'
+    ];
 }
 
 // --- src/game/loop.ts ---
 /** The fixed 60-ticks-per-second game loop, and fitting the game box to the window. */
+
 
 
 
@@ -4702,6 +5186,7 @@ function tick()       {
     if (state.screen !== 'playing') return;
 
     updateKey();
+    updateHiddenStar();
     updateParade();
     updateMovingPlatforms();
 
@@ -4712,8 +5197,10 @@ function tick()       {
         bushes: level.bushes ?? [],
         water: level.water ?? [],
         ice: level.ice ?? [],
-        windX: state.levelClearTimer > 0 ? 0 : currentWind().x,
-        width: levelWidth(level)
+        // Wind rider (bird): gusts hardly push.
+        windX: state.levelClearTimer > 0 ? 0 : currentWind().x * (hasPower('bird') ? POWER_TUNING.windFactor : 1),
+        width: levelWidth(level),
+        moves: movesFor(state.progress.followers)
     };
     flora.update(
         keys,
@@ -4724,7 +5211,9 @@ function tick()       {
         checkWatering,
         checkDigging
     );
-    noodle.update(flora.x, state.digMounds, state.boneFound, false, type => audio.playSound(type));
+    // Super sniffer (puppy): Noodle smells the bone from much farther away.
+    const sniffRange = hasPower('puppy') ? POWER_TUNING.superSniffRange : POWER_TUNING.sniffRange;
+    noodle.update(flora.x, state.digMounds, state.boneFound, false, type => audio.playSound(type), sniffRange);
     updatePond();
     if (state.levelClearTimer === 0) {
         updateBees();

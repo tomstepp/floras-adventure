@@ -45,7 +45,7 @@ export function drawSprouts(
 ): void {
     const now = Date.now();
     for (const s of sprouts) {
-        const isBig = s.waterNeeded > 1;
+        const isBig = s.big;
         if (s.bloomed) {
             // Every flower dances once the whole garden has bloomed; otherwise a gentle sway.
             const dance = allBloomed ? Math.sin(now * 0.01 + s.danceOffset) : Math.sin(now * 0.002 + s.danceOffset) * 0.25;
@@ -125,7 +125,7 @@ export function drawSprouts(
             ctx.fillStyle = "#000";
             ctx.font = "11px sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - bh - 8);
+            ctx.fillText("💧".repeat(Math.max(0, s.waterNeeded - s.water)), s.x, budY - bh - 8);
             ctx.textAlign = "start";
         } else {
             // Sprout: two plump leaves around a sleepy little bud, waiting for water
@@ -275,4 +275,54 @@ export function drawBone(ctx: CanvasRenderingContext2D, x: number, y: number): v
     ctx.arc(4.6, 1.4, 1.1, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+}
+
+/** A five-point star path with softly rounded points, centred on (x, y). */
+export function starPath(ctx: CanvasRenderingContext2D, x: number, y: number, outer: number, inner: number): void {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outer : inner;
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+}
+
+/** The hidden star: a plump, smiling gold star that bobs, glows and twinkles. */
+export function drawHiddenStar(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const now = Date.now();
+    const bobY = y + Math.sin(now * 0.005 + 1) * 3;
+    ctx.save();
+    const halo = ctx.createRadialGradient(x, bobY, 3, x, bobY, 22);
+    halo.addColorStop(0, `rgba(255, 246, 204, ${0.55 + Math.sin(now * 0.006) * 0.15})`);
+    halo.addColorStop(1, "rgba(255, 246, 204, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(x, bobY, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(x, bobY);
+    ctx.rotate(Math.sin(now * 0.003) * 0.15);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#F7B731";
+    ctx.fillStyle = "#FDCB6E";
+    starPath(ctx, 0, 0, 12, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.beginPath();
+    ctx.ellipse(-3.5, -4.5, 2.6, 1.4, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    drawFlowerFace(ctx, 0, 1, 6);
+    ctx.restore();
+
+    ctx.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 2; i++) {
+        const size = Math.max(0, Math.sin(now * 0.005 + i * 2.6)) * 3;
+        if (size > 0.4) drawTwinkle(ctx, x + (i ? -15 : 15), bobY + (i ? 10 : -12), size);
+    }
 }

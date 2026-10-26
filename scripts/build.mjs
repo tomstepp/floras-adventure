@@ -22,6 +22,7 @@ const moduleOrder = [
     'skyfriends.ts',
     'weather.ts',
     'pets.ts',
+    'powers.ts',
     'render/shapes.ts',
     'render/sky.ts',
     'render/scenery.ts',

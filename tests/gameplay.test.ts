@@ -886,7 +886,7 @@ test('LS-1: the level list unlocks levels as you reach them', () => {
     game.click('pause-levels-btn');
     const after = game.levelCards();
     assert.deepEqual(after.slice(0, 4).map(c => c.disabled), [false, false, false, true]);
-    assert.ok(after[0].classes.has('beaten') && after[0].innerText.includes('✔'), 'beaten levels are ticked');
+    assert.ok(after[0].classes.has('beaten') && after[0].innerText.includes('★'), 'beaten levels show their stars');
     assert.ok(after[2].classes.has('current'), 'the level being played is marked');
     assert.ok(after[1].innerText.includes('🐶'), 'unlocked levels show their pet');
 });
@@ -1014,6 +1014,8 @@ test('RS-1: a rescued pet joins the roster and the parade; a fourth sends the lo
     clearLevel(game);
     assert.equal(game.run('state.progress.roster.join()'), 'kitty,puppy,hamster,turtle', 'everyone stays in the roster');
     assert.equal(game.run('state.rescuedFriends.map(p => p.species).join()'), 'puppy,hamster,turtle', 'kitty went to rest');
+    assert.match(game.run<string>('noodle.speechBubble'), /Shelly the Turtle joins you: Steady feet/, 'welcome first');
+    game.step(225);
     assert.match(game.run<string>('noodle.speechBubble'), /Milo the Kitty went home to rest/);
     game.step(160);
     assert.match(game.run<string>('noodle.speechBubble'), /Bounce, float and splash/, "then level 5's tip still shows");
@@ -1051,7 +1053,7 @@ test('RS-2: My pets shows the roster; tap to rest or follow, at most 3 follow', 
     game.rosterCards()[2].click(); // hamster rests
     game.rosterCards()[0].click(); // now kitty can follow
     assert.deepEqual(states().slice(0, 4), ['following', 'following', 'resting', 'following']);
-    assert.equal(game.text('roster-hint'), '');
+    assert.match(game.text('roster-hint'), /Milo the Kitty is following: Quick paws! Walk a little faster/, 'says what the power does');
     const saved = JSON.parse(storage.get('floras-adventure-save-v1')!);
     assert.deepEqual(saved.followers, ['puppy', 'turtle', 'kitty'], 'your choice is saved');
 
@@ -1280,4 +1282,337 @@ test('DV-5: ?dev is recognised in any position, and only as its own word', () =>
     const isDev = (search: string) => game.run<boolean>(`isDevUrl(${JSON.stringify(search)})`);
     for (const yes of ['?dev', '?dev=1', '?dev=', '?a=1&dev', '?dev&a=1']) assert.equal(isDev(yes), true, yes);
     for (const no of ['', '?devx', '?level=dev', '?a=dev', '?developer']) assert.equal(isDev(no), false, no);
+});
+
+/** Sets who's following, as if chosen in My pets. */
+function team(game: ReturnType<typeof loadGame>, ...species: string[]): void {
+    game.run(`state.progress.followers = ${JSON.stringify(species)}; state.progress.roster = ${JSON.stringify(species)};`);
+}
+
+/** Highest point Flora's feet reach in a held jump from the ground. */
+function jumpPeakFeet(game: ReturnType<typeof loadGame>): number {
+    placeFlora(game, 60, 428);
+    game.press('ArrowUp');
+    let top = 428;
+    for (let i = 0; i < 70; i++) {
+        game.step();
+        top = Math.min(top, game.run<number>('flora.y + flora.height'));
+    }
+    game.release('ArrowUp');
+    return 428 - top;
+}
+
+test('PW-1: every pet has a power with a short name and a short, plain description', () => {
+    const game = loadGame();
+    const powers = game.run<Record<string, { name: string; description: string }>>('PET_POWERS');
+    assert.equal(Object.keys(powers).join(), LEVELS.map(l => l.species).join());
+    for (const [species, p] of Object.entries(powers)) {
+        assert.ok(p.name.split(' ').length <= 3, `${species}'s power name is short`);
+        assert.ok(p.description.split(' ').length <= 8, `${species}'s description is short: "${p.description}"`);
+        assert.ok(p.description.endsWith('.'), 'descriptions are full sentences');
+    }
+});
+
+test('PW-2: kitty walks faster, bunny jumps higher, and no power is on without followers', () => {
+    const game = loadGame();
+    const walk = (): number => {
+        placeFlora(game, 100, 428);
+        game.press('ArrowRight');
+        game.step(20);
+        game.release('ArrowRight');
+        return game.run<number>('flora.x') - 100;
+    };
+    const plainWalk = walk();
+    const plainJump = jumpPeakFeet(game);
+    team(game, 'kitty', 'bunny');
+    assert.ok(walk() > plainWalk + 10, 'Quick paws');
+    assert.ok(jumpPeakFeet(game) > plainJump + 20, 'Bunny hop');
+    team(game);
+    assert.equal(walk(), plainWalk, 'back to normal without followers');
+});
+
+test('PW-2: duckling falls gently; panda bounces higher on mushrooms', () => {
+    const game = loadGame();
+    // Check mid-fall (20 ticks), before either reaches the ground
+    game.run('flora.x = 100; flora.y = 100; flora.vy = 0; flora.grounded = false; flora.coyoteTimer = 0;');
+    game.step(20);
+    const plainFall = game.run<number>('flora.vy');
+    team(game, 'duckling');
+    game.run('flora.x = 100; flora.y = 100; flora.vy = 0; flora.grounded = false;');
+    game.step(20);
+    assert.ok(game.run<number>('flora.vy') <= 3.2 && plainFall > 6, 'Feather float caps the falling speed');
+
+    const bouncePeak = (): number => {
+        goToLevel(game, 1); // Sunny Glade's mushroom at x 640
+        game.run('flora.x = 624; flora.y = 340; flora.vy = 0; flora.grounded = false; flora.coyoteTimer = 0;');
+        let top = 999;
+        for (let i = 0; i < 60; i++) {
+            game.step();
+            top = Math.min(top, game.run<number>('flora.y'));
+        }
+        return top;
+    };
+    team(game);
+    const plain = bouncePeak();
+    team(game, 'panda');
+    assert.ok(bouncePeak() < plain - 30, 'Mushroom fan');
+});
+
+test('PW-2: piglet walks through bushes; turtle grips the ice', () => {
+    const game = loadGame();
+    team(game, 'piglet');
+    goToLevel(game, 6); // Bramble Path: first bush at x 400
+    placeFlora(game, 330, 428);
+    game.press('ArrowRight');
+    game.step(40);
+    game.release('ArrowRight');
+    assert.ok(game.run<number>('flora.x') > 444, 'Bush buddy walks straight through');
+
+    team(game, 'turtle');
+    goToLevel(game, 13); // Snowy Peaks: ice at x 400–650
+    placeFlora(game, 410, 428);
+    game.press('ArrowRight');
+    game.step(10);
+    game.release('ArrowRight');
+    game.step();
+    assert.equal(game.run('flora.vx'), 0, 'Steady feet: stops at once on ice');
+});
+
+test('PW-2: frog swims across ponds without splashing', () => {
+    const game = loadGame();
+    team(game, 'frog');
+    goToLevel(game, 10); // Lily Pond: first pond x 500–760
+    placeFlora(game, 420, 428);
+    game.run('flora.safeTimer = 0;');
+    game.press('ArrowRight');
+    let swam = false;
+    for (let i = 0; i < 120; i++) {
+        game.step();
+        swam = swam || game.run<boolean>('flora.swimming');
+    }
+    game.release('ArrowRight');
+    assert.ok(swam, 'paddled on the water');
+    assert.ok(game.run<number>('flora.x') > 760, 'made it to the far bank');
+    assert.equal(game.run('state.levelStars.splashes'), 0, 'never splashed');
+});
+
+test('PW-2: bird rides the wind', () => {
+    const pushedBy = (followers: string[]): number => {
+        const game = loadGame();
+        team(game, ...followers);
+        goToLevel(game, 11); // Windy Hills
+        placeFlora(game, 900, 428);
+        game.step(230); // into a full gust
+        const x = game.run<number>('flora.x');
+        game.step(30);
+        return x - game.run<number>('flora.x');
+    };
+    const plain = pushedBy([]);
+    assert.ok(plain > 30 && pushedBy(['bird']) < plain / 3, 'Wind rider: hardly pushed');
+});
+
+test('PW-3: hamster waters from farther; puppy smells the bone from farther', () => {
+    const game = loadGame();
+    const sprout = game.run<{ x: number; y: number }>('({ x: state.sprouts[0].x, y: state.sprouts[0].y })');
+    // Can is at flora.x + 30 when facing right: 60px short of the sprout is out of normal reach
+    placeFlora(game, sprout.x - 30 - 60, sprout.y);
+    game.tap('Space');
+    assert.equal(game.run('state.sprouts[0].bloomed'), false, 'too far normally');
+    team(game, 'hamster');
+    placeFlora(game, sprout.x - 30 - 60, sprout.y);
+    game.tap('Space');
+    assert.equal(game.run('state.sprouts[0].bloomed'), true, 'Big splash reaches');
+
+    const boneX = game.run<number>('state.digMounds.find(m => m.hasBone).x');
+    team(game);
+    placeFlora(game, boneX - 16 - 150, 428);
+    game.run('noodle.barkTimer = 0; noodle.clearSpeech();');
+    game.step();
+    assert.equal(game.run('noodle.sniffing'), false);
+    team(game, 'puppy');
+    game.step();
+    assert.equal(game.run('noodle.sniffing'), true, 'Super sniffer');
+});
+
+test('PW-3: unicorn takes a splash off big flowers, right away from My pets too', () => {
+    const game = loadGame();
+    goToLevel(game, 3); // Enchanted Garden: a big flower needing 3
+    const big = 'state.sprouts.find(s => s.big)';
+    assert.equal(game.run(`${big}.waterNeeded`), 3);
+    const at = game.run<{ x: number; y: number }>(`(({ x, y }) => ({ x, y }))(${big})`);
+    placeFlora(game, at.x - 20, at.y);
+    game.tap('Space');
+    game.run('flora.waterTimer = 0; flora.isWatering = false;');
+    game.tap('Space');
+    assert.equal(game.run(`${big}.bloomed`), false, '2 of 3 splashes');
+    // Pick the unicorn in My pets mid-level: 2 splashes are now enough
+    game.run('state.progress.roster = ["unicorn"];');
+    game.click('pause-btn');
+    game.click('pause-pets-btn');
+    game.rosterCards()[9].click();
+    assert.equal(game.run(`${big}.waterNeeded`), 2);
+    assert.equal(game.run(`${big}.bloomed`), true, 'blooms at once');
+    assert.equal(game.run(`${big}.big`), true, 'still drawn as a sunflower');
+});
+
+test('PW-3: snail speeds up the rain; bear makes bees friendly; owl sees farther at night', () => {
+    const rainBloomTicks = (followers: string[]): number => {
+        const game = loadGame();
+        team(game, ...followers);
+        goToLevel(game, 12);
+        game.run('LEVELS[12].rainClouds[0].range = 0; LEVELS[12].rainClouds[0].x = state.sprouts[0].x; restartLevel();');
+        placeFlora(game, 60, 428);
+        let t = 0;
+        while (!game.run('state.sprouts[0].bloomed') && t < 200) {
+            game.step();
+            t++;
+        }
+        return t;
+    };
+    assert.ok(rainBloomTicks(['snail']) < rainBloomTicks([]) * 0.6, 'Rain friend');
+
+    const game = loadGame();
+    team(game, 'bear');
+    goToLevel(game, 5);
+    const bee = game.run<{ x: number }>('({ x: state.bees[0].x })');
+    placeFlora(game, bee.x - 50, 428);
+    game.run('flora.safeTimer = 0;');
+    game.press('ArrowRight');
+    game.step(120);
+    game.release('ArrowRight');
+    assert.equal(game.run('state.levelStars.bumps'), 0, 'Honey friend: no bumps');
+
+    const floraLight = (followers: string[]): number => {
+        const g = loadGame();
+        team(g, ...followers);
+        goToLevel(g, 14);
+        g.run('globalThis.lights = []; weather.drawDarkness = (c, l) => { globalThis.lights = l; };');
+        g.step();
+        return g.run<number>('globalThis.lights[0].r');
+    };
+    assert.ok(floraLight(['owl']) > floraLight([]) + 60, 'Night eyes');
+});
+
+test('PW-4: My pets shows each power, and says what it does', () => {
+    const game = loadGame();
+    clearLevel(game);
+    game.click('pause-btn');
+    game.click('pause-pets-btn');
+    assert.match(game.text('roster-hint'), /Tap a pet to see its power/);
+    const card = game.rosterCards()[0] as unknown as { children: { innerText: string }[] };
+    assert.match(card.children[1].innerText, /Quick paws/, 'power name on the card');
+    const locked = game.rosterCards()[5] as unknown as { children: { innerText: string }[]; click(): void };
+    assert.match(locked.children[1].innerText, /Feather float/, 'even unrescued pets show what they will give');
+    locked.click();
+    assert.match(game.text('roster-hint'), /Rescue this pet in level 6 to get Feather float: Fall slowly and land softly/);
+});
+
+test('PW-4: a newly rescued pet announces its power', () => {
+    const game = loadGame();
+    clearLevel(game);
+    assert.match(game.run<string>('noodle.speechBubble'), /Milo the Kitty joins you: Quick paws! Walk a little faster/);
+});
+
+test('SR-1: picking up the hidden star', () => {
+    const game = loadGame();
+    const star = game.run<{ x: number; y: number }>('({ x: LEVELS[0].star.x, y: LEVELS[0].star.y })');
+    game.run(`flora.x = ${star.x - 16}; flora.y = ${star.y - 24}; flora.vy = 0;`);
+    game.step();
+    assert.equal(game.run('state.levelStars.found'), true);
+    assert.match(game.run<string>('noodle.speechBubble'), /You found the hidden star/);
+    // The hint isn't repeated once the star is found
+    const later: string[] = [];
+    for (let i = 0; i < 900; i++) {
+        game.step();
+        if (game.run('noodle.barkTimer > 0')) later.push(game.run<string>('noodle.speechBubble'));
+    }
+    assert.ok(!later.some(l => /Hidden star:/.test(l)), 'hint dropped');
+    assert.ok(later.some(l => /Star challenge:/.test(l)), 'the challenge hint still comes');
+});
+
+test('SR-2: each challenge can be met, or missed', () => {
+    const finishBits = (setup: (g: ReturnType<typeof loadGame>) => void, level = 0): number => {
+        const g = loadGame();
+        goToLevel(g, level);
+        setup(g);
+        return g.run<number>('starsForFinish()');
+    };
+    // Level 1: water every flower before digging
+    assert.equal(finishBits(g => { bloomAll(g); digBone(g); }) & 4, 4, 'flowers first: met');
+    assert.equal(finishBits(g => { digBone(g); bloomAll(g); }) & 4, 0, 'dug too early: missed');
+    // Level 2: bone on the first dig
+    assert.equal(finishBits(g => digBone(g), 1) & 4, 4, 'first dig: met');
+    assert.equal(finishBits(g => {
+        const decoy = g.run<number>('state.digMounds.find(m => !m.hasBone).x');
+        placeFlora(g, decoy - 16, 428);
+        g.tap('ArrowDown');
+    }, 1) & 4, 0, 'wrong first dig: missed');
+    // Level 6: no bee bumps; level 11: no splashes
+    assert.equal(finishBits(g => g.run('state.levelStars.bumps = 1;'), 5) & 4, 0, 'bumped: missed');
+    assert.equal(finishBits(() => {}, 5) & 4, 4, 'no bumps: met');
+    assert.equal(finishBits(g => g.run('state.levelStars.splashes = 1;'), 10) & 4, 0, 'splashed: missed');
+    // Rescue is always a star; the hidden star only once found
+    assert.equal(finishBits(() => {}) & 1, 1);
+    assert.equal(finishBits(() => {}) & 2, 0);
+    assert.equal(finishBits(g => g.run('state.levelStars.found = true;')) & 2, 2);
+});
+
+test('SR-3: finishing saves the best stars, shown in the level list and the start screen total', () => {
+    const storage = new Map<string, string>();
+    const game = loadGame({ storage });
+    game.run('state.levelStars.found = true;');
+    clearLevel(game); // rescue + hidden + flowers first
+    let saved = JSON.parse(storage.get('floras-adventure-save-v1')!);
+    assert.equal(saved.stars[0], 7, 'all three stars');
+
+    game.run('startGame(0);');
+    clearLevel(game); // a worse run: no hidden star this time
+    saved = JSON.parse(storage.get('floras-adventure-save-v1')!);
+    assert.equal(saved.stars[0], 7, 'the best is kept');
+
+    const reloaded = loadGame({ storage, atStartScreen: true });
+    assert.match(reloaded.text('star-total'), /⭐ 3 \/ 45 stars/);
+    reloaded.click('levels-btn');
+    assert.ok(reloaded.levelCards()[0].innerText.includes('★★★'));
+});
+
+test('SR-4: Noodle gives the star hints when a level starts', () => {
+    const game = loadGame();
+    game.run('noodle.update(flora.x, state.digMounds, false, false, () => {});');
+    const said: string[] = [];
+    for (let i = 0; i < 900; i++) {
+        game.step();
+        const line = game.run<string>('noodle.barkTimer > 0 ? noodle.speechBubble : ""');
+        if (line && said[said.length - 1] !== line) said.push(line);
+    }
+    assert.ok(said.some(l => /Hidden star: Jump high from the left ledge/.test(l)), said.join(' | '));
+    assert.ok(said.some(l => /Star challenge: Water every flower before you dig up the bone/.test(l)));
+});
+
+test('SR-5: the pause menu lists the star goals and your team', () => {
+    const game = loadGame();
+    clearLevel(game);
+    digBone(game); // on level 2, the first dig always finds the bone in this helper: challenge still on
+    game.click('pause-btn');
+    const goals = game.elements['pause-stars'].items as string[];
+    assert.equal(goals.length, 3);
+    assert.match(goals[0], /⬜ Rescue Pip the Puppy/);
+    assert.match(goals[1], /⬜ Find the hidden star: Jump up from the middle ledge/);
+    assert.match(goals[2], /⬜ Find the bone on your very first dig/);
+    const teamList = game.elements['pause-team'].items as string[];
+    assert.match(teamList[0], /Quick paws: Walk a little faster/);
+
+    game.run('state.levelStars.found = true; state.levelStars.wrongDigs = 1;');
+    game.click('resume-btn');
+    game.click('pause-btn');
+    const again = game.elements['pause-stars'].items as string[];
+    assert.match(again[1], /✅/);
+    assert.match(again[2], /❌.*try again next time/);
+});
+
+test('SR-6: older saves get a rescue star for every level already beaten', () => {
+    const storage = new Map([['floras-adventure-save-v1', '{"level":3,"unlocked":3}']]);
+    const game = loadGame({ storage, atStartScreen: true });
+    assert.equal(game.run('state.progress.stars.slice(0, 4).join()'), '1,1,1,0');
+    assert.match(game.text('star-total'), /⭐ 3 \/ 45/);
 });

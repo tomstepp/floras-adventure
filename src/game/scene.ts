@@ -1,13 +1,16 @@
 /** Draws one frame: the sky, the scrolling level, weather and night, then overlays on top. */
 import { ctx } from './dom.ts';
-import { allBloomed, nextGoal, rainbowProgress } from './level.ts';
-import { butterflies, flora, noodle, particleSystem, skyVisitors, state, weather } from './state.ts';
+import { allBloomed, challengeMet, nextGoal, rainbowProgress } from './level.ts';
+import { butterflies, flora, hasPower, noodle, particleSystem, skyVisitors, state, weather } from './state.ts';
 import { overWater } from './world.ts';
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '../layout.ts';
-import { LEVELS, doghouseX, levelWidth } from '../levels.ts';
+import { LEVEL_CLEAR_FRAMES, LEVELS, doghouseX, levelWidth } from '../levels.ts';
+import { POWER_TUNING, STAR_CHALLENGE, STAR_HIDDEN } from '../powers.ts';
 import { drawBee, drawRescuedPet } from '../render/creatures.ts';
-import { drawCelebrationBanner, drawOffscreenArrow } from '../render/hud.ts';
-import { drawKey, drawSprouts } from '../render/items.ts';
+import { drawCelebrationBanner, drawOffscreenArrow, drawStarRow } from '../render/hud.ts';
+import type { StarState } from '../render/hud.ts';
+import { drawHiddenStar, drawKey, drawSprouts } from '../render/items.ts';
+import { drawTwinkle } from '../render/shapes.ts';
 import { drawBushes, drawCloudPlatforms, drawDoghouse, drawIce, drawLilyPads, drawMushrooms, drawPlatforms, drawRainClouds, drawTreeAndGround, drawWater } from '../render/scenery.ts';
 import { drawRainbow, drawSun } from '../render/sky.ts';
 import type { Light } from '../weather.ts';
@@ -50,6 +53,14 @@ export function render(): void {
     } else if (allBloomed() && state.boneFound) {
         drawKey(ctx, state.keyX, state.keyY);
     }
+    if (!state.levelStars.found) drawHiddenStar(ctx, level.star.x, level.star.y);
+    // Clever eyes (fox): a sparkle twinkles over the mound hiding the bone.
+    if (hasPower('fox') && !state.boneFound) {
+        const size = 3 + Math.abs(Math.sin(Date.now() * 0.006)) * 3;
+        ctx.fillStyle = "#FFF3B0";
+        drawTwinkle(ctx, state.boneX, 404, size);
+        drawTwinkle(ctx, state.boneX + 9, 396, size * 0.6);
+    }
 
     for (const pet of state.rescuedFriends) {
         drawRescuedPet(ctx, pet.species, pet.x, 416, pet.facingLeft ?? false, pet.vx ?? 0, overWater(pet.x));
@@ -64,12 +75,18 @@ export function render(): void {
     weather.drawFront(ctx);
     if (weather.kind === 'night') {
         const lights: Light[] = [
-            { x: flora.x + flora.width / 2 - state.cameraX, y: flora.y + 20, r: 165 },
+            // Night eyes (owl): a much bigger light around Flora.
+            {
+                x: flora.x + flora.width / 2 - state.cameraX,
+                y: flora.y + 20,
+                r: hasPower('owl') ? POWER_TUNING.nightEyesLight : POWER_TUNING.nightLight
+            },
             { x: houseX - state.cameraX, y: 400, r: 95 },
             ...weather.fireflyLights()
         ];
         if (allBloomed() && state.boneFound && !state.keyCollected) lights.push({ x: state.keyX - state.cameraX, y: state.keyY, r: 70 });
         for (const s of state.sprouts) if (s.bloomed) lights.push({ x: s.x - state.cameraX, y: s.y - 24, r: 40 });
+        if (!state.levelStars.found) lights.push({ x: level.star.x - state.cameraX, y: level.star.y, r: 45 });
         weather.drawDarkness(ctx, lights, state.pixelScale);
         weather.drawFireflies(ctx);
     }
@@ -83,5 +100,20 @@ export function render(): void {
     const goal = nextGoal();
     if (goal) drawOffscreenArrow(ctx, goal.x - state.cameraX, CANVAS_WIDTH, goal.emoji);
 
-    if (state.levelClearTimer > 0) drawCelebrationBanner(ctx, level.pet);
+    const stars = starStates();
+    drawStarRow(ctx, stars);
+    if (state.levelClearTimer > 0) {
+        drawCelebrationBanner(ctx, level.pet, stars, LEVEL_CLEAR_FRAMES - state.levelClearTimer);
+    }
+}
+
+/** This run's three stars, live: rescue, hidden star, challenge. */
+export function starStates(): StarState[] {
+    const finished = state.levelClearTimer > 0 || state.screen === 'victory';
+    const earned = state.levelStars.earned;
+    return [
+        finished ? 'earned' : 'open',
+        state.levelStars.found || earned & STAR_HIDDEN ? 'earned' : finished ? 'missed' : 'open',
+        finished ? (earned & STAR_CHALLENGE ? 'earned' : 'missed') : challengeMet() ? 'open' : 'missed'
+    ];
 }

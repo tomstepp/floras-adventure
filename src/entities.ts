@@ -1,5 +1,4 @@
 import {
-    BOUNCE_VY,
     BUMP_SAFE_TICKS,
     BUMP_STUN_TICKS,
     COYOTE_TICKS,
@@ -9,7 +8,6 @@ import {
     ICE_GRIP,
     JUMP_BUFFER_TICKS,
     JUMP_CUT_VY,
-    JUMP_VY,
     MUSHROOM_HEIGHT,
     MUSHROOM_WIDTH,
     SPEECH_TOP_Y,
@@ -46,6 +44,8 @@ export class Player {
     private knockVx: number = 0;
     /** Set when she drops into a pond; the game splashes her back onto the bank. */
     public fellInWater: boolean = false;
+    /** Paddling across a pond (frog power). */
+    public swimming: boolean = false;
 
     public reset(): void {
         this.x = 50;
@@ -109,14 +109,14 @@ export class Player {
 
         let targetVx = 0;
         if (keys[CONTROLS.right]) {
-            targetVx = 3.5;
+            targetVx = world.moves.walkSpeed;
             this.facing = 'right';
         } else if (keys[CONTROLS.left]) {
-            targetVx = -3.5;
+            targetVx = -world.moves.walkSpeed;
             this.facing = 'left';
         }
         // On ice she speeds up and slows down gradually, so she slides.
-        const onIce = this.grounded && this.y + this.height >= GROUND_Y - 1 && this.over(world.ice);
+        const onIce = this.grounded && this.y + this.height >= GROUND_Y - 1 && this.over(world.ice) && !world.moves.noIceSlip;
         this.vx = onIce ? this.vx + (targetVx - this.vx) * ICE_GRIP : targetVx;
 
         // Jumps fire on a press (latched even if released within the same tick), not while held,
@@ -124,7 +124,7 @@ export class Player {
         if (pressed[CONTROLS.jump]) this.jumpBufferTimer = JUMP_BUFFER_TICKS;
 
         if (this.jumpBufferTimer > 0 && this.coyoteTimer > 0) {
-            this.vy = JUMP_VY;
+            this.vy = world.moves.jumpVy;
             this.grounded = false;
             this.jumpRising = true;
             this.jumpBufferTimer = 0;
@@ -169,10 +169,18 @@ export class Player {
     }
 
     private applyPhysics(world: PhysicsWorld, playSound: (type: SoundType) => void): void {
-        const { platforms, mushrooms, bushes } = world;
+        const { platforms, mushrooms } = world;
+        // Bush buddy (piglet): bramble bushes don't get in the way at all.
+        const bushes = world.moves.throughBushes ? [] : world.bushes;
         const prevX = this.x;
         const prevBottom = this.y + this.height;
-        this.vy += GRAVITY;
+        this.swimming = false;
+        if (world.moves.featherFall && this.vy > 0) {
+            // Feather float (duckling): gentle gravity and a slow top speed on the way down.
+            this.vy = Math.min(this.vy + GRAVITY * 0.45, 3.2);
+        } else {
+            this.vy += GRAVITY;
+        }
         // Wind pushes her whether she's walking, jumping or knocked back.
         this.x += this.vx + world.windX;
 
@@ -201,7 +209,7 @@ export class Player {
                     this.y + this.height >= top
                 ) {
                     this.y = top - this.height;
-                    this.vy = BOUNCE_VY;
+                    this.vy = world.moves.bounceVy;
                     this.jumpRising = false;
                     playSound('bounce');
                     break;
@@ -229,7 +237,16 @@ export class Player {
 
         // Ground collision (y = 428), except over a pond, where she drops in
         if (this.over(world.water)) {
-            if (!this.grounded && this.y + this.height > WATER_SURFACE_Y + 12) this.fellInWater = true;
+            const floatAt = WATER_SURFACE_Y + 4;
+            if (world.moves.swim && !this.grounded && this.y + this.height >= floatAt) {
+                // Pond paddler (frog): float on the water and paddle along.
+                this.y = floatAt - this.height;
+                this.vy = 0;
+                this.grounded = true;
+                this.swimming = true;
+            } else if (!this.grounded && this.y + this.height > WATER_SURFACE_Y + 12) {
+                this.fellInWater = true;
+            }
         } else if (this.y >= 380) {
             this.y = 380;
             this.vy = 0;
@@ -437,6 +454,7 @@ export class Player {
         }
 
         ctx.restore();
+        if (this.swimming) drawSwimRipple(ctx, this.x + this.width / 2, 19);
     }
 }
 
@@ -461,18 +479,41 @@ export class Noodle {
         this.barkTimer = ticks;
     }
 
+    /** Says `text` once he's finished what he's saying now (or right away if he's quiet). */
+    public sayLater(text: string, ticks: number): void {
+        if (this.barkTimer > 0) this.speechQueue.push([text, ticks]);
+        else {
+            this.speechBubble = text;
+            this.barkTimer = ticks;
+        }
+    }
+
+    /** Forgets lines starting with `prefix`, whether he's saying one now or it's waiting its turn. */
+    public forget(prefix: string): void {
+        this.speechQueue = this.speechQueue.filter(([text]) => !text.startsWith(prefix));
+        if (this.barkTimer > 0 && this.speechBubble.startsWith(prefix)) this.barkTimer = 0;
+    }
+
+    /** Stops talking and forgets anything waiting to be said. */
+    public clearSpeech(): void {
+        this.speechQueue = [];
+        this.barkTimer = 0;
+    }
+
     public update(
         playerX: number,
         digMounds: readonly DigMound[],
         boneFound: boolean,
         gamePaused: boolean,
-        playSound: (type: SoundType) => void
+        playSound: (type: SoundType) => void,
+        /** How close Flora must be for him to smell the bone; Super sniffer (puppy) doubles it. */
+        sniffRange: number = 95
     ): void {
         if (gamePaused) return;
         const prevX = this.x;
 
         const boneMound = digMounds.find(m => m.hasBone);
-        if (!boneFound && boneMound && Math.abs((playerX + 16) - boneMound.x) < 95) {
+        if (!boneFound && boneMound && Math.abs((playerX + 16) - boneMound.x) < sniffRange) {
             this.sniffing = true;
             const targetX = boneMound.x - 12;
             this.x += (targetX - this.x) * 0.1;
@@ -486,7 +527,7 @@ export class Noodle {
             const targetX = playerX - 35;
             this.x += (targetX - this.x) * 0.06;
 
-            if (Math.random() < 0.006 && this.barkTimer <= 0) {
+            if (Math.random() < 0.006 && this.barkTimer <= 0 && this.speechQueue.length === 0) {
                 this.barkTimer = 70;
                 const barks = ["Woof!", "Arf!", "Yip!", "Ruff!"];
                 this.speechBubble = barks[Math.floor(Math.random() * barks.length)];

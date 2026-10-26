@@ -1,6 +1,7 @@
 /** Things that move around the level each tick: moving platforms, bees, wind, rain clouds, ponds, the camera and the pet parade. */
+import { POWER_TUNING } from '../powers.ts';
 import { splashSprout, updateStatus } from './level.ts';
-import { audio, flora, noodle, particleSystem, state } from './state.ts';
+import { audio, flora, hasPower, noodle, particleSystem, state } from './state.ts';
 import { CANVAS_WIDTH } from '../layout.ts';
 import { BEE_RADIUS, GROUND_Y, LEVELS, RAIN_SPLASH_TICKS, RAIN_WIDTH, levelWidth } from '../levels.ts';
 import type { Platform, Point, Species } from '../types.ts';
@@ -83,7 +84,10 @@ export function updateBees(): void {
         const nx = Math.min(Math.max(bee.x, flora.x), flora.x + flora.width);
         const ny = Math.min(Math.max(bee.y, flora.y), flora.y + flora.height);
         if ((bee.x - nx) ** 2 + (bee.y - ny) ** 2 > BEE_RADIUS ** 2) continue;
+        // Honey friend (bear): bees are friendly and buzz right past.
+        if (hasPower('bear')) continue;
         if (flora.bump(bee.x)) {
+            state.levelStars.bumps++;
             audio.playSound('bump');
             particleSystem.spawn(bee.x, bee.y, '#FDCB6E', 8, 'star');
             noodle.barkTimer = 70;
@@ -123,7 +127,9 @@ export function updateRain(): void {
         const underRain = state.rainCloudXs.some(cx => Math.abs(cx - s.x) <= RAIN_WIDTH / 2);
         if (!underRain) continue;
         s.rainTicks = (s.rainTicks ?? 0) + 1;
-        if (s.rainTicks >= RAIN_SPLASH_TICKS) {
+        // Rain friend (snail): rain waters twice as fast.
+        const every = RAIN_SPLASH_TICKS * (hasPower('snail') ? POWER_TUNING.rainFriendFactor : 1);
+        if (s.rainTicks >= every) {
             s.rainTicks = 0;
             splashSprout(s);
             changed = true;
@@ -139,6 +145,7 @@ export function updatePond(): void {
     if (water.length === 0) return;
     if (flora.grounded && flora.y + flora.height >= GROUND_Y - 1 && !flora.over(water)) state.lastSafeX = flora.x;
     if (!flora.fellInWater) return;
+    state.levelStars.splashes++;
     particleSystem.spawn(flora.x + flora.width / 2, GROUND_Y + 6, '#74B9FF', 16, 'circle');
     audio.playSound('bump');
     flora.reset();

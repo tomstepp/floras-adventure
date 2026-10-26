@@ -19,6 +19,7 @@ export const dom = {
     playBtn: byId<HTMLButtonElement>('play-btn'),
     continueBtn: byId<HTMLButtonElement>('continue-btn'),
     levelsBtn: byId<HTMLButtonElement>('levels-btn'),
+    starTotal: byId('star-total'),
     petsBtn: byId<HTMLButtonElement>('pets-btn'),
     // Pause menu
     pauseScreen: byId('pause-screen'),
@@ -28,6 +29,9 @@ export const dom = {
     pauseLevelsBtn: byId<HTMLButtonElement>('pause-levels-btn'),
     pausePetsBtn: byId<HTMLButtonElement>('pause-pets-btn'),
     pauseMenuBtn: byId<HTMLButtonElement>('pause-menu-btn'),
+    pauseStars: byId('pause-stars'),
+    pauseBest: byId('pause-best'),
+    pauseTeam: byId('pause-team'),
     // Level list
     levelSelect: byId('level-select'),
     levelGrid: byId('level-grid'),

@@ -1,12 +1,13 @@
 /** The level's rules: setting it up, watering, digging, the key, the doghouse, the celebration, and the HUD text. */
 import { dom } from './dom.ts';
 import { saveProgress } from './menus.ts';
-import { audio, flora, noodle, particleSystem, persist, state, weather } from './state.ts';
+import { audio, flora, freshLevelStars, hasPower, noodle, particleSystem, persist, state, weather } from './state.ts';
 import { PARADE_GAP, beesAt, cameraTarget, movingPlatformsAt, petName, rainCloudsAt, syncParade } from './world.ts';
 import { CANVAS_WIDTH } from '../layout.ts';
 import { BIG_FLOWER_COLOR, DIG_RANGE, FLOWER_COLORS, GROUND_Y, LEVELS, LEVEL_CLEAR_FRAMES, RAINBOW_SWEEP_FRAMES, doghouseEntryX, doghouseX } from '../levels.ts';
-import { addRescue } from '../save.ts';
-import type { DigMound, Sprout } from '../types.ts';
+import { CHALLENGE_TEXT, PET_POWERS, POWER_TUNING, STAR_CHALLENGE, STAR_HIDDEN, STAR_RESCUE } from '../powers.ts';
+import { addRescue, recordStars } from '../save.ts';
+import type { DigMound, SproutConfig, Sprout } from '../types.ts';
 
 export function allBloomed(): boolean {
     return state.sprouts.every(s => s.bloomed);
@@ -53,15 +54,18 @@ export function initLevel(): void {
     weather.setKind(level.weather ?? 'clear');
     state.keyX = level.keyPos.x;
     state.keyY = level.keyPos.y;
+    state.levelStars = freshLevelStars();
 
     level.sprouts.forEach((pos, i) => {
+        const big = (pos.waterNeeded ?? 1) > 1;
         state.sprouts.push({
             x: pos.x,
             y: pos.y,
             water: 0,
-            waterNeeded: pos.waterNeeded ?? 1,
+            waterNeeded: splashesNeeded(pos),
+            big,
             bloomed: false,
-            color: (pos.waterNeeded ?? 1) > 1 ? BIG_FLOWER_COLOR : FLOWER_COLORS[i % FLOWER_COLORS.length],
+            color: big ? BIG_FLOWER_COLOR : FLOWER_COLORS[i % FLOWER_COLORS.length],
             danceOffset: Math.random() * Math.PI * 2
         });
     });
@@ -77,10 +81,11 @@ export function initLevel(): void {
     });
     state.boneX = level.mounds[boneIdx];
 
-    if (level.tip) {
-        noodle.speechBubble = level.tip;
-        noodle.barkTimer = 240;
-    }
+    // Noodle starts with the level's tip, then gives the star hints so nobody has to guess.
+    noodle.clearSpeech();
+    if (level.tip) noodle.sayLater(level.tip, 240);
+    noodle.sayLater(`${HIDDEN_STAR_HINT}${level.star.hint}`, 240);
+    noodle.sayLater(`⭐ Star challenge: ${CHALLENGE_TEXT[level.challenge]}`, 240);
 
     dom.levelDisplay.innerText = `Level ${state.currentLevel + 1}: ${level.name}`;
     updateStatus();
@@ -101,6 +106,31 @@ export function restartLevel(): void {
     state.cameraX = cameraTarget();
 }
 
+const HIDDEN_STAR_HINT = '⭐ Hidden star: ';
+
+/** Splashes a sprout needs right now: Rainbow magic (unicorn) takes one off big flowers. */
+export function splashesNeeded(config: SproutConfig): number {
+    const base = config.waterNeeded ?? 1;
+    return hasPower('unicorn') ? Math.max(1, base - 1) : base;
+}
+
+/**
+ * Call after the followers change (mid-level, from My pets): powers that change the level
+ * itself take effect at once. A big flower that now has enough water blooms straight away.
+ */
+export function refreshPowers(): void {
+    const level = LEVELS[state.currentLevel];
+    state.sprouts.forEach((s, i) => {
+        if (s.bloomed) return;
+        s.waterNeeded = splashesNeeded(level.sprouts[i]);
+        if (s.water >= s.waterNeeded) {
+            s.water = s.waterNeeded - 1;
+            splashSprout(s);
+        }
+    });
+    updateStatus();
+}
+
 /** One splash of water on a sprout, from Flora's can or a rain cloud. */
 export function splashSprout(s: Sprout): void {
     if (s.bloomed) return;
@@ -108,7 +138,7 @@ export function splashSprout(s: Sprout): void {
     if (s.water >= s.waterNeeded) {
         s.bloomed = true;
         audio.playSound('bloom');
-        const big = s.waterNeeded > 1;
+        const big = s.big;
         particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
         particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
     } else {
@@ -119,8 +149,10 @@ export function splashSprout(s: Sprout): void {
 export function checkWatering(): void {
     const canCenterX = flora.facing === 'right' ? flora.x + 30 : flora.x + 2;
     const floraFeetY = flora.y + flora.height;
+    // Big splash (hamster) reaches farther.
+    const reach = hasPower('hamster') ? POWER_TUNING.bigWaterRange : POWER_TUNING.waterRange;
     for (const s of state.sprouts) {
-        if (s.bloomed || Math.abs(canCenterX - s.x) >= 48 || Math.abs(floraFeetY - s.y) >= 48) continue;
+        if (s.bloomed || Math.abs(canCenterX - s.x) >= reach || Math.abs(floraFeetY - s.y) >= 48) continue;
         splashSprout(s);
     }
     updateStatus();
@@ -141,6 +173,7 @@ export function checkDigging(): void {
 
     mound.dug = true;
     if (mound.hasBone) {
+        if (!allBloomed()) state.levelStars.dugTooEarly = true;
         state.boneFound = true;
         state.boneX = mound.x;
         audio.playSound('key');
@@ -149,9 +182,42 @@ export function checkDigging(): void {
         noodle.speechBubble = allBloomed() ? "Woof! Found it! 🦴" : "Bone! Now water the flowers! 🌸";
         updateStatus();
     } else {
+        if (!state.boneFound) state.levelStars.wrongDigs++;
         noodle.barkTimer = 60;
         noodle.speechBubble = "Keep sniffing! 🐾";
     }
+}
+
+/** The hidden star: touch it to pick it up, like the key. */
+export function updateHiddenStar(): void {
+    if (state.levelStars.found) return;
+    const { star } = LEVELS[state.currentLevel];
+    const cx = flora.x + flora.width / 2;
+    const cy = flora.y + flora.height / 2;
+    if (Math.abs(cx - star.x) < 30 && Math.abs(cy - star.y) < 38) {
+        state.levelStars.found = true;
+        audio.playSound('key');
+        particleSystem.spawn(star.x, star.y, '#FDCB6E', 22, 'star');
+        // No need for the hint any more.
+        noodle.forget(HIDDEN_STAR_HINT);
+        noodle.sayFirst("You found the hidden star! ⭐", 120);
+    }
+}
+
+/** Whether the level's star challenge is still on (or done). */
+export function challengeMet(): boolean {
+    const s = state.levelStars;
+    switch (LEVELS[state.currentLevel].challenge) {
+        case 'flowersFirst': return !s.dugTooEarly;
+        case 'firstDig': return s.wrongDigs === 0;
+        case 'noBumps': return s.bumps === 0;
+        case 'noSplash': return s.splashes === 0;
+    }
+}
+
+/** Stars for finishing now: the rescue, the hidden star if found, the challenge if met. */
+export function starsForFinish(): number {
+    return STAR_RESCUE | (state.levelStars.found ? STAR_HIDDEN : 0) | (challengeMet() ? STAR_CHALLENGE : 0);
 }
 
 export function updateKey(): void {
@@ -173,13 +239,15 @@ export function updateDoghouse(): void {
     const houseX = doghouseX(LEVELS[state.currentLevel]);
     if (state.keyCollected) {
         state.levelClearTimer = LEVEL_CLEAR_FRAMES;
+        state.levelStars.earned = starsForFinish();
         audio.playSound('victory');
         particleSystem.spawn(houseX, 395, '#FF7675', 14, 'heart');
         particleSystem.spawn(houseX, 385, '#F1C40F', 20, 'star');
         updateStatus();
-    } else if (noodle.barkTimer <= 0) {
-        noodle.barkTimer = 70;
-        noodle.speechBubble = "It's locked! Need the key 🔑";
+    } else {
+        // Interrupt any hints: this is what she needs to know right now.
+        const locked = "It's locked! Need the key 🔑";
+        if (noodle.speechBubble !== locked || noodle.barkTimer <= 0) noodle.sayFirst(locked, 70);
     }
 }
 
@@ -192,12 +260,17 @@ export function updateLevelClear(): void {
     state.levelClearTimer--;
     if (state.levelClearTimer > 0) return;
 
+    // Keep the best stars ever earned on this level.
+    recordStars(state.progress, state.currentLevel, state.levelStars.earned || starsForFinish());
+
     // The rescued pet joins the roster and the parade; a full parade sends its longest follower home.
-    const { bumped } = addRescue(state.progress, LEVELS[state.currentLevel].species);
+    const species = LEVELS[state.currentLevel].species;
+    const { bumped, isNew } = addRescue(state.progress, species);
     const leaving = state.rescuedFriends.find(p => p.species === bumped);
     if (leaving) particleSystem.spawn(leaving.x, 405, '#FF7675', 8, 'heart');
     syncParade();
     const goodbye = bumped ? `${petName(bumped)} went home to rest 🏡` : null;
+    const welcome = isNew ? `${petName(species)} joins you: ${PET_POWERS[species].name}! ${PET_POWERS[species].description}` : null;
 
     if (state.currentLevel === LEVELS.length - 1) {
         state.screen = 'victory';
@@ -211,8 +284,9 @@ export function updateLevelClear(): void {
         saveProgress(state.currentLevel);
         restartLevel();
     }
-    // Shown before the new level's tip, which waits its turn.
+    // Shown before the new level's tip and star hints, which wait their turn.
     if (goodbye) noodle.sayFirst(goodbye, 150);
+    if (welcome) noodle.sayFirst(welcome, 220);
 }
 
 /** What Flora should head for next, for the off-screen arrow: key, then doghouse, then any sprout left. */

@@ -289,6 +289,25 @@ for (const [i, level] of LEVELS.entries()) {
         }
     });
 
+    test(`LD-15: ${name} hidden star can be reached with a plain jump, and its hint is short`, () => {
+        const { star } = level;
+        const reached = reachable(level);
+        const under = surfaces(level).filter(p => spans(p, star.x) && p.y - star.y >= 20 && p.y - star.y <= 160);
+        assert.ok(
+            under.some(p => reached.some(r => r.x === p.x && r.y === p.y)),
+            `star at (${star.x}, ${star.y}) isn't within a jump of a reachable surface`
+        );
+        assert.ok(star.y >= 95, 'star is hidden behind the HUD');
+        assert.ok(star.x > 20 && star.x < doghouseLeft(level) - 20, 'star is off the edge or in the doghouse');
+        assert.ok(Math.hypot(star.x - level.keyPos.x, star.y - level.keyPos.y) >= 60, 'star is too close to the key');
+        assert.ok(star.hint.split(' ').length <= 10, `hint "${star.hint}" is too long for young players`);
+    });
+
+    test(`LD-16: ${name} star challenge fits the level`, () => {
+        if (level.challenge === 'noBumps') assert.ok((level.bees ?? []).length > 0, 'no bees to avoid');
+        if (level.challenge === 'noSplash') assert.ok((level.water ?? []).length > 0, 'no water to fall in');
+    });
+
     test(`LD-8: ${name} big flowers need 2 or 3 splashes`, () => {
         for (const s of level.sprouts) {
             const need = s.waterNeeded ?? 1;

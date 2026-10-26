@@ -87,6 +87,29 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | DV-3 | Dev mode adds **⏭ Skip level (dev)** to the pause menu: it finishes the current level at once, rescuing its pet, as if the celebration had just ended (the last level shows the victory dialog). |
 | DV-4 | Dev mode never writes to the save, so normal play continues exactly where it was. |
 
+## 2f. Pet powers
+
+Powers only ever help, and every level can be beaten with no pets following.
+
+| ID | Requirement |
+|----|-------------|
+| PW-1 | Every pet gives a power while it follows Flora, with a short name (≤ 3 words) and a one-sentence description (≤ 8 words) in plain words for young players. |
+| PW-2 | Movement powers: 🐱 **Quick paws** walk faster · 🐰 **Bunny hop** jump higher · 🐥 **Feather float** fall slowly · 🐼 **Mushroom fan** bounce higher · 🐷 **Bush buddy** walk through bushes · 🐢 **Steady feet** no slipping on ice · 🐸 **Pond paddler** swim across ponds · 🐦 **Wind rider** the wind hardly pushes. |
+| PW-3 | Level powers: 🐹 **Big splash** water from farther · 🐶 **Super sniffer** Noodle smells the bone from farther · 🦊 **Clever eyes** a sparkle over the bone's mound · 🦄 **Rainbow magic** big flowers need one less splash (they still look like sunflowers) · 🐌 **Rain friend** rain waters twice as fast · 🐻 **Honey friend** bees won't bump you · 🦉 **Night eyes** a much bigger light at night. |
+| PW-4 | Powers turn on and off with the followers, straight away, including when the team is changed mid-level from the pause menu (a big flower with enough water blooms at once). |
+| PW-5 | Kids never have to guess: each My pets card shows its power's name (even for pets not rescued yet, with the level that rescues them); pointing at or tapping a card shows the description; the pause menu lists the team's powers; a newly rescued pet is announced with its power ("Milo the Kitty joins you: Quick paws! Walk a little faster."). |
+
+## 2g. Stars
+
+| ID | Requirement |
+|----|-------------|
+| SR-1 | Every level has 3 stars: ⭐ rescue the pet, ⭐ find the **hidden star**, ⭐ do the level's **challenge**. |
+| SR-2 | The hidden star is a smiling gold star that bobs and glows (and lights the dark at night); touching it picks it up. Each level has a short hint for where it is. |
+| SR-3 | Challenges are simple, one per level: water every flower before digging up the bone · find the bone on the first dig · don't let a bee bump you · don't fall in the water. Nothing is lost for missing one. |
+| SR-4 | Hints are given without asking: when a level starts, Noodle says the level's tip, then the hidden-star hint, then the challenge. Once the star is found its hint isn't repeated. The pause menu lists all three goals with ✅ done / ⬜ still to do / ❌ missed ("try again next time!"), and the level's best. |
+| SR-5 | A tracker under the level name shows this run's stars: gold when earned, outlined while still possible, pale and dashed when missed. When Flora reaches the doghouse the celebration banner shows the stars popping in one by one. |
+| SR-6 | The best stars ever earned on each level are saved (a worse replay never lowers them). The level list shows each unlocked level's stars (★★☆) and the start screen shows the total (⭐ n / 45 stars). Older saves get the rescue star for every level already beaten. |
+
 ## 3. Level flow
 
 Each level is completed in this order:
@@ -185,6 +208,8 @@ These are checked automatically against `src/levels.ts` so new levels can't be u
 | LD-12 | Ponds stay clear of the start (x > 200) and the doghouse, and no ground sprout, mound, mushroom or bush is in one. Lily pads sit inside a pond, floating above the water. Every dry piece of ground can be reached, and Lily Pond's ponds can't be crossed without the lily pads. |
 | LD-13 | Ice sits on dry ground, clear of the start and the doghouse. |
 | LD-14 | Wind is never more than 60% of walking speed (so Flora can always walk into it), with at least 2 s of calm between gusts; rain clouds stay inside the level. |
+| LD-15 | Every hidden star can be reached with a plain jump (no powers): 20–160 px above a reachable surface, within its span, below the HUD, away from the key and the doghouse; its hint is at most 10 words. |
+| LD-16 | A level's challenge fits it: "no bee bumps" only where there are bees, "don't fall in" only where there's water. |
 
 ## 6. Out of scope (ideas for later)
 

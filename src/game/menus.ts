@@ -1,10 +1,12 @@
 /** The screens around play: start, pause, level list, My pets, and the victory dialog. */
 import { dom } from './dom.ts';
 import { dropInput } from './input.ts';
-import { restartLevel } from './level.ts';
+import { refreshPowers, restartLevel } from './level.ts';
 import { audio, noodle, persist, state } from './state.ts';
 import { PARADE_GAP, syncParade } from './world.ts';
 import { LEVELS } from '../levels.ts';
+import { CHALLENGE_TEXT, PET_POWERS, STARS_PER_LEVEL, starCount, starString } from '../powers.ts';
+import { starStates } from './scene.ts';
 import { drawPetSprite } from '../pets.ts';
 import { PET_EMOJI } from '../render/creatures.ts';
 import { MAX_FOLLOWERS, toggleFollower } from '../save.ts';
@@ -42,6 +44,8 @@ export function showStartScreen(): void {
     if (state.progress.level !== null) dom.continueBtn.innerText = `▶ Continue — Level ${state.progress.level + 1}`;
     dom.playBtn.innerText = canContinue ? '🌱 New game' : '▶ Play';
     dom.petsBtn.hidden = state.progress.roster.length === 0;
+    const total = state.progress.stars.reduce((sum, bits) => sum + starCount(bits), 0);
+    dom.starTotal.innerText = `⭐ ${total} / ${LEVELS.length * STARS_PER_LEVEL} stars`;
     showOverlay(dom.startScreen);
     (canContinue ? dom.continueBtn : dom.playBtn).focus();
 }
@@ -50,6 +54,7 @@ export function pauseGame(): void {
     if (state.screen !== 'playing') return;
     state.screen = 'paused';
     dropInput();
+    fillPauseInfo();
     showOverlay(dom.pauseScreen);
     dom.resumeBtn.focus();
 }
@@ -76,8 +81,11 @@ export function openLevelSelect(from: 'start' | 'paused'): void {
             if (locked) btn.classList.add('locked');
             if (beaten) btn.classList.add('beaten');
             if (i === state.currentLevel && from === 'paused') btn.classList.add('current');
-            // First line (the pet, or a lock) is drawn big by CSS; then "number. name".
-            btn.innerText = `${locked ? '🔒' : PET_EMOJI[level.species]}\n${i + 1}. ${level.name}${beaten ? ' ✔' : ''}`;
+            // First line (the pet, or a lock) is drawn big by CSS; then "number. name", then stars.
+            const stars = state.progress.stars[i] ?? 0;
+            btn.innerText = locked
+                ? `🔒\n${i + 1}. ${level.name}`
+                : `${PET_EMOJI[level.species]}\n${i + 1}. ${level.name}\n${starString(stars)}`;
             btn.setAttribute('aria-label', `Level ${i + 1}: ${level.name}${locked ? ' (locked)' : beaten ? ' (rescued)' : ''}`);
             btn.addEventListener('click', () => {
                 if (locked) return;
@@ -128,7 +136,7 @@ export function drawRosterPet(card: HTMLCanvasElement, species: Species, rescued
 export function openRoster(from: 'start' | 'paused'): void {
     state.menuReturnTo = from;
     state.screen = 'roster';
-    dom.rosterHint.innerText = '';
+    dom.rosterHint.innerText = `Tap a pet to see its power. Up to ${MAX_FOLLOWERS} can follow you!`;
     renderRoster();
     showOverlay(dom.rosterScreen);
     (dom.rosterGrid.children[0] as HTMLElement | undefined)?.focus();
@@ -150,24 +158,41 @@ export function renderRoster(): void {
             btn.disabled = !rescued;
             const pic = document.createElement('canvas');
             drawRosterPet(pic, species, rescued);
+            const power = PET_POWERS[species];
             const label = document.createElement('span');
             label.innerText = rescued
-                ? `${level.pet}\n${following ? '🐾 Following' : '💤 Resting'}`
-                : `???\nRescue in level ${i + 1}`;
+                ? `${level.pet}\n⚡ ${power.name}\n${following ? '🐾 Following' : '💤 Resting'}`
+                : `???\n⚡ ${power.name}\nRescue in level ${i + 1}`;
+            // Tapping or pointing at a card says what its power does, in plain words.
+            const describe = (): void => {
+                dom.rosterHint.innerText = rescued
+                    ? `${PET_EMOJI[species]} ${power.name}: ${power.description}`
+                    : `Rescue this pet in level ${i + 1} to get ${power.name}: ${power.description}`;
+            };
+            btn.addEventListener('mouseenter', describe);
+            btn.addEventListener('focus', describe);
             btn.append(pic, label);
             btn.setAttribute('aria-label', rescued ? `${level.pet}, ${following ? 'following' : 'resting'}` : `Not rescued yet, level ${i + 1}`);
             btn.setAttribute('aria-pressed', String(following));
             btn.addEventListener('click', () => {
-                if (!rescued) return;
+                if (!rescued) {
+                    describe();
+                    return;
+                }
                 if (!toggleFollower(state.progress, species)) {
                     dom.rosterHint.innerText = `Only ${MAX_FOLLOWERS} pets can follow at once — tap one to let it rest first.`;
                     return;
                 }
-                dom.rosterHint.innerText = '';
                 persist();
                 syncParade();
+                // Powers that change the level (like Rainbow magic) take effect right away.
+                refreshPowers();
                 renderRoster();
                 (dom.rosterGrid.children[i] as HTMLElement | undefined)?.focus();
+                const now = state.progress.followers.includes(species);
+                dom.rosterHint.innerText = now
+                    ? `${PET_EMOJI[species]} ${level.pet} is following: ${power.name}! ${power.description}`
+                    : `💤 ${level.pet} is resting.`;
             });
             return btn;
         })
@@ -257,4 +282,36 @@ export function skipLevel(): void {
     resumeGame();
     // One tick left of the celebration: the next tick rescues the pet and moves on.
     state.levelClearTimer = 1;
+}
+
+/** The pause menu's side panel: this level's three star goals, and what your team can do. */
+export function fillPauseInfo(): void {
+    const level = LEVELS[state.currentLevel];
+    const [rescue, hidden, challenge] = starStates();
+    const mark = (st: string): string => (st === 'earned' ? '✅' : st === 'missed' ? '❌' : '⬜');
+    const goals = [
+        `${mark(rescue)} Rescue ${level.pet}`,
+        `${mark(hidden)} Find the hidden star: ${level.star.hint}`,
+        `${mark(challenge)} ${CHALLENGE_TEXT[level.challenge]}${challenge === 'missed' ? ' (try again next time!)' : ''}`
+    ];
+    dom.pauseStars.replaceChildren(...goals.map(text => {
+        const li = document.createElement('li');
+        li.innerText = text;
+        return li;
+    }));
+    const best = state.progress.stars[state.currentLevel] ?? 0;
+    dom.pauseBest.innerText = best ? `Your best here: ${starString(best)}` : '';
+
+    const team = state.progress.followers.map(species => {
+        const power = PET_POWERS[species];
+        const li = document.createElement('li');
+        li.innerText = `${PET_EMOJI[species]} ${power.name}: ${power.description}`;
+        return li;
+    });
+    if (team.length === 0) {
+        const li = document.createElement('li');
+        li.innerText = "No pets following yet. Rescued pets give you powers!";
+        team.push(li);
+    }
+    dom.pauseTeam.replaceChildren(...team);
 }
