@@ -22,8 +22,14 @@ export class AudioController {
     }
 
     public toggle(currentLevel: number, musicBtn: HTMLElement): void {
-        if (typeof Tone === 'undefined') return;
-        if (!this.enabled) {
+        this.setEnabled(!this.enabled, currentLevel, musicBtn);
+        musicBtn.blur();
+    }
+
+    /** Must be called from a click/tap: browsers only allow audio to start after a user gesture. */
+    public setEnabled(on: boolean, currentLevel: number, musicBtn: HTMLElement): void {
+        if (typeof Tone === 'undefined' || on === this.enabled) return;
+        if (on) {
             void Tone.start();
             if (!this.synth) this.init();
             this.enabled = true;
@@ -34,7 +40,6 @@ export class AudioController {
             musicBtn.innerText = '🎵 Music: OFF';
             Tone.Transport.stop();
         }
-        musicBtn.blur();
     }
 
     public startBgMusic(currentLevel: number): void {
@@ -63,6 +68,7 @@ export class AudioController {
         if (type === 'bloom') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5"], "8n");
         if (type === 'bark') this.synth?.triggerAttackRelease("E3", "16n");
         if (type === 'key') this.polySynth?.triggerAttackRelease(["G5", "C6", "E6"], "4n");
+        if (type === 'bounce') this.synth?.triggerAttackRelease("C5", "16n");
         if (type === 'victory') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n");
     }
 }

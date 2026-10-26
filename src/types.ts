@@ -1,6 +1,6 @@
 export type Species = 'kitty' | 'puppy' | 'hamster' | 'turtle' | 'bunny';
 export type Direction = 'left' | 'right';
-export type SoundType = 'jump' | 'water' | 'dig' | 'bloom' | 'bark' | 'key' | 'victory';
+export type SoundType = 'jump' | 'water' | 'dig' | 'bloom' | 'bark' | 'key' | 'victory' | 'bounce';
 export type ParticleShape = 'circle' | 'star' | 'heart';
 
 export interface Point {
@@ -14,9 +14,22 @@ export interface Platform {
     width: number;
 }
 
+/** A platform that glides from `x` to `x + range` and back, once every `period` ticks. */
+export interface MovingPlatform extends Platform {
+    range: number;
+    period: number;
+}
+
+export interface SproutConfig extends Point {
+    /** Splashes needed to bloom; big flowers need more than 1. */
+    waterNeeded?: number;
+}
+
 export interface Sprout {
     x: number;
     y: number;
+    water: number;
+    waterNeeded: number;
     bloomed: boolean;
     color: string;
     danceOffset: number;
@@ -55,9 +68,14 @@ export interface LevelConfig {
     bg: string;
     treeX: number;
     platforms: readonly Platform[];
-    sprouts: readonly Point[];
+    movingPlatforms?: readonly MovingPlatform[];
+    /** Bouncy mushrooms; `y` is the surface they grow on. */
+    mushrooms?: readonly Point[];
+    sprouts: readonly SproutConfig[];
     mounds: readonly number[];
     keyPos: Point;
+    /** What Noodle says when the level starts, introducing its new twist. */
+    tip?: string;
 }
 
 export interface ToneSynthLike {

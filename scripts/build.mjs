@@ -10,6 +10,7 @@ const moduleOrder = [
     'types.ts',
     'levels.ts',
     'layout.ts',
+    'save.ts',
     'audio.ts',
     'particles.ts',
     'renderer.ts',

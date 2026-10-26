@@ -14,10 +14,10 @@ test('HD-1/HD-2/HD-3: starts on level 1 with an empty HUD and a watering objecti
 function jumpPeak(holdTicks: number): number {
     const game = loadGame();
     placeFlora(game, 50, 428);
-    game.press('Space');
+    game.press('ArrowUp');
     let minY = 380;
     for (let i = 0; i < 60; i++) {
-        if (i === holdTicks) game.release('Space');
+        if (i === holdTicks) game.release('ArrowUp');
         game.step();
         minY = Math.min(minY, game.run<number>('flora.y'));
     }
@@ -37,21 +37,21 @@ test('CT-1/CT-3/CT-4: letter keys do nothing; only arrows and Space are controls
     assert.equal(game.run('sprouts[0].bloomed || digMounds.some(m => m.dug)'), false);
 });
 
-test('CT-2: the up arrow waters instead of jumping', () => {
+test('CT-2: Space waters instead of jumping', () => {
     const game = loadGame();
     placeFlora(game, 100, 428);
-    game.tap('ArrowUp');
+    game.tap('Space');
     game.step();
     assert.equal(game.run('flora.y'), 380);
     assert.equal(game.run('flora.isWatering'), true);
 });
 
-test('CT-2: holding Space jumps onto a platform', () => {
+test('CT-2: holding ↑ jumps onto a platform', () => {
     const game = loadGame();
     placeFlora(game, 250, 428);
-    game.press('Space');
+    game.press('ArrowUp');
     game.step(45);
-    game.release('Space');
+    game.release('ArrowUp');
     assert.equal(game.run('flora.grounded'), true);
     assert.equal(game.run('flora.y + flora.height'), 345);
 });
@@ -59,18 +59,18 @@ test('CT-2: holding Space jumps onto a platform', () => {
 test('CT-2: Flora cannot jump again while airborne', () => {
     const game = loadGame();
     placeFlora(game, 50, 428);
-    game.press('Space');
+    game.press('ArrowUp');
     game.step(15);
     const vy = game.run<number>('flora.vy');
-    game.release('Space');
-    game.tap('Space');
+    game.release('ArrowUp');
+    game.tap('ArrowUp');
     assert.ok(game.run<number>('flora.vy') > vy, 'second press should not reset upward velocity');
 });
 
-test('CT-8: holding Space does not keep bouncing', () => {
+test('CT-8: holding ↑ does not keep bouncing', () => {
     const game = loadGame();
     placeFlora(game, 50, 428);
-    game.press('Space');
+    game.press('ArrowUp');
     game.step(80); // long enough to jump, land, and sit still
     assert.equal(game.run('flora.grounded'), true);
     game.step(10);
@@ -80,8 +80,8 @@ test('CT-8: holding Space does not keep bouncing', () => {
 test('CT-9: a tap shorter than one tick still jumps (as a short hop)', () => {
     const game = loadGame();
     placeFlora(game, 50, 428);
-    game.press('Space');
-    game.release('Space'); // both between two ticks
+    game.press('ArrowUp');
+    game.release('ArrowUp'); // both between two ticks
     let minY = 380;
     for (let i = 0; i < 40; i++) {
         game.step();
@@ -90,7 +90,7 @@ test('CT-9: a tap shorter than one tick still jumps (as a short hop)', () => {
     assert.ok(380 - minY > 5 && 380 - minY < 40, `hop reached ${380 - minY}px`);
 });
 
-test('CT-9: tapping Space gives a short hop; holding gives a full jump', () => {
+test('CT-9: tapping ↑ gives a short hop; holding gives a full jump', () => {
     const tap = jumpPeak(1);
     const full = jumpPeak(60);
     assert.ok(full > 110, `full jump reached ${full}px`);
@@ -105,7 +105,7 @@ test('CT-10: coyote time allows a jump just after walking off a ledge', () => {
         while (game.run('flora.grounded')) game.step();
         game.release('ArrowRight');
         game.step(ticksLate);
-        game.tap('Space');
+        game.tap('ArrowUp');
         return game.run<number>('flora.vy');
     };
     assert.ok(jumpAfterLeaving(3) < -9, 'jump 4 ticks after leaving the ledge should work');
@@ -125,7 +125,7 @@ test('CT-11: a jump pressed just before landing fires on landing', () => {
             ticks++;
         }
         game.step(ticks - ticksEarly);
-        game.press('Space');
+        game.press('ArrowUp');
         game.step(ticksEarly + 2);
         return game.run<number>('flora.vy') < -5;
     };
@@ -136,11 +136,11 @@ test('CT-11: a jump pressed just before landing fires on landing', () => {
 test('CT-3: an elevated sprout cannot be watered from the ground, but can from its platform', () => {
     const game = loadGame();
     placeFlora(game, 250, 428);
-    game.tap('ArrowUp');
+    game.tap('Space');
     assert.equal(game.run('sprouts[1].bloomed'), false);
 
     placeFlora(game, 250, 345);
-    game.tap('ArrowUp');
+    game.tap('Space');
     assert.equal(game.run('sprouts[1].bloomed'), true);
     assert.equal(game.text('status-display'), 'Flowers: 1/3 | Bone: ❌ | Key: ❌');
 });
@@ -297,7 +297,7 @@ test('LV-7: clearing all five levels opens the victory dialog, closing it restar
         clearLevel(game);
     }
     assert.equal(game.dialog.open, true);
-    assert.equal(game.run('gamePaused'), true);
+    assert.equal(game.run('screen'), 'victory');
     assert.equal(game.run('rescuedFriends.map(f => f.species).join()'), LEVELS.map(l => l.species).join());
 
     // The game stays frozen behind the dialog.
@@ -309,7 +309,7 @@ test('LV-7: clearing all five levels opens the victory dialog, closing it restar
     game.dialog.close();
     assert.equal(game.run('currentLevel'), 0);
     assert.equal(game.run('rescuedFriends.length'), 0);
-    assert.equal(game.run('gamePaused'), false);
+    assert.equal(game.run('screen'), 'playing');
     assert.equal(game.run('keys.ArrowLeft'), false, 'held keys are cleared on restart');
     assert.equal(game.text('level-display'), 'Level 1: Blooming Meadow');
 });
@@ -374,7 +374,7 @@ test('PL-7: on-screen buttons hold the matching control while touched', () => {
     game.step(5);
     assert.equal(game.run('flora.x'), 135, 'a cancelled touch releases the button');
 
-    game.touch('Space', 'pointerdown');
+    game.touch('ArrowUp', 'pointerdown');
     game.step();
     assert.ok(game.run<number>('flora.vy') < 0, 'jump button jumps');
 });
@@ -387,4 +387,146 @@ test('PL-6: the game box and canvas resize with the window', () => {
     assert.equal(stage.width, `${Math.floor(808 * ((390 - 32) / 808))}px`);
     assert.equal(canvas.width, Math.round(800 * ((390 - 32) / 808) * 3), 'backing store matches device pixels');
     assert.ok(Math.abs(canvas.width / canvas.height - 800 / 500) < 0.01, 'keeps the 8:5 shape');
+});
+
+/** Jumps straight to a level (0-based) as if the earlier ones were beaten. */
+function goToLevel(game: ReturnType<typeof loadGame>, level: number): void {
+    game.run(`startGame(${level});`);
+}
+
+test('TW-4: landing on the mushroom bounces Flora up to the level 2 key ledge', () => {
+    const game = loadGame();
+    goToLevel(game, 1);
+    // Drop Flora onto the mushroom at x=640 from just above it.
+    game.run('flora.x = 624; flora.y = 340; flora.vy = 0; flora.grounded = false; flora.coyoteTimer = 0;');
+    let launched = false;
+    for (let i = 0; i < 20 && !launched; i++) {
+        game.step();
+        launched = game.run<number>('flora.vy') < -15;
+    }
+    assert.ok(launched, 'mushroom should launch Flora');
+    for (let i = 0; i < 120 && !game.run('flora.grounded'); i++) game.step();
+    assert.equal(game.run('flora.y + flora.height'), 150, 'lands on the high ledge');
+});
+
+test('TW-4: walking along the ground past a mushroom does not bounce', () => {
+    const game = loadGame();
+    goToLevel(game, 1);
+    placeFlora(game, 560, 428);
+    game.press('ArrowRight');
+    game.step(30);
+    game.release('ArrowRight');
+    assert.equal(game.run('flora.y'), 380);
+});
+
+test('TW-5: the cloud glides back and forth and carries Flora with it', () => {
+    const game = loadGame();
+    goToLevel(game, 2);
+    const start = game.run<number>('movingPlatforms[0].x');
+    game.step(60);
+    const later = game.run<number>('movingPlatforms[0].x');
+    assert.ok(later > start, 'cloud moves right first');
+    game.step(180);
+    assert.ok(Math.abs(game.run<number>('movingPlatforms[0].x') - start) < 0.5, 'and returns after one period');
+
+    placeFlora(game, start + 30, 300);
+    const offset = game.run<number>('flora.x - movingPlatforms[0].x');
+    game.step(60);
+    assert.equal(game.run('flora.y + flora.height'), 300, 'still riding the cloud');
+    assert.ok(Math.abs(game.run<number>('flora.x - movingPlatforms[0].x') - offset) < 0.01, 'moved with the cloud');
+});
+
+test('TW-6: the big flower needs three splashes and shows a hint', () => {
+    const game = loadGame();
+    goToLevel(game, 3);
+    const big = game.run<{ x: number; y: number }>('(({ x, y }) => ({ x, y }))(sprouts.find(s => s.waterNeeded === 3))');
+    assert.match(game.text('objective-display'), /big ones need extra/);
+    for (let splash = 1; splash <= 3; splash++) {
+        placeFlora(game, big.x - 20, big.y);
+        game.tap('Space');
+        const s = game.run<{ water: number; bloomed: boolean }>(`sprouts.find(s => s.waterNeeded === 3)`);
+        assert.equal(s.water, splash);
+        assert.equal(s.bloomed, splash === 3);
+    }
+});
+
+test('TW-7: Noodle introduces each new twist when its level starts', () => {
+    const game = loadGame();
+    goToLevel(game, 1);
+    assert.match(game.run<string>('noodle.speechBubble'), /mushroom/);
+    assert.ok(game.run<number>('noodle.barkTimer') > 100);
+    goToLevel(game, 2);
+    assert.match(game.run<string>('noodle.speechBubble'), /cloud/);
+});
+
+test('ST-1: the game opens on the start screen and waits for Play', () => {
+    const game = loadGame({ atStartScreen: true });
+    assert.equal(game.elements['start-screen'].hidden, false);
+    assert.equal(game.elements['continue-btn'].hidden, true, 'no Continue without a save');
+    assert.equal(game.run('screen'), 'start');
+
+    placeFlora(game, 100, 428);
+    game.press('ArrowRight');
+    game.step(10);
+    assert.equal(game.run('flora.x'), 100, 'nothing moves behind the start screen');
+
+    game.click('play-btn');
+    assert.equal(game.elements['start-screen'].hidden, true);
+    assert.equal(game.run('screen'), 'playing');
+    assert.equal(game.run('keys.ArrowRight'), false, 'keys held on the start screen are dropped');
+    assert.equal(game.text('level-display'), 'Level 1: Blooming Meadow');
+});
+
+test('SV-1: beating a level saves progress; reloading offers Continue', () => {
+    const storage = new Map<string, string>();
+    const first = loadGame({ storage });
+    clearLevel(first);
+    clearLevel(first);
+    assert.equal(first.run('currentLevel'), 2);
+
+    const reloaded = loadGame({ storage, atStartScreen: true });
+    assert.equal(reloaded.elements['continue-btn'].hidden, false);
+    assert.match(reloaded.text('continue-btn'), /Level 3/);
+    assert.match(reloaded.text('play-btn'), /New game/);
+
+    reloaded.click('continue-btn');
+    assert.equal(reloaded.run('currentLevel'), 2);
+    assert.equal(reloaded.run('rescuedFriends.map(f => f.species).join()'), 'kitty,puppy', 'parade is restored');
+    assert.equal(reloaded.text('level-display'), 'Level 3: Rainbow Hills');
+});
+
+test('SV-2: New game starts over and forgets the save', () => {
+    const storage = new Map<string, string>();
+    clearLevel(loadGame({ storage }));
+    const reloaded = loadGame({ storage, atStartScreen: true });
+    reloaded.click('play-btn');
+    assert.equal(reloaded.run('currentLevel'), 0);
+    assert.equal(reloaded.run('rescuedFriends.length'), 0);
+    assert.equal(storage.size, 0);
+});
+
+test('SV-3: winning the game clears the save', () => {
+    const storage = new Map<string, string>();
+    const game = loadGame({ storage });
+    for (let lvl = 0; lvl < LEVELS.length; lvl++) clearLevel(game);
+    assert.equal(game.dialog.open, true);
+    assert.equal(storage.size, 0);
+    assert.equal(loadGame({ storage, atStartScreen: true }).elements['continue-btn'].hidden, true);
+});
+
+test('SV-4: a broken or out-of-range save is ignored', () => {
+    for (const bad of ['not json', '{"level":"2"}', '{"level":0}', '{"level":99}', '{"level":1.5}']) {
+        const storage = new Map([['floras-adventure-save-v1', bad]]);
+        const game = loadGame({ storage, atStartScreen: true });
+        assert.equal(game.elements['continue-btn'].hidden, true, `save ${bad} should be ignored`);
+    }
+});
+
+test('LD-9: no flower is the same color as its level sky', () => {
+    const game = loadGame();
+    for (let lvl = 0; lvl < LEVELS.length; lvl++) {
+        goToLevel(game, lvl);
+        const colors = game.run<string>('sprouts.map(s => s.color.toUpperCase()).join()').split(',');
+        assert.ok(!colors.includes(LEVELS[lvl].bg.toUpperCase()), `level ${lvl + 1} hides a flower in the sky`);
+    }
 });

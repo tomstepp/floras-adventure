@@ -1,6 +1,9 @@
 // Auto-generated from TypeScript sources in src/ via scripts/build.mjs
 "use strict";
 
+// --- src/types.ts ---
+/** A platform that glides from `x` to `x + range` and back, once every `period` ticks. */
+
 // --- src/levels.ts ---
 /** Simulation rate: every physics/timer value below is tuned per 1/60 s tick. */
 const TICK_MS         = 1000 / 60;
@@ -20,6 +23,13 @@ const JUMP_CUT_VY         = -4;
 const COYOTE_TICKS         = 6;
 /** Grace ticks a jump pressed just before landing is remembered. */
 const JUMP_BUFFER_TICKS         = 6;
+/** Landing on a mushroom launches Flora upward this fast. */
+const BOUNCE_VY         = -16.5;
+/** Mushroom cap size; its top is MUSHROOM_HEIGHT above the surface it grows on. */
+const MUSHROOM_WIDTH         = 40;
+const MUSHROOM_HEIGHT         = 18;
+/** Highest bounce off a mushroom top in px. */
+const MAX_BOUNCE_HEIGHT         = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY) + MUSHROOM_HEIGHT;
 /** Highest jump in px (jump held): v^2 / 2g. */
 const MAX_JUMP_HEIGHT         = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
 
@@ -27,8 +37,8 @@ const MAX_JUMP_HEIGHT         = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
 const CONTROLS = {
     left: 'ArrowLeft',
     right: 'ArrowRight',
-    jump: 'Space',
-    water: 'ArrowUp',
+    jump: 'ArrowUp',
+    water: 'Space',
     dig: 'ArrowDown'
 }         ;
 
@@ -40,6 +50,9 @@ const FLOWER_COLORS                    = [
     "#55E6C1",
     "#74B9FF"
 ];
+
+/** Big flowers are always sunflowers, so they stand out against every level's sky. */
+const BIG_FLOWER_COLOR         = "#F39C12";
 
 const RAINBOW_COLORS                    = [
     "#FF7675",
@@ -85,19 +98,22 @@ const LEVELS                         = [
         species: "puppy",
         bg: "#70C8A0",
         treeX: 350,
+        tip: "Boing! Jump on the mushroom 🍄",
         platforms: [
             { x: 160, y: 350, width: 110 },
             { x: 320, y: 275, width: 120 },
-            { x: 500, y: 345, width: 115 }
+            { x: 500, y: 345, width: 115 },
+            { x: 560, y: 150, width: 100 }
         ],
+        mushrooms: [{ x: 640, y: 428 }],
         sprouts: [
             { x: 120, y: 428 },
             { x: 215, y: 350 },
             { x: 380, y: 275 },
             { x: 555, y: 345 }
         ],
-        mounds: [230, 350, 610],
-        keyPos: { x: 380, y: 245 }
+        mounds: [230, 350, 560],
+        keyPos: { x: 610, y: 120 }
     },
     {
         name: "Rainbow Hills",
@@ -106,19 +122,20 @@ const LEVELS                         = [
         species: "hamster",
         bg: "#FDB9C8",
         treeX: 450,
+        tip: "Ride the floating cloud ☁️",
         platforms: [
-            { x: 180, y: 345, width: 110 },
-            { x: 340, y: 345, width: 110 },
-            { x: 500, y: 270, width: 120 }
+            { x: 160, y: 345, width: 110 },
+            { x: 520, y: 215, width: 110 }
         ],
+        movingPlatforms: [{ x: 300, y: 300, width: 90, range: 150, period: 240 }],
         sprouts: [
-            { x: 235, y: 345 },
-            { x: 310, y: 428 },
-            { x: 395, y: 345 },
-            { x: 560, y: 270 }
+            { x: 120, y: 428 },
+            { x: 215, y: 345 },
+            { x: 420, y: 428 },
+            { x: 575, y: 215 }
         ],
-        mounds: [160, 450, 590],
-        keyPos: { x: 560, y: 240 }
+        mounds: [180, 470, 600],
+        keyPos: { x: 590, y: 185 }
     },
     {
         name: "Enchanted Garden",
@@ -127,6 +144,7 @@ const LEVELS                         = [
         species: "turtle",
         bg: "#A29BFE",
         treeX: 300,
+        tip: "The big flower needs 3 splashes 🌻",
         platforms: [
             { x: 140, y: 350, width: 105 },
             { x: 280, y: 275, width: 110 },
@@ -136,7 +154,7 @@ const LEVELS                         = [
         sprouts: [
             { x: 115, y: 428 },
             { x: 192, y: 350 },
-            { x: 335, y: 275 },
+            { x: 335, y: 275, waterNeeded: 3 },
             { x: 485, y: 345 },
             { x: 612, y: 265 }
         ],
@@ -150,17 +168,19 @@ const LEVELS                         = [
         species: "bunny",
         bg: "#FFEAA7",
         treeX: 500,
+        tip: "Bounce, float and splash! 🌈",
         platforms: [
             { x: 150, y: 350, width: 110 },
-            { x: 300, y: 275, width: 115 },
             { x: 460, y: 205, width: 120 },
             { x: 530, y: 345, width: 110 }
         ],
+        movingPlatforms: [{ x: 290, y: 275, width: 100, range: 90, period: 220 }],
+        mushrooms: [{ x: 455, y: 428 }],
         sprouts: [
             { x: 130, y: 428 },
             { x: 205, y: 350 },
-            { x: 357, y: 275 },
-            { x: 520, y: 205 },
+            { x: 357, y: 428 },
+            { x: 520, y: 205, waterNeeded: 2 },
             { x: 585, y: 345 }
         ],
         mounds: [240, 390, 500],
@@ -189,6 +209,53 @@ function fitScale(viewportWidth        , viewportHeight        , gutter         
     return Math.max(0.1, scale);
 }
 
+// --- src/save.ts ---
+/** Bump the suffix if the saved shape changes, so old saves are ignored instead of misread. */
+const SAVE_KEY         = 'floras-adventure-save-v1';
+
+                           
+                                                                                      
+                  
+ 
+
+/** localStorage, or null where it's blocked (private mode, disabled site data). */
+function getStorage()                 {
+    try {
+        return window.localStorage ?? null;
+    } catch {
+        return null;
+    }
+}
+
+function loadSave(storage                , levelCount        )                  {
+    try {
+        const raw = storage?.getItem(SAVE_KEY);
+        if (!raw) return null;
+        const data = JSON.parse(raw)                     ;
+        const level = data.level;
+        if (typeof level !== 'number' || !Number.isInteger(level) || level < 1 || level >= levelCount) return null;
+        return { level };
+    } catch {
+        return null;
+    }
+}
+
+function writeSave(storage                , data          )       {
+    try {
+        storage?.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch {
+        // Storage full or blocked: progress just isn't kept.
+    }
+}
+
+function clearSave(storage                )       {
+    try {
+        storage?.removeItem(SAVE_KEY);
+    } catch {
+        // Nothing to clear.
+    }
+}
+
 // --- src/audio.ts ---
 class AudioController {
            enabled          = false;
@@ -209,8 +276,14 @@ class AudioController {
     }
 
            toggle(currentLevel        , musicBtn             )       {
-        if (typeof Tone === 'undefined') return;
-        if (!this.enabled) {
+        this.setEnabled(!this.enabled, currentLevel, musicBtn);
+        musicBtn.blur();
+    }
+
+    /** Must be called from a click/tap: browsers only allow audio to start after a user gesture. */
+           setEnabled(on         , currentLevel        , musicBtn             )       {
+        if (typeof Tone === 'undefined' || on === this.enabled) return;
+        if (on) {
             void Tone.start();
             if (!this.synth) this.init();
             this.enabled = true;
@@ -221,7 +294,6 @@ class AudioController {
             musicBtn.innerText = '🎵 Music: OFF';
             Tone.Transport.stop();
         }
-        musicBtn.blur();
     }
 
            startBgMusic(currentLevel        )       {
@@ -250,6 +322,7 @@ class AudioController {
         if (type === 'bloom') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5"], "8n");
         if (type === 'bark') this.synth?.triggerAttackRelease("E3", "16n");
         if (type === 'key') this.polySynth?.triggerAttackRelease(["G5", "C6", "E6"], "4n");
+        if (type === 'bounce') this.synth?.triggerAttackRelease("C5", "16n");
         if (type === 'victory') this.polySynth?.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n");
     }
 }
@@ -339,6 +412,10 @@ function drawSun(ctx                          )       {
     ctx.beginPath();
     ctx.arc(700, 75, 34, 0, Math.PI * 2);
     ctx.fill();
+    // Outline keeps the sun visible on the pale yellow Pet Paradise sky.
+    ctx.strokeStyle = "#FDCB6E";
+    ctx.lineWidth = 4;
+    ctx.stroke();
 
     // Cute Sun Smiling Face
     ctx.fillStyle = "#2D3436";
@@ -384,6 +461,45 @@ function drawPlatforms(ctx                          , platforms                 
         ctx.fillStyle = "#00B894";
         ctx.beginPath();
         ctx.roundRect(p.x - 2, p.y, p.width + 4, 8, 5);
+        ctx.fill();
+    }
+}
+
+/** Moving platforms are fluffy clouds so they read as different from the earthy ledges. */
+function drawCloudPlatforms(ctx                          , platforms                     )       {
+    for (const p of platforms) {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.width, 14, 7);
+        ctx.fill();
+        const puffs = Math.max(2, Math.round(p.width / 30));
+        for (let i = 0; i < puffs; i++) {
+            ctx.beginPath();
+            ctx.arc(p.x + ((i + 0.5) * p.width) / puffs, p.y + 4, 10, Math.PI, 0);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(116, 185, 255, 0.35)";
+        ctx.fillRect(p.x + 6, p.y + 10, p.width - 12, 3);
+    }
+}
+
+function drawMushrooms(ctx                          , mushrooms                  )       {
+    for (const m of mushrooms) {
+        const squash = 1 + Math.sin(Date.now() * 0.008 + m.x) * 0.04;
+        // Stalk
+        ctx.fillStyle = "#FFF3E0";
+        ctx.fillRect(m.x - 7, m.y - MUSHROOM_HEIGHT + 6, 14, MUSHROOM_HEIGHT - 6);
+        // Cap
+        ctx.fillStyle = "#E84393";
+        ctx.beginPath();
+        ctx.ellipse(m.x, m.y - MUSHROOM_HEIGHT + 4, (MUSHROOM_WIDTH / 2) * squash, 12 / squash, 0, Math.PI, 0);
+        ctx.fill();
+        // Spots
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(m.x - 9, m.y - MUSHROOM_HEIGHT - 1, 3, 0, Math.PI * 2);
+        ctx.arc(m.x + 7, m.y - MUSHROOM_HEIGHT - 3, 3.5, 0, Math.PI * 2);
+        ctx.arc(m.x, m.y - MUSHROOM_HEIGHT + 2, 2, 0, Math.PI * 2);
         ctx.fill();
     }
 }
@@ -477,9 +593,11 @@ function drawSprouts(
     allBloomed         
 )       {
     for (const s of sprouts) {
+        const isBig = s.waterNeeded > 1;
         if (s.bloomed) {
             const danceY = allBloomed ? Math.sin(Date.now() * 0.01 + s.danceOffset) * 6 : 0;
-            const headY = s.y - 24 + danceY;
+            const headY = s.y - (isBig ? 36 : 24) + danceY;
+            const petal = isBig ? 19 : 13;
 
             // Stem grounded at s.y
             ctx.strokeStyle = "#27AE60";
@@ -492,12 +610,35 @@ function drawSprouts(
             // Flower Petals & Center
             ctx.fillStyle = s.color;
             ctx.beginPath();
-            ctx.arc(s.x, headY, 13, 0, Math.PI * 2);
+            ctx.arc(s.x, headY, petal, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = "#FFF";
+            ctx.fillStyle = isBig ? "#6D4C41" : "#FFF";
             ctx.beginPath();
-            ctx.arc(s.x, headY, 5, 0, Math.PI * 2);
+            ctx.arc(s.x, headY, isBig ? 8 : 5, 0, Math.PI * 2);
             ctx.fill();
+        } else if (isBig) {
+            // Big bud: grows taller with each splash, and shows how many splashes it still wants.
+            const growth = s.water / s.waterNeeded;
+            const budY = s.y - 16 - growth * 14;
+            ctx.strokeStyle = "#27AE60";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(s.x, budY);
+            ctx.stroke();
+            ctx.fillStyle = "#55EFC4";
+            ctx.beginPath();
+            ctx.ellipse(s.x - 8, s.y - 10, 8, 4, -0.4, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 8, s.y - 10, 8, 4, 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.ellipse(s.x, budY - 4, 7 + growth * 4, 10 + growth * 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.font = "11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - 20);
+            ctx.textAlign = "start";
         } else {
             // Unbloomed sprout rooted at s.y
             ctx.fillStyle = "#27AE60";
@@ -570,7 +711,7 @@ class Player {
            coyoteTimer         = COYOTE_TICKS;
     /** Ticks left in which an early jump press will fire on landing. */
            jumpBufferTimer         = 0;
-    /** True while rising from a jump that letting go of Space may still cut short. */
+    /** True while rising from a jump that letting go of ↑ may still cut short. */
            jumpRising          = false;
 
            reset()       {
@@ -588,6 +729,7 @@ class Player {
         keys                                   ,
         pressed                                   ,
         platforms                     ,
+        mushrooms                  ,
         canvasWidth        ,
         disabled         ,
         playSound                           ,
@@ -649,6 +791,25 @@ class Player {
         this.x += this.vx;
         this.y += this.vy;
         this.grounded = false;
+
+        // Landing on a mushroom cap launches Flora high into the air.
+        if (this.vy >= 0) {
+            for (const m of mushrooms) {
+                const top = m.y - MUSHROOM_HEIGHT;
+                if (
+                    this.x + this.width > m.x - MUSHROOM_WIDTH / 2 + 4 &&
+                    this.x < m.x + MUSHROOM_WIDTH / 2 - 4 &&
+                    prevBottom <= top + 6 &&
+                    this.y + this.height >= top
+                ) {
+                    this.y = top - this.height;
+                    this.vy = BOUNCE_VY;
+                    this.jumpRising = false;
+                    playSound('bounce');
+                    break;
+                }
+            }
+        }
 
         // One-way platform collisions
         if (this.vy >= 0) {
@@ -827,13 +988,20 @@ const victoryDialog = document.getElementById('victory-dialog')                 
 const levelDisplay = document.getElementById('level-display')               ;
 const statusDisplay = document.getElementById('status-display')               ;
 const objectiveDisplay = document.getElementById('objective-display')               ;
+const startScreen = document.getElementById('start-screen')               ;
+const playBtn = document.getElementById('play-btn')                     ;
+const continueBtn = document.getElementById('continue-btn')                     ;
 
 const audio = new AudioController();
 const particleSystem = new ParticleSystem();
+const storage = getStorage();
 
+                                              
+let screen         = 'start';
 let currentLevel         = 0;
-let gamePaused          = false;
 let levelClearTimer         = 0;
+/** Ticks since the level started; drives moving platforms. */
+let levelTicks         = 0;
 
 let flora         = new Player();
 let noodle         = new Noodle();
@@ -845,6 +1013,8 @@ let boneX         = 400;
 let keyCollected          = false;
 let keyX         = 530;
 let keyY         = 315;
+/** Where each of the level's moving platforms is this tick. */
+let movingPlatforms             = [];
 
 const keys                          = {};
 /** Keys that went down since the last tick, so a tap shorter than one tick still counts. */
@@ -862,7 +1032,7 @@ function clearKeys()       {
 const GAME_KEYS                    = Object.values(CONTROLS);
 
 window.addEventListener('keydown', (e               ) => {
-    if (GAME_KEYS.includes(e.code) && !gamePaused) {
+    if (GAME_KEYS.includes(e.code) && screen === 'playing') {
         e.preventDefault();
     }
     pressKey(e.code);
@@ -902,18 +1072,50 @@ musicBtn.addEventListener('click', () => {
 });
 
 restartBtn.addEventListener('click', () => {
-    // Blur so a later Space press jumps instead of clicking Restart again.
+    // Blur so a later Space press waters instead of clicking Restart again.
     restartBtn.blur();
-    if (!gamePaused && levelClearTimer === 0) restartLevel();
+    if (screen === 'playing' && levelClearTimer === 0) restartLevel();
+});
+
+/** Starts play at `level`, with every earlier pet already in the parade. */
+function startGame(level        )       {
+    currentLevel = level;
+    rescuedFriends = LEVELS.slice(0, level).map((l, i) => ({ species: l.species, x: 20 - (i + 1) * 28, y: 416 }));
+    if (level === 0) clearSave(storage);
+    noodle.x = 20;
+    restartLevel();
+    // Keys used on the start screen (Enter/Space on a button) must not leak into play.
+    clearKeys();
+    for (const code of Object.keys(pressed)) pressed[code] = false;
+    screen = 'playing';
+    startScreen.hidden = true;
+    document.body.classList.remove('on-start');
+}
+
+function showStartScreen()       {
+    screen = 'start';
+    const save = loadSave(storage, LEVELS.length);
+    continueBtn.hidden = !save;
+    if (save) continueBtn.innerText = `▶ Continue — Level ${save.level + 1}`;
+    playBtn.innerText = save ? '🌱 New game' : '▶ Play';
+    startScreen.hidden = false;
+    document.body.classList.add('on-start');
+    (save ? continueBtn : playBtn).focus();
+}
+
+// The Play tap is the user gesture browsers require before audio can start, so music comes on here.
+playBtn.addEventListener('click', () => {
+    audio.setEnabled(true, 0, musicBtn);
+    startGame(0);
+});
+continueBtn.addEventListener('click', () => {
+    const save = loadSave(storage, LEVELS.length);
+    audio.setEnabled(true, save?.level ?? 0, musicBtn);
+    startGame(save?.level ?? 0);
 });
 
 victoryDialog.addEventListener('close', () => {
-    currentLevel = 0;
-    rescuedFriends = [];
-    clearKeys();
-    initLevel();
-    flora.reset();
-    gamePaused = false;
+    startGame(0);
 });
 
 function allBloomed()          {
@@ -923,14 +1125,18 @@ function allBloomed()          {
 function objectiveText()         {
     if (levelClearTimer > 0) return `🎉 You rescued ${LEVELS[currentLevel].pet}!`;
     if (keyCollected) return '🏠 Bring the key to the doghouse!';
-    if (!allBloomed()) return '💦 Water every sprout';
+    if (!allBloomed()) {
+        return sprouts.some(s => !s.bloomed && s.waterNeeded > 1)
+            ? '💦 Water every sprout — big ones need extra splashes!'
+            : '💦 Water every sprout';
+    }
     if (!boneFound) return "🦴 Follow Noodle's nose and dig for the bone";
     return '🔑 Grab the shiny key!';
 }
 
 /** How much of the victory rainbow to draw: 0 while playing, sweeping to 1 once a level is beaten. */
 function rainbowProgress()         {
-    if (gamePaused) return 1; // final victory: keep the full rainbow behind the dialog
+    if (screen === 'victory') return 1; // keep the full rainbow behind the victory dialog
     if (levelClearTimer <= 0) return 0;
     return Math.min(1, (LEVEL_CLEAR_FRAMES - levelClearTimer + 1) / RAINBOW_SWEEP_FRAMES);
 }
@@ -949,6 +1155,8 @@ function initLevel()       {
     boneFound = false;
     keyCollected = false;
     levelClearTimer = 0;
+    levelTicks = 0;
+    movingPlatforms = movingPlatformsAt(0);
     keyX = level.keyPos.x;
     keyY = level.keyPos.y;
 
@@ -956,8 +1164,10 @@ function initLevel()       {
         sprouts.push({
             x: pos.x,
             y: pos.y,
+            water: 0,
+            waterNeeded: pos.waterNeeded ?? 1,
             bloomed: false,
-            color: FLOWER_COLORS[i % FLOWER_COLORS.length],
+            color: (pos.waterNeeded ?? 1) > 1 ? BIG_FLOWER_COLOR : FLOWER_COLORS[i % FLOWER_COLORS.length],
             danceOffset: Math.random() * Math.PI * 2
         });
     });
@@ -973,6 +1183,11 @@ function initLevel()       {
     });
     boneX = level.mounds[boneIdx];
 
+    if (level.tip) {
+        noodle.speechBubble = level.tip;
+        noodle.barkTimer = 240;
+    }
+
     levelDisplay.innerText = `Level ${currentLevel + 1}: ${level.name}`;
     updateStatus();
     if (audio.enabled) audio.startBgMusic(currentLevel);
@@ -987,11 +1202,16 @@ function checkWatering()       {
     const canCenterX = flora.facing === 'right' ? flora.x + 30 : flora.x + 2;
     const floraFeetY = flora.y + flora.height;
     for (const s of sprouts) {
-        if (!s.bloomed && Math.abs(canCenterX - s.x) < 48 && Math.abs(floraFeetY - s.y) < 48) {
+        if (s.bloomed || Math.abs(canCenterX - s.x) >= 48 || Math.abs(floraFeetY - s.y) >= 48) continue;
+        s.water++;
+        if (s.water >= s.waterNeeded) {
             s.bloomed = true;
             audio.playSound('bloom');
-            particleSystem.spawn(s.x, s.y - 24, s.color, 14, 'circle');
-            particleSystem.spawn(s.x, s.y - 28, '#FFEAA7', 6, 'star');
+            const big = s.waterNeeded > 1;
+            particleSystem.spawn(s.x, s.y - (big ? 36 : 24), s.color, big ? 24 : 14, 'circle');
+            particleSystem.spawn(s.x, s.y - (big ? 40 : 28), '#FFEAA7', big ? 12 : 6, 'star');
+        } else {
+            particleSystem.spawn(s.x, s.y - 20, '#74B9FF', 8, 'circle');
         }
     }
     updateStatus();
@@ -1067,13 +1287,39 @@ function updateLevelClear()       {
     });
 
     if (currentLevel === LEVELS.length - 1) {
-        gamePaused = true;
+        screen = 'victory';
+        clearSave(storage);
         updateStatus();
         victoryDialog.showModal();
     } else {
         currentLevel++;
+        writeSave(storage, { level: currentLevel });
         restartLevel();
     }
+}
+
+/** Positions of the level's moving platforms at tick `t`: an eased glide out and back. */
+function movingPlatformsAt(t        )             {
+    return (LEVELS[currentLevel].movingPlatforms ?? []).map(p => ({
+        x: p.x + (p.range * (1 - Math.cos((2 * Math.PI * t) / p.period))) / 2,
+        y: p.y,
+        width: p.width
+    }));
+}
+
+function updateMovingPlatforms()       {
+    levelTicks++;
+    const next = movingPlatformsAt(levelTicks);
+    // Carry Flora along with a platform she is standing on.
+    movingPlatforms.forEach((p, i) => {
+        const standing =
+            flora.grounded &&
+            Math.abs(flora.y + flora.height - p.y) < 0.5 &&
+            flora.x + flora.width > p.x + 6 &&
+            flora.x < p.x + p.width - 6;
+        if (standing) flora.x += next[i].x - p.x;
+    });
+    movingPlatforms = next;
 }
 
 function updateParade()       {
@@ -1090,15 +1336,18 @@ function update()       {
 }
 
 function tick()       {
-    if (gamePaused) return;
+    if (screen !== 'playing') return;
 
     updateKey();
     updateParade();
+    updateMovingPlatforms();
 
+    const level = LEVELS[currentLevel];
     flora.update(
         keys,
         pressed,
-        LEVELS[currentLevel].platforms,
+        [...level.platforms, ...movingPlatforms],
+        level.mushrooms ?? [],
         CANVAS_WIDTH,
         levelClearTimer > 0,
         type => audio.playSound(type),
@@ -1123,6 +1372,8 @@ function render()       {
     drawSun(ctx);
     drawTreeAndGround(ctx, CANVAS_WIDTH, level.treeX, digMounds, boneFound, boneX);
     drawPlatforms(ctx, level.platforms);
+    drawCloudPlatforms(ctx, movingPlatforms);
+    drawMushrooms(ctx, level.mushrooms ?? []);
     drawSprouts(ctx, sprouts, allBloomed());
     drawDoghouse(ctx);
 
@@ -1183,4 +1434,5 @@ function frame(now        )       {
 
 fitToScreen();
 initLevel();
+showStartScreen();
 requestAnimationFrame(frame);

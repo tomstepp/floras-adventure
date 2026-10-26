@@ -1,12 +1,15 @@
 import {
+    BOUNCE_VY,
     COYOTE_TICKS,
     CONTROLS,
     GRAVITY,
     JUMP_BUFFER_TICKS,
     JUMP_CUT_VY,
-    JUMP_VY
+    JUMP_VY,
+    MUSHROOM_HEIGHT,
+    MUSHROOM_WIDTH
 } from './levels.ts';
-import type { DigMound, Direction, Platform, SoundType } from './types.ts';
+import type { DigMound, Direction, Platform, Point, SoundType } from './types.ts';
 
 export class Player {
     public x: number = 50;
@@ -25,7 +28,7 @@ export class Player {
     public coyoteTimer: number = COYOTE_TICKS;
     /** Ticks left in which an early jump press will fire on landing. */
     public jumpBufferTimer: number = 0;
-    /** True while rising from a jump that letting go of Space may still cut short. */
+    /** True while rising from a jump that letting go of ↑ may still cut short. */
     public jumpRising: boolean = false;
 
     public reset(): void {
@@ -43,6 +46,7 @@ export class Player {
         keys: Readonly<Record<string, boolean>>,
         pressed: Readonly<Record<string, boolean>>,
         platforms: readonly Platform[],
+        mushrooms: readonly Point[],
         canvasWidth: number,
         disabled: boolean,
         playSound: (type: SoundType) => void,
@@ -104,6 +108,25 @@ export class Player {
         this.x += this.vx;
         this.y += this.vy;
         this.grounded = false;
+
+        // Landing on a mushroom cap launches Flora high into the air.
+        if (this.vy >= 0) {
+            for (const m of mushrooms) {
+                const top = m.y - MUSHROOM_HEIGHT;
+                if (
+                    this.x + this.width > m.x - MUSHROOM_WIDTH / 2 + 4 &&
+                    this.x < m.x + MUSHROOM_WIDTH / 2 - 4 &&
+                    prevBottom <= top + 6 &&
+                    this.y + this.height >= top
+                ) {
+                    this.y = top - this.height;
+                    this.vy = BOUNCE_VY;
+                    this.jumpRising = false;
+                    playSound('bounce');
+                    break;
+                }
+            }
+        }
 
         // One-way platform collisions
         if (this.vy >= 0) {

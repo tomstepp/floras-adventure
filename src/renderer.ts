@@ -1,5 +1,5 @@
-import { RAINBOW_COLORS } from './levels.ts';
-import type { DigMound, Platform, Species, Sprout } from './types.ts';
+import { MUSHROOM_HEIGHT, MUSHROOM_WIDTH, RAINBOW_COLORS } from './levels.ts';
+import type { DigMound, Platform, Point, Species, Sprout } from './types.ts';
 
 export function drawSun(ctx: CanvasRenderingContext2D): void {
     const time = Date.now() * 0.002;
@@ -17,6 +17,10 @@ export function drawSun(ctx: CanvasRenderingContext2D): void {
     ctx.beginPath();
     ctx.arc(700, 75, 34, 0, Math.PI * 2);
     ctx.fill();
+    // Outline keeps the sun visible on the pale yellow Pet Paradise sky.
+    ctx.strokeStyle = "#FDCB6E";
+    ctx.lineWidth = 4;
+    ctx.stroke();
 
     // Cute Sun Smiling Face
     ctx.fillStyle = "#2D3436";
@@ -62,6 +66,45 @@ export function drawPlatforms(ctx: CanvasRenderingContext2D, platforms: readonly
         ctx.fillStyle = "#00B894";
         ctx.beginPath();
         ctx.roundRect(p.x - 2, p.y, p.width + 4, 8, 5);
+        ctx.fill();
+    }
+}
+
+/** Moving platforms are fluffy clouds so they read as different from the earthy ledges. */
+export function drawCloudPlatforms(ctx: CanvasRenderingContext2D, platforms: readonly Platform[]): void {
+    for (const p of platforms) {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.width, 14, 7);
+        ctx.fill();
+        const puffs = Math.max(2, Math.round(p.width / 30));
+        for (let i = 0; i < puffs; i++) {
+            ctx.beginPath();
+            ctx.arc(p.x + ((i + 0.5) * p.width) / puffs, p.y + 4, 10, Math.PI, 0);
+            ctx.fill();
+        }
+        ctx.fillStyle = "rgba(116, 185, 255, 0.35)";
+        ctx.fillRect(p.x + 6, p.y + 10, p.width - 12, 3);
+    }
+}
+
+export function drawMushrooms(ctx: CanvasRenderingContext2D, mushrooms: readonly Point[]): void {
+    for (const m of mushrooms) {
+        const squash = 1 + Math.sin(Date.now() * 0.008 + m.x) * 0.04;
+        // Stalk
+        ctx.fillStyle = "#FFF3E0";
+        ctx.fillRect(m.x - 7, m.y - MUSHROOM_HEIGHT + 6, 14, MUSHROOM_HEIGHT - 6);
+        // Cap
+        ctx.fillStyle = "#E84393";
+        ctx.beginPath();
+        ctx.ellipse(m.x, m.y - MUSHROOM_HEIGHT + 4, (MUSHROOM_WIDTH / 2) * squash, 12 / squash, 0, Math.PI, 0);
+        ctx.fill();
+        // Spots
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(m.x - 9, m.y - MUSHROOM_HEIGHT - 1, 3, 0, Math.PI * 2);
+        ctx.arc(m.x + 7, m.y - MUSHROOM_HEIGHT - 3, 3.5, 0, Math.PI * 2);
+        ctx.arc(m.x, m.y - MUSHROOM_HEIGHT + 2, 2, 0, Math.PI * 2);
         ctx.fill();
     }
 }
@@ -155,9 +198,11 @@ export function drawSprouts(
     allBloomed: boolean
 ): void {
     for (const s of sprouts) {
+        const isBig = s.waterNeeded > 1;
         if (s.bloomed) {
             const danceY = allBloomed ? Math.sin(Date.now() * 0.01 + s.danceOffset) * 6 : 0;
-            const headY = s.y - 24 + danceY;
+            const headY = s.y - (isBig ? 36 : 24) + danceY;
+            const petal = isBig ? 19 : 13;
 
             // Stem grounded at s.y
             ctx.strokeStyle = "#27AE60";
@@ -170,12 +215,35 @@ export function drawSprouts(
             // Flower Petals & Center
             ctx.fillStyle = s.color;
             ctx.beginPath();
-            ctx.arc(s.x, headY, 13, 0, Math.PI * 2);
+            ctx.arc(s.x, headY, petal, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = "#FFF";
+            ctx.fillStyle = isBig ? "#6D4C41" : "#FFF";
             ctx.beginPath();
-            ctx.arc(s.x, headY, 5, 0, Math.PI * 2);
+            ctx.arc(s.x, headY, isBig ? 8 : 5, 0, Math.PI * 2);
             ctx.fill();
+        } else if (isBig) {
+            // Big bud: grows taller with each splash, and shows how many splashes it still wants.
+            const growth = s.water / s.waterNeeded;
+            const budY = s.y - 16 - growth * 14;
+            ctx.strokeStyle = "#27AE60";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(s.x, budY);
+            ctx.stroke();
+            ctx.fillStyle = "#55EFC4";
+            ctx.beginPath();
+            ctx.ellipse(s.x - 8, s.y - 10, 8, 4, -0.4, 0, Math.PI * 2);
+            ctx.ellipse(s.x + 8, s.y - 10, 8, 4, 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.ellipse(s.x, budY - 4, 7 + growth * 4, 10 + growth * 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.font = "11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("💧".repeat(s.waterNeeded - s.water), s.x, budY - 20);
+            ctx.textAlign = "start";
         } else {
             // Unbloomed sprout rooted at s.y
             ctx.fillStyle = "#27AE60";

@@ -28,13 +28,44 @@ export interface Game {
     /** Simulates a finger on an on-screen button, by its data-key code. */
     touch(code: string, type: 'pointerdown' | 'pointerup' | 'pointercancel'): void;
     resize(width: number, height: number, devicePixelRatio?: number): void;
+    /** Clicks a button element by id. */
+    click(id: string): void;
     dialog: DialogMock;
     elements: Record<string, Record<string, unknown>>;
     text(id: string): string;
+    storage: Map<string, string>;
 }
 
-/** Loads a fresh copy of dist/game.js into an isolated fake browser. */
-export function loadGame(): Game {
+export interface LoadOptions {
+    /** Shared localStorage contents; pass the same map to simulate reloading the page. */
+    storage?: Map<string, string>;
+    /** Stay on the start screen instead of pressing Play. */
+    atStartScreen?: boolean;
+}
+
+/** A fake DOM element that records listeners and supports click(). */
+function makeElement(props: Record<string, unknown> = {}): Record<string, unknown> {
+    const listeners: Record<string, (event?: unknown) => void> = {};
+    return {
+        innerText: '',
+        hidden: false,
+        style: {},
+        classList: { add() {}, remove() {} },
+        addEventListener(evt: string, fn: (event?: unknown) => void) {
+            listeners[evt] = fn;
+        },
+        click() {
+            listeners.click?.();
+        },
+        focus() {},
+        blur() {},
+        ...props
+    };
+}
+
+/** Loads a fresh copy of dist/game.js into an isolated fake browser, then presses Play. */
+export function loadGame(options: LoadOptions = {}): Game {
+    const storage = options.storage ?? new Map<string, string>();
     const windowListeners: Record<string, (event?: unknown) => void> = {};
     let pendingFrame: ((now: number) => void) | null = null;
 
@@ -64,8 +95,7 @@ export function loadGame(): Game {
     );
 
     const buttonListeners: Record<string, Record<string, (event: unknown) => void>> = {};
-    const restartListeners: Record<string, () => void> = {};
-    const touchButtons = ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Space'].map(code => {
+    const touchButtons = ['ArrowLeft', 'ArrowRight', 'ArrowDown', 'Space', 'ArrowUp'].map(code => {
         buttonListeners[code] = {};
         return {
             dataset: { key: code },
@@ -78,29 +108,31 @@ export function loadGame(): Game {
     });
 
     const elements: Record<string, Record<string, unknown>> = {
-        'game-stage': { style: {} },
-        'game-container': { style: {} },
-        gameCanvas: { width: 800, height: 500, getContext: () => ctx },
-        'music-btn': { innerText: '🎵 Music: OFF', addEventListener() {}, blur() {} },
-        'restart-btn': {
-            addEventListener(evt: string, fn: () => void) {
-                restartListeners[evt] = fn;
-            },
-            blur() {},
-            click() {
-                restartListeners.click?.();
-            }
-        },
+        'game-stage': makeElement(),
+        'game-container': makeElement(),
+        gameCanvas: makeElement({ width: 800, height: 500, getContext: () => ctx }),
+        'music-btn': makeElement({ innerText: '🎵 Music: OFF' }),
+        'restart-btn': makeElement(),
         'victory-dialog': dialog,
-        'level-display': { innerText: '' },
-        'status-display': { innerText: '' },
-        'objective-display': { innerText: '' }
+        'level-display': makeElement(),
+        'status-display': makeElement(),
+        'objective-display': makeElement(),
+        'start-screen': makeElement({ hidden: true }),
+        'play-btn': makeElement(),
+        'continue-btn': makeElement({ hidden: true })
+    };
+
+    const localStorage = {
+        getItem: (k: string) => storage.get(k) ?? null,
+        setItem: (k: string, v: string) => void storage.set(k, String(v)),
+        removeItem: (k: string) => void storage.delete(k)
     };
 
     const fakeWindow = {
         innerWidth: 1280,
         innerHeight: 800,
         devicePixelRatio: 1,
+        localStorage,
         addEventListener(evt: string, fn: (event?: unknown) => void) {
             windowListeners[evt] = fn;
         }
@@ -109,6 +141,7 @@ export function loadGame(): Game {
     const sandbox = {
         document: {
             documentElement: { clientWidth: 0, clientHeight: 0 },
+            body: makeElement(),
             getElementById: (id: string) => elements[id],
             querySelectorAll: (selector: string) => (selector === '[data-key]' ? touchButtons : [])
         },
@@ -129,8 +162,13 @@ export function loadGame(): Game {
         (windowListeners[type] as KeyHandler)({ code, preventDefault() {} });
     };
 
+    const click = (id: string): void => (elements[id].click as () => void)();
+    if (!options.atStartScreen) click('play-btn');
+
     return {
         run,
+        click,
+        storage,
         step(ticks = 1) {
             for (let i = 0; i < ticks; i++) run('update(); render();');
         },
@@ -176,7 +214,10 @@ export function bloomAll(game: Game): void {
     const sprouts = game.run<{ x: number; y: number }[]>('sprouts.map(s => ({ x: s.x, y: s.y }))');
     for (const s of sprouts) {
         placeFlora(game, s.x - 20, s.y);
-        game.tap('ArrowUp');
+        for (let i = 0; i < game.run<number>(`sprouts.find(s => s.x === ${s.x}).waterNeeded`); i++) {
+            game.run('flora.waterTimer = 0; flora.isWatering = false;');
+            game.tap('Space');
+        }
     }
 }
 

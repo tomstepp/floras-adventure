@@ -201,6 +201,126 @@
             }
         }
 
+        #start-screen {
+            position: absolute;
+            inset: 0;
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.92), rgba(255, 236, 242, 0.95));
+            color: #2d3436;
+            text-align: center;
+        }
+
+        #start-screen[hidden] {
+            display: none;
+        }
+
+        #start-screen h1 {
+            font-size: 40px;
+            color: #FF6B8B;
+            text-shadow: 0 3px 0 #FFD1DC;
+        }
+
+        .how-to-play {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .how-to-play li {
+            width: 136px;
+            padding: 12px 8px;
+            background: #fff;
+            border: 3px solid #FFB6C1;
+            border-radius: 18px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .how-to-play li.arrow {
+            width: auto;
+            padding: 0;
+            border: none;
+            background: none;
+            box-shadow: none;
+            font-size: 26px;
+            color: #FFB6C1;
+        }
+
+        .how-to-play .pic {
+            display: block;
+            font-size: 44px;
+            line-height: 1.2;
+        }
+
+        .how-to-play .label {
+            display: block;
+            font-weight: bold;
+            font-size: 15px;
+            margin-top: 4px;
+        }
+
+        .how-to-play kbd,
+        .start-controls kbd {
+            display: inline-block;
+            min-width: 26px;
+            padding: 1px 6px;
+            margin-top: 6px;
+            border: 2px solid #b2bec3;
+            border-bottom-width: 4px;
+            border-radius: 7px;
+            background: #f5f6fa;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: bold;
+            line-height: 1.4;
+            color: #2d3436;
+        }
+
+        .start-controls {
+            font-size: 14px;
+            color: #636e72;
+        }
+
+        .start-buttons {
+            display: flex;
+            gap: 14px;
+        }
+
+        .start-buttons .btn {
+            font-size: 22px;
+            padding: 14px 30px;
+            border-radius: 30px;
+        }
+
+        .start-buttons .btn.secondary {
+            background: #74B9FF;
+            box-shadow: 0 4px 0 #4A90D9;
+        }
+
+        .touch-only {
+            display: none;
+        }
+
+        body.on-start .touch-controls {
+            display: none !important;
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .how-to-play kbd,
+            .start-controls .keys-only {
+                display: none;
+            }
+
+            .touch-only {
+                display: inline;
+            }
+        }
+
         #victory-dialog {
             margin: auto;
             border: 4px solid #FFB6C1;
@@ -254,7 +374,7 @@
     <script defer src="dist/game.js"></script>
 </head>
 
-<body>
+<body class="on-start">
 
     <div id="game-stage">
         <main id="game-container">
@@ -267,8 +387,25 @@
                 </div>
             </div>
             <div class="objective" id="objective-display" role="status" aria-live="polite"></div>
+            <section id="start-screen" hidden aria-labelledby="start-title">
+                <h1 id="start-title">🌸 Flora's Magical Adventure 🐶</h1>
+                <ol class="how-to-play" aria-label="How to play">
+                    <li><span class="pic">🌱💦</span><span class="label">Water flowers</span><kbd>Space</kbd><span class="touch-only">💦</span></li>
+                    <li class="arrow" aria-hidden="true">➜</li>
+                    <li><span class="pic">🐶🦴</span><span class="label">Dig for the bone</span><kbd>↓</kbd><span class="touch-only">🦴</span></li>
+                    <li class="arrow" aria-hidden="true">➜</li>
+                    <li><span class="pic">🔑✨</span><span class="label">Grab the key</span><kbd>↑</kbd><span class="touch-only">⬆</span></li>
+                    <li class="arrow" aria-hidden="true">➜</li>
+                    <li><span class="pic">🏠🐱</span><span class="label">Rescue a pet!</span><kbd>→</kbd><span class="touch-only">▶</span></li>
+                </ol>
+                <p class="start-controls"><span class="keys-only"><kbd>←</kbd> <kbd>→</kbd> walk &nbsp;·&nbsp; <kbd>↑</kbd> jump</span><span class="touch-only">Use the big buttons to walk, jump, water and dig</span></p>
+                <div class="start-buttons">
+                    <button type="button" class="btn secondary" id="continue-btn" hidden>▶ Continue</button>
+                    <button type="button" class="btn" id="play-btn">▶ Play</button>
+                </div>
+            </section>
             <canvas id="gameCanvas" width="800" height="500"></canvas>
-            <div class="controls-hint">← → Move | Space: Jump | ↑ Water 💦 | ↓ Dig 🦴</div>
+            <div class="controls-hint">← → Move | ↑ Jump | Space: Water 💦 | ↓ Dig 🦴</div>
         </main>
     </div>
 
@@ -279,8 +416,8 @@
         </div>
         <div class="touch-group actions">
             <button type="button" class="touch-btn" data-key="ArrowDown" aria-label="Dig">🦴</button>
-            <button type="button" class="touch-btn" data-key="ArrowUp" aria-label="Water">💦</button>
-            <button type="button" class="touch-btn jump" data-key="Space" aria-label="Jump">⬆</button>
+            <button type="button" class="touch-btn" data-key="Space" aria-label="Water">💦</button>
+            <button type="button" class="touch-btn jump" data-key="ArrowUp" aria-label="Jump">⬆</button>
         </div>
     </div>
 

@@ -13,7 +13,7 @@ Requirement IDs (e.g. `LV-3`) are referenced from the tests in `tests/`.
 | PL-2 | Source is TypeScript in `src/`, type-checked with `npm run typecheck` (strict mode, no errors). |
 | PL-3 | The playfield is an 800×500 canvas. Ground surface is at y = 428. |
 | PL-4 | The simulation runs at a fixed 60 ticks per second, independent of display refresh rate (60 Hz and 120 Hz screens play at the same speed). After a long pause (e.g. backgrounded tab) the game must not fast-forward more than 250 ms. |
-| PL-5 | Music/sound effects use Tone.js and are **off by default**; the game is fully playable if Tone.js fails to load. |
+| PL-5 | Music/sound effects use Tone.js. Browsers only allow audio after a click or tap, so music switches **on** when the player taps Play/Continue on the start screen; the 🎵 button turns it off/on. The game is fully playable if Tone.js fails to load. |
 | PL-6 | The game box scales to fit the window (16 px gutter, keeping its 8:5 shape, at most 1.5×) and re-fits on resize/rotation. The canvas renders at the device's real pixel density so it stays sharp. |
 | PL-7 | On touch devices (no hover, coarse pointer) on-screen buttons appear: ◀ ▶ bottom-left; dig 🦴, water 💦 and a larger jump ⬆ bottom-right. A button acts as held while a finger is on it, and is released when the finger lifts or the touch is cancelled. The keyboard hint is hidden there. |
 
@@ -24,16 +24,34 @@ Desktop uses only the arrow keys and Space. Touch devices get on-screen buttons 
 | ID | Requirement |
 |----|-------------|
 | CT-1 | Move: ← / →. |
-| CT-2 | Jump: Space. ↑ does **not** jump. |
-| CT-3 | Water: ↑. Blooms any unbloomed sprout within 48 px of the watering can, at roughly Flora's foot height. |
+| CT-2 | Jump: ↑. Space does **not** jump. |
+| CT-3 | Water: Space. Blooms any unbloomed sprout within 48 px of the watering can, at roughly Flora's foot height. |
 | CT-4 | Dig: ↓, only while standing on the ground (not a platform). |
 | CT-5 | Restart level: the ↺ Restart button in the HUD. Resets the current level's sprouts, bone, key and Flora's position. Ignored during the level-clear celebration and the victory dialog. |
 | CT-6 | Arrow keys and Space don't scroll the page during play. Letter keys do nothing. |
 | CT-7 | If the window loses focus, all held keys are released (Flora stops moving). |
-| CT-8 | A jump fires when Space is pressed, not while it is held: holding Space doesn't keep bouncing. |
-| CT-9 | Releasing Space early cuts the jump short (a small hop); holding it gives the full jump height. |
+| CT-8 | A jump fires when ↑ is pressed, not while it is held: holding ↑ doesn't keep bouncing. |
+| CT-9 | Releasing ↑ early cuts the jump short (a small hop); holding it gives the full jump height. |
 | CT-10 | Coyote time: a jump still works for 6 ticks (~0.1 s) after walking off a ledge. |
 | CT-11 | Jump buffer: a jump pressed up to 6 ticks before landing fires on landing. |
+
+## 2a. Start screen
+
+| ID | Requirement |
+|----|-------------|
+| ST-1 | The game opens on a start screen over the first level. Nothing moves until the player picks a button; keys held on the start screen don't carry into play. |
+| ST-2 | It shows how to play as four pictures in order — water flowers → dig for the bone → grab the key → rescue a pet — each with its key (desktop) or button icon (touch), so non-readers can follow it. |
+| ST-3 | With no save it offers **▶ Play**. With a save it offers **▶ Continue — Level N** (focused) and **🌱 New game**. |
+| ST-4 | On-screen touch buttons are hidden while the start screen is up. |
+
+## 2b. Saving
+
+| ID | Requirement |
+|----|-------------|
+| SV-1 | After each level is beaten, the next level number is saved in the browser (localStorage). Continue resumes there with all earlier pets already in the parade. |
+| SV-2 | New game forgets the save and starts at level 1. |
+| SV-3 | Winning the whole game clears the save. |
+| SV-4 | A missing, broken or out-of-range save is ignored, and blocked storage (e.g. private mode) never breaks the game — progress just isn't kept. |
 
 ## 3. Level flow
 
@@ -41,14 +59,28 @@ Each level is completed in this order:
 
 | ID | Requirement |
 |----|-------------|
-| LV-1 | **Bloom** every sprout in the level (count equals the level's `flowersNeeded`). |
+| LV-1 | **Bloom** every sprout in the level (count equals the level's `flowersNeeded`). Each splash of water adds one to a sprout; most bloom after 1, big flowers after 2–3 (see TW-6). |
 | LV-2 | **Find the bone**: one of the level's dirt mounds, chosen at random each time the level starts, hides Noodle's bone. Digging an empty mound shows "Keep sniffing!". Digging targets the *closest undug* mound within 48 px. The bone may be dug before all flowers bloom. |
 | LV-3 | When Flora is within 95 px of the bone mound, Noodle runs to it and barks "🦴 Dig here!". |
 | LV-4 | **Collect the key**: the key appears only once all sprouts are bloomed **and** the bone is found. Touching it collects it. |
 | LV-5 | **Enter the doghouse**: walking right past x = 685 while holding the key starts a 75-tick celebration that names the rescued pet. Reaching the doghouse without the key does not end the level; Noodle says it's locked. |
 | LV-6 | After the celebration the pet joins the parade following Noodle, and the next level starts with Flora back at the left side. |
-| LV-7 | After level 5 the victory dialog opens and the game pauses. Closing it (button, Esc, or clicking outside) restarts from level 1 with an empty parade. |
+| LV-7 | After level 5 the victory dialog opens and the game pauses. Closing it (button, Esc, or clicking outside) starts a new game at level 1 with an empty parade. |
 | LV-8 | The rainbow is hidden during play. When the level is beaten it sweeps across the sky from left to right (~2/3 s) during the celebration, disappears when the next level starts, and stays fully drawn behind the final victory dialog. |
+
+## 3a. Level twists
+
+Each level after the first adds one new idea; the last level mixes them all.
+
+| ID | Requirement |
+|----|-------------|
+| TW-1 | Level 1: no twist. Level 2: bouncy mushroom. Level 3: moving cloud. Level 4: big flower. Level 5: all three. |
+| TW-2 | Level 2's key sits on a ledge only the mushroom bounce can reach. |
+| TW-3 | Level 3's key sits on a ledge only reachable from the moving cloud. |
+| TW-4 | **Mushroom:** landing on its cap from above launches Flora much higher than a jump (≈ 320 px). Walking into it along the ground does nothing. |
+| TW-5 | **Moving cloud:** glides smoothly out and back along a fixed stretch; Flora standing on it is carried along. It's drawn as a white cloud, unlike the earthy ledges. |
+| TW-6 | **Big flower:** needs several splashes. The bud grows with each splash and shows 💧 for each splash still needed; it blooms bigger than a normal flower. The objective line mentions that big ones need extra splashes. |
+| TW-7 | When a level with a twist starts, Noodle's speech bubble introduces it for ~4 s. |
 
 ## 4. HUD
 
@@ -66,13 +98,15 @@ These are checked automatically against `src/levels.ts` so new levels can't be u
 | ID | Requirement |
 |----|-------------|
 | LD-1 | There are exactly 5 levels, each with a unique pet and a background melody. |
-| LD-2 | Every sprout sits either on the ground or on top of a platform, within its horizontal span. |
-| LD-3 | Every platform can be reached by a jump (max jump height ≈ 115 px) from the ground or from a lower platform, with at least 10 px margin. |
-| LD-4 | The key sits 30 px above a platform (or the ground), inside that platform's span. |
+| LD-2 | Every sprout sits either on the ground or on top of a platform that holds still, within its horizontal span. |
+| LD-3 | Every platform (and each moving cloud's whole stretch) can be reached, with at least 10 px margin: by a jump (≈ 115 px up, ≤ 140 px sideways gap) from a reached surface, or by a mushroom bounce from almost directly below. |
+| LD-4 | The key sits 30 px above a reachable platform that holds still (or the ground), inside that platform's span. |
 | LD-5 | Each level has at least 2 dirt mounds, at least 40 px apart, clear of the doghouse (x < 640) and of the starting area (x > 100). |
-| LD-6 | Platforms stay inside the canvas and end before the doghouse body (right edge ≤ 670). |
+| LD-6 | Platforms (including a cloud's whole stretch) stay inside the canvas and end before the doghouse body (right edge ≤ 670). |
+| LD-7 | Mushrooms grow on the ground, at least 40 px from any dig mound, clear of the start area and the doghouse. |
+| LD-8 | Big flowers need 2 or 3 splashes. |
+| LD-9 | No flower is drawn in the same color as its level's sky. Big flowers are always orange sunflowers. |
 
 ## 6. Out of scope (ideas for later)
 
-- Saving progress between sessions.
 - Hazards, enemies or a timer — the game is intentionally stress-free.

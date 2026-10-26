@@ -18,6 +18,13 @@ export const JUMP_CUT_VY: number = -4;
 export const COYOTE_TICKS: number = 6;
 /** Grace ticks a jump pressed just before landing is remembered. */
 export const JUMP_BUFFER_TICKS: number = 6;
+/** Landing on a mushroom launches Flora upward this fast. */
+export const BOUNCE_VY: number = -16.5;
+/** Mushroom cap size; its top is MUSHROOM_HEIGHT above the surface it grows on. */
+export const MUSHROOM_WIDTH: number = 40;
+export const MUSHROOM_HEIGHT: number = 18;
+/** Highest bounce off a mushroom top in px. */
+export const MAX_BOUNCE_HEIGHT: number = (BOUNCE_VY * BOUNCE_VY) / (2 * GRAVITY) + MUSHROOM_HEIGHT;
 /** Highest jump in px (jump held): v^2 / 2g. */
 export const MAX_JUMP_HEIGHT: number = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
 
@@ -25,8 +32,8 @@ export const MAX_JUMP_HEIGHT: number = (JUMP_VY * JUMP_VY) / (2 * GRAVITY);
 export const CONTROLS = {
     left: 'ArrowLeft',
     right: 'ArrowRight',
-    jump: 'Space',
-    water: 'ArrowUp',
+    jump: 'ArrowUp',
+    water: 'Space',
     dig: 'ArrowDown'
 } as const;
 
@@ -38,6 +45,9 @@ export const FLOWER_COLORS: readonly string[] = [
     "#55E6C1",
     "#74B9FF"
 ];
+
+/** Big flowers are always sunflowers, so they stand out against every level's sky. */
+export const BIG_FLOWER_COLOR: string = "#F39C12";
 
 export const RAINBOW_COLORS: readonly string[] = [
     "#FF7675",
@@ -83,19 +93,22 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "puppy",
         bg: "#70C8A0",
         treeX: 350,
+        tip: "Boing! Jump on the mushroom 🍄",
         platforms: [
             { x: 160, y: 350, width: 110 },
             { x: 320, y: 275, width: 120 },
-            { x: 500, y: 345, width: 115 }
+            { x: 500, y: 345, width: 115 },
+            { x: 560, y: 150, width: 100 }
         ],
+        mushrooms: [{ x: 640, y: 428 }],
         sprouts: [
             { x: 120, y: 428 },
             { x: 215, y: 350 },
             { x: 380, y: 275 },
             { x: 555, y: 345 }
         ],
-        mounds: [230, 350, 610],
-        keyPos: { x: 380, y: 245 }
+        mounds: [230, 350, 560],
+        keyPos: { x: 610, y: 120 }
     },
     {
         name: "Rainbow Hills",
@@ -104,19 +117,20 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "hamster",
         bg: "#FDB9C8",
         treeX: 450,
+        tip: "Ride the floating cloud ☁️",
         platforms: [
-            { x: 180, y: 345, width: 110 },
-            { x: 340, y: 345, width: 110 },
-            { x: 500, y: 270, width: 120 }
+            { x: 160, y: 345, width: 110 },
+            { x: 520, y: 215, width: 110 }
         ],
+        movingPlatforms: [{ x: 300, y: 300, width: 90, range: 150, period: 240 }],
         sprouts: [
-            { x: 235, y: 345 },
-            { x: 310, y: 428 },
-            { x: 395, y: 345 },
-            { x: 560, y: 270 }
+            { x: 120, y: 428 },
+            { x: 215, y: 345 },
+            { x: 420, y: 428 },
+            { x: 575, y: 215 }
         ],
-        mounds: [160, 450, 590],
-        keyPos: { x: 560, y: 240 }
+        mounds: [180, 470, 600],
+        keyPos: { x: 590, y: 185 }
     },
     {
         name: "Enchanted Garden",
@@ -125,6 +139,7 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "turtle",
         bg: "#A29BFE",
         treeX: 300,
+        tip: "The big flower needs 3 splashes 🌻",
         platforms: [
             { x: 140, y: 350, width: 105 },
             { x: 280, y: 275, width: 110 },
@@ -134,7 +149,7 @@ export const LEVELS: readonly LevelConfig[] = [
         sprouts: [
             { x: 115, y: 428 },
             { x: 192, y: 350 },
-            { x: 335, y: 275 },
+            { x: 335, y: 275, waterNeeded: 3 },
             { x: 485, y: 345 },
             { x: 612, y: 265 }
         ],
@@ -148,17 +163,19 @@ export const LEVELS: readonly LevelConfig[] = [
         species: "bunny",
         bg: "#FFEAA7",
         treeX: 500,
+        tip: "Bounce, float and splash! 🌈",
         platforms: [
             { x: 150, y: 350, width: 110 },
-            { x: 300, y: 275, width: 115 },
             { x: 460, y: 205, width: 120 },
             { x: 530, y: 345, width: 110 }
         ],
+        movingPlatforms: [{ x: 290, y: 275, width: 100, range: 90, period: 220 }],
+        mushrooms: [{ x: 455, y: 428 }],
         sprouts: [
             { x: 130, y: 428 },
             { x: 205, y: 350 },
-            { x: 357, y: 275 },
-            { x: 520, y: 205 },
+            { x: 357, y: 428 },
+            { x: 520, y: 205, waterNeeded: 2 },
             { x: 585, y: 345 }
         ],
         mounds: [240, 390, 500],
